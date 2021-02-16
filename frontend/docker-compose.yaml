@@ -1,0 +1,10 @@
+version: "3"
+services:
+  python-hp:
+    build: .
+    ports:
+      - "22:2222"
+    volumes:
+        - $PWD/frontend:/usr/src/app
+
+
