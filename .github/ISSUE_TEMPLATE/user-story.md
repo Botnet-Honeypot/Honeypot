@@ -7,15 +7,15 @@ assignees: ''
 
 ---
 
-**Description**
+## Description:
 As a user I want to do X so that I can Y
 
 **Difficulty:** A Fibonacci number
 
-**Tasks**
+## Tasks:
 - [ ] Tasks to complete
 - [ ] goes here
 
-**Acceptance criteria**
-- Acceptance criteria
-- goes here
+## Acceptance Criteria:
+- [ ] Acceptance criteria
+- [ ] goes here
