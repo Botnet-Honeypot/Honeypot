@@ -5,6 +5,6 @@ services:
     ports:
       - "22:2222"
     volumes:
-        - $PWD/frontend:/usr/src/app
+        - ${PWD}/frontend:/usr/src/app
 
 
