@@ -1,0 +1,38 @@
+{
+	"folders": [
+		{
+			"name": "Backend",
+			"path": "backend"
+		},
+		{
+			"name": "Frontend",
+			"path": "frontend"
+		}
+	],
+	"settings": {
+		"python.linting.pylintArgs": [
+			"--rcfile=../.pylintrc"
+		]
+	},
+	"extensions": {
+		"recommendations": [
+			"ms-python.python",
+			"ms-azuretools.vscode-docker"
+		]
+	},
+	"tasks": {
+		"version": "2.0.0",
+		"tasks": [
+			{
+				"label": "Setup Poetry",
+				"type": "shell",
+				"command": "poetry install",
+				"problemMatcher": []
+			}
+		]
+	},
+	"launch": {
+		"configurations": [],
+		"compounds": []
+	}
+}
