@@ -18,12 +18,14 @@
     "python.analysis.typeCheckingMode": "basic",
     "editor.formatOnSave": true,
     "python.formatting.provider": "autopep8",
-    "python.formatting.autopep8Path": "autopep8"
+    "python.formatting.autopep8Path": "autopep8",
+    "autoDocstring.docstringFormat": "sphinx"
   },
   "extensions": {
     "recommendations": [
       "ms-python.python",
       "ms-python.vscode-pylance",
+      "njpwerner.autodocstring",
       "ms-azuretools.vscode-docker"
     ]
   },
