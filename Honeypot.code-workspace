@@ -10,6 +10,10 @@
 		}
 	],
 	"settings": {
+		"python.linting.enabled": true,
+		"python.linting.lintOnSave": true,
+		"python.linting.pylintEnabled": true,
+		"python.linting.pylintPath": "pylint",
 		"python.linting.pylintArgs": [
 			"--rcfile=../.pylintrc"
 		]
