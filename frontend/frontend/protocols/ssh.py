@@ -34,8 +34,8 @@ class Server(paramiko.ServerInterface):
         return 'password'  # If we don't allow publickey auth
 
     # SSH Server banner
-    def get_banner(self) -> Tuple[str, str]:
-        return ("SSH-2.0-OpenSSH_5.9p1 Debian-5ubuntu1.4", "en-US")
+    # def get_banner(self) -> Tuple[str, str]:
+    #     return ("SSH-2.0-OpenSSH_5.9p1 Debian-5ubuntu1.4", "en-US")
 
     # This is called after successfull auth
     def check_channel_request(self, kind: str, chanid: int) -> int:
