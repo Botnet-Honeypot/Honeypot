@@ -1,0 +1,12 @@
+#!/bin/sh
+# Utility used to generate RSA keys for the frontend SSH server
+
+! command openssl >/dev/null 2>&1 && echo "openssl is required to generate keys" && exit 1
+
+name="$(pwd)/frontend/host"
+priv="${name}.key"
+pub="${name}.pub.key"
+
+openssl genrsa -out "$priv" 2048 && openssl rsa -in "$name".key -outform PEM -pubout -out "$pub"
+
+printf "Private key saved in %s\nPublic key saved in %s\n" "$priv" "$pub"
