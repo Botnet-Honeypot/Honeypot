@@ -1,3 +1,4 @@
 .vs/
 .vscode/
 *.pyc
+tests_output/
