@@ -28,3 +28,6 @@ When the workspace has been opened in VSCode it will ask you to install recommen
 ## How to run frontend or backend for development:
 - Run `docker-compose up --build` in either the `frontend` or the `backend` folder.
 - (Remove `--build` if you wish to not rebuild container each time)
+
+### Additional resources:
+https://hackersandslackers.com/python-poetry-package-manager/
