@@ -3,7 +3,7 @@
 
 ! command -v openssl >/dev/null 2>&1 && echo "openssl is required to generate keys" && exit 1
 
-name="$(pwd)/frontend/host"
+name="$(pwd)/host"
 priv="${name}.key"
 pub="${name}.pub.key"
 
