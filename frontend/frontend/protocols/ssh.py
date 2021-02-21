@@ -119,14 +119,16 @@ class ConnectionManager():
             return
 
         chan.send(
-            b"Welcome to Chalmers blueprint server. Please do not steal anything.\n")
-        while True:
+            b"Welcome to Chalmers blueprint server. Please do not steal anything.\r\n")
+        while transport.active:
             received_bytes = chan.recv(1024)
             print(received_bytes.decode("utf-8"), end='')
-            chan.send(received_bytes)
+            # The client might've abruptly closed the channel
+            try:
+                chan.send(received_bytes)
+            except:
+                pass
             # When we receive CR show LF as well
             if received_bytes == self.CR:
-                print(self.LF.decode("utf-8"), end='')
+                print("\n", end='')
                 chan.send(self.LF)
-
-        transport.close()
