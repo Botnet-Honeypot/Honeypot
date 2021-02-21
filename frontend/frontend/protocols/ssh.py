@@ -1,7 +1,5 @@
 """This module contains logic related to SSH"""
 import socket
-import threading
-from typing import Tuple
 
 import paramiko
 from paramiko.common import (AUTH_FAILED, AUTH_SUCCESSFUL,
@@ -15,9 +13,6 @@ class Server(paramiko.ServerInterface):
     :param paramiko: The SSH server interface
     :type paramiko: paramiko.ServerInterface
     """
-
-    def __init__(self) -> None:
-        self.event = threading.Event()
 
     # Normal auth method
     def check_auth_password(self, username: str, password: str) -> int:
@@ -46,7 +41,6 @@ class Server(paramiko.ServerInterface):
 
     def check_channel_shell_request(self, channel: paramiko.Channel) -> bool:
         # print("Request for shell received")
-        self.event.set()
         return True
 
     def check_channel_pty_request(self, _: paramiko.Channel, term: bytes,
@@ -70,8 +64,9 @@ class ConnectionManager():
     SSH connections to instances of Server"""
     # todo move these to appropriate locations and allow them to be configured
     MAX_UNACCEPTED_CONNECTIONS = 100
-    AUTH_TIMEOUT = 60
-    SHELL_RQST_TIMEOUT = 10
+    # The timeout in seconds for the client to successfully login
+    # and request a shell
+    AUTH_TIMEOUT = 10
 
     # todo move these to some constants file or something
     CR = b"\r"  # Carriage return (CR)
@@ -119,16 +114,8 @@ class ConnectionManager():
 
         chan = transport.accept(self.AUTH_TIMEOUT)
         if chan is None:
-            print("Chan timeout")
-            return
-
-        # This is a 10 second timeout for them to send a shell request
-        server.event.wait(self.SHELL_RQST_TIMEOUT)
-
-        # Kick them out after 10 seconds of not sending a shell request
-        if not server.event.is_set:
+            print("Authentication timeout")
             transport.close()
-            print("Timed out waiting for shell request")
             return
 
         chan.send(
