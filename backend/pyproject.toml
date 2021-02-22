@@ -1,0 +1,36 @@
+[tool.poetry]
+name = "backend"
+version = "0.1.0"
+description = ""
+authors = ["Your Name <you@example.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+
+[tool.poetry.dev-dependencies]
+pylint = "^2.6.2"
+autopep8 = "^1.5.5"
+pytest = "^6.2.2"
+pytest-html = "^3.1.1"
+pytest-cov = "^2.11.1"
+coverage = {extras = ["toml"], version = "^5.4"}
+
+# Pytest
+[tool.pytest.ini_options]
+addopts = "--html=tests_output/report.html --self-contained-html --cov --cov-report=term --cov-report=html"
+cache_dir = "tests_output/.pytest_cache"
+
+# Testing coverage
+[tool.coverage.run]
+data_file = "tests_output/.coverage"
+source_pkgs = ["backend"]
+branch = true
+[tool.coverage.report]
+skip_empty = true
+fail_under = 70
+[tool.coverage.html]
+directory = "tests_output/coverage_report"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
