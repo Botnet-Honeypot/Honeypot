@@ -1,5 +1,6 @@
 """This module contains logic related to SSH"""
 import socket
+from typing import Iterable, Optional
 
 import paramiko
 from paramiko.common import (AUTH_FAILED, AUTH_SUCCESSFUL,
@@ -14,13 +15,23 @@ class Server(paramiko.ServerInterface):
     :type paramiko: paramiko.ServerInterface
     """
 
+    def __init__(
+            self, usernames: Optional[Iterable[str]],
+            passwords: Optional[Iterable[str]]) -> None:
+        super().__init__()
+        self._usernames = usernames
+        self._passwords = passwords
+
     # Normal auth method
     def check_auth_password(self, username: str, password: str) -> int:
-        print(f"username: {username}")
-        print(f"password: {password}")
-        return password == AUTH_SUCCESSFUL if password == "lol" else AUTH_FAILED
+        if self._usernames is not None and not username in self._usernames:
+            return AUTH_FAILED
+        if self._passwords is None or password in self._passwords:
+            return AUTH_SUCCESSFUL
+        else:
+            return AUTH_FAILED
 
-    # Public key auth method ()
+    # Public key auth method
     def check_auth_publickey(self, username: str, key: paramiko.PKey) -> int:
         return AUTH_FAILED
 
@@ -58,23 +69,41 @@ class Server(paramiko.ServerInterface):
 
 
 # todo should be singleton if the class does what it says in the docstring
-# todo come up with a better name
 class ConnectionManager():
     """ConnectionManager contains logic for connecting incoming
     SSH connections to instances of Server"""
-    # todo move these to appropriate locations and allow them to be configured
-    MAX_UNACCEPTED_CONNECTIONS = 100
-    # The timeout in seconds for the client to successfully login
-    # and request a shell
-    AUTH_TIMEOUT = 10
 
     # todo move these to some constants file or something
     CR = b"\r"  # Carriage return (CR)
     LF = b"\n"  # Line feed (LF)
 
-    def __init__(self, host_key: paramiko.PKey, port: int = 22) -> None:
-        self.host_key = host_key
-        self.port = port
+    def __init__(self, host_key: paramiko.PKey,
+                 usernames: Optional[Iterable[str]] = None,
+                 passwords: Optional[Iterable[str]] = None,
+                 auth_timeout: float = 60,
+                 max_unaccepted_connetions: int = 100,
+                 port: int = 22) -> None:
+        """Creates an instance of the ConnectionManager class
+
+        :param host_key: The public key used by the server
+        :type host_key: paramiko.PKey
+        :param usernames: Allowed usernames, if it is None everything is allowed, defaults to None
+        :type usernames: Optional[Iterable[str]], optional
+        :param passwords: Allowed passwords, if it is None everything is allowed, defaults to None
+        :type passwords: Optional[Iterable[str]], optional
+        :param auth_timeout: Timeout in seconds for clients to authenticate, defaults to 60
+        :type auth_timeout: float, optional
+        :param max_unaccepted_connetions: Max unaccepted connections, defaults to 100
+        :type max_unaccepted_connetions: int, optional
+        :param port: The port to listen on, defaults to 22
+        :type port: int, optional
+        """
+        self._host_key = host_key
+        self._port = port
+        self._usernames = usernames
+        self._passwords = passwords
+        self._auth_timeout = auth_timeout
+        self._max_unaccepted_connections = max_unaccepted_connetions
 
     def listen(self) -> None:
         """Listens on the given port for an SSH connection
@@ -88,13 +117,13 @@ class ConnectionManager():
             # More information on options can be found here
             # https://www.gnu.org/software/libc/manual/html_node/Socket_002dLevel-Options.html
             sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            sock.bind(("", self.port))
+            sock.bind(("", self._port))
         except Exception as exc:
             print(f"Failed to bind port.\nError:{exc}")
             raise
 
         try:
-            sock.listen(self.MAX_UNACCEPTED_CONNECTIONS)
+            sock.listen(self._max_unaccepted_connections)
             # todo Only accepts one client for now
             client, addr = sock.accept()
             transport = paramiko.Transport(client)
@@ -108,18 +137,18 @@ class ConnectionManager():
             print("Could not load moduli")
 
         # Negotiate a new SSH session
-        transport.add_server_key(self.host_key)
-        server = Server()
+        transport.add_server_key(self._host_key)
+        server = Server(self._usernames, self._passwords)
         transport.start_server(server=server)
 
-        chan = transport.accept(self.AUTH_TIMEOUT)
+        chan = transport.accept(self._auth_timeout)
         if chan is None:
             print("Authentication timeout")
             transport.close()
             return
 
         chan.send(
-            b"Welcome to Chalmers blueprint server. Please do not steal anything.\r\n")
+            b"Welcome to the Chalmers blueprint server. Please do not steal anything.\r\n")
         while transport.active:
             received_bytes = chan.recv(1024)
             print(received_bytes.decode("utf-8"), end='')
