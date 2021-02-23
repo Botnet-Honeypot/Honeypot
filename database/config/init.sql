@@ -1,0 +1,7 @@
+-- init file for postgres database
+-- this is run at startup (on new build)
+-- any changes to this file will be take effect after running the following commands (or windows equivalent):
+-- docker container stop postgres
+-- docker-compose down -v
+-- sudo rm -rf database/
+-- docker-compose up -d --build
