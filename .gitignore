@@ -1,4 +1,12 @@
 .vs/
 .vscode/
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*$py.class
+
+# RSA key files
+*.key
+
 *.pyc
 tests_output/
