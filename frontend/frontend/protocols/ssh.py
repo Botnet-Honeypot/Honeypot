@@ -1,6 +1,7 @@
 """This module contains logic related to SSH"""
 import socket
-from typing import Iterable, Optional
+from threading import Thread
+from typing import Iterable, List, Optional
 
 import paramiko
 from paramiko.common import (AUTH_FAILED, AUTH_SUCCESSFUL,
@@ -68,14 +69,73 @@ class Server(paramiko.ServerInterface):
         return True
 
 
-# todo should be singleton if the class does what it says in the docstring
-class ConnectionManager():
-    """ConnectionManager contains logic for connecting incoming
-    SSH connections to instances of Server"""
-
+class ConnectionHandler:
     # todo move these to some constants file or something
     CR = b"\r"  # Carriage return (CR)
     LF = b"\n"  # Line feed (LF)
+
+    def __init__(self, transport: paramiko.Transport,
+                 host_key: paramiko.PKey,
+                 usernames: Optional[Iterable[str]],
+                 passwords: Optional[Iterable[str]],
+                 auth_timeout: float,
+                 ) -> None:
+        self._stop = False
+        self._transport = transport
+        self._auth_timeout = auth_timeout
+        self._setup_server(host_key, usernames, passwords)
+
+    def _setup_server(self, host_key: paramiko.PKey,
+                      usernames: Optional[Iterable[str]],
+                      passwords: Optional[Iterable[str]]) -> None:
+        if not self._transport.load_server_moduli():
+            print("Could not load moduli")
+
+        self._transport.add_server_key(host_key)
+        server = Server(usernames, passwords)
+        self._transport.start_server(server=server)
+
+    def stop(self) -> None:
+        """Stops the `handle` method handling SSH connections"""
+        self._stop = True
+
+    def handle(self) -> None:
+        """Waits for an SSH channel to be established and handles
+        the connection"""
+        chan = self._transport.accept(self._auth_timeout)
+        if chan is None:
+            print("Authentication timeout")
+            self._transport.close()
+            return
+
+        chan.send(
+            b"\r\nWelcome to the Chalmers blueprint server. Please do not steal anything.\r\n")
+
+        # todo don't hardcode
+        chan.settimeout(2)
+        while self._transport.active and not self._stop:
+            try:
+                received_bytes = chan.recv(1024)
+                print(received_bytes.decode("utf-8"), end='')
+                chan.send(received_bytes)
+            except socket.timeout:
+                continue
+            except:
+                # todo log this
+                continue
+            # When we receive CR show LF as well
+            if received_bytes == self.CR:
+                print("\n", end='')
+                chan.send(self.LF)
+
+        if self._stop:
+            self._transport.close()
+
+
+# todo should be singleton if the class does what it says in the docstring
+class ConnectionManager:
+    """ConnectionManager contains logic for listening for TCP connections
+    and creating new threads of class:`ConnectionHandler`"""
 
     def __init__(self, host_key: paramiko.PKey,
                  usernames: Optional[Iterable[str]] = None,
@@ -98,6 +158,7 @@ class ConnectionManager():
         :param port: The port to listen on, defaults to 22
         :type port: int, optional
         """
+        self._stop = False
         self._host_key = host_key
         self._port = port
         self._usernames = usernames
@@ -105,9 +166,19 @@ class ConnectionManager():
         self._auth_timeout = auth_timeout
         self._max_unaccepted_connections = max_unaccepted_connetions
 
-    def listen(self) -> None:
-        """Listens on the given port for an SSH connection
-        and echoes out everything that is received in the socket
+    def stop(self) -> None:
+        """Stops the `listen` method listening for TCP connections and returns when
+        all threads that has been created has shut down.
+        """
+        self._stop = True
+
+    def listen(self, socket_timeout: int = 5) -> None:
+        """Starts listening for TCP connections on the given ports.
+        runs new instances of class:`ConnectionHandler` in new threads.
+
+        :param socket_timeout:
+            Seconds to wait before timeouting a connection attempt, defaults to 5
+        :type socket_timeout: int, optional
         """
         try:
             # SOCK_STREAM is TCP
@@ -124,40 +195,38 @@ class ConnectionManager():
 
         try:
             sock.listen(self._max_unaccepted_connections)
-            # todo Only accepts one client for now
-            client, addr = sock.accept()
-            transport = paramiko.Transport(client)
         except Exception as exc:
             print(f"Failed to accept connection\nError{exc}")
             raise
 
-        print(f"Client {addr[0]}:{addr[1]} connected")
+        # This provides type hinting
+        thread_list:  List[Thread]
+        instance_list:  List[ConnectionHandler]
 
-        if not transport.load_server_moduli():
-            print("Could not load moduli")
-
-        # Negotiate a new SSH session
-        transport.add_server_key(self._host_key)
-        server = Server(self._usernames, self._passwords)
-        transport.start_server(server=server)
-
-        chan = transport.accept(self._auth_timeout)
-        if chan is None:
-            print("Authentication timeout")
-            transport.close()
-            return
-
-        chan.send(
-            b"Welcome to the Chalmers blueprint server. Please do not steal anything.\r\n")
-        while transport.active:
-            received_bytes = chan.recv(1024)
-            print(received_bytes.decode("utf-8"), end='')
-            # The client might've abruptly closed the channel
+        thread_list = []
+        instance_list = []
+        sock.settimeout(socket_timeout)
+        while not self._stop:
             try:
-                chan.send(received_bytes)
-            except:
-                pass
-            # When we receive CR show LF as well
-            if received_bytes == self.CR:
-                print("\n", end='')
-                chan.send(self.LF)
+                client, addr = sock.accept()
+                transport = paramiko.Transport(client)
+            except Exception as exc:
+                # todo log
+                continue
+            print(f"Client {addr[0]}:{addr[1]} connected")
+            conn_handler = ConnectionHandler(
+                transport, self._host_key, self._usernames, self._passwords,
+                self._auth_timeout)
+            thread = Thread(target=conn_handler.handle, args=())
+            thread.start()
+
+            instance_list.append(conn_handler)
+            thread_list.append(thread)
+
+        # Kill all threads it has created
+        for instance in instance_list:
+            instance.stop()
+
+        # Make sure all threads have exited
+        for thread in thread_list:
+            thread.join()
