@@ -1,21 +1,18 @@
 version: "2.1"
 services:
   openssh-server:
-    image: ghcr.io/linuxserver/openssh-server
-    container_name: openssh-server
-    hostname: mini-slav #optional
+    image: "ghcr.io/linuxserver/openssh-server"
+    container_name: "openssh-server"
+    hostname: "Dell-T140"
     environment:
       - PUID=1000
       - PGID=1000
-      - TZ=Europe/London
-      - SUDO_ACCESS=true #optional
-      - PASSWORD_ACCESS=true #optional
-      - USER_PASSWORD=password #optional
-      - USER_NAME=linuxserver.io #optional
+      - TZ=Europe/Stockholm
+      - SUDO_ACCESS=true
+      - PASSWORD_ACCESS=true
+      - USER_PASSWORD=12345
+      - USER_NAME=user 
     volumes:
-      - ./containerstorage:/config
-   
-
+      - "./containerconfig:/config"
     ports:
-      - 22:2222
-    restart: unless-stopped
+      - "2222:2222"
