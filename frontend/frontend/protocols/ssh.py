@@ -1,7 +1,8 @@
 """This module contains logic related to SSH"""
 import socket
+import threading
 from threading import Thread
-from typing import Iterable, List, Optional
+from typing import Any, Callable, Iterable, List, Mapping, Optional
 
 import paramiko
 from paramiko.common import (AUTH_FAILED, AUTH_SUCCESSFUL,
@@ -29,8 +30,7 @@ class Server(paramiko.ServerInterface):
             return AUTH_FAILED
         if self._passwords is None or password in self._passwords:
             return AUTH_SUCCESSFUL
-        else:
-            return AUTH_FAILED
+        return AUTH_FAILED
 
     # Public key auth method
     def check_auth_publickey(self, username: str, key: paramiko.PKey) -> int:
@@ -69,7 +69,7 @@ class Server(paramiko.ServerInterface):
         return True
 
 
-class ConnectionHandler:
+class ConnectionHandler(threading.Thread):
     # todo move these to some constants file or something
     CR = b"\r"  # Carriage return (CR)
     LF = b"\n"  # Line feed (LF)
@@ -78,9 +78,9 @@ class ConnectionHandler:
                  host_key: paramiko.PKey,
                  usernames: Optional[Iterable[str]],
                  passwords: Optional[Iterable[str]],
-                 auth_timeout: float,
-                 ) -> None:
-        self._stop = False
+                 auth_timeout: float) -> None:
+        super().__init__(target=self.handle, daemon=False)
+        self._terminate = False
         self._transport = transport
         self._auth_timeout = auth_timeout
         self._setup_server(host_key, usernames, passwords)
@@ -97,7 +97,7 @@ class ConnectionHandler:
 
     def stop(self) -> None:
         """Stops the `handle` method handling SSH connections"""
-        self._stop = True
+        self._terminate = True
 
     def handle(self) -> None:
         """Waits for an SSH channel to be established and handles
@@ -113,7 +113,7 @@ class ConnectionHandler:
 
         # todo don't hardcode
         chan.settimeout(2)
-        while self._transport.active and not self._stop:
+        while self._transport.active and not self._terminate:
             try:
                 received_bytes = chan.recv(1024)
                 print(received_bytes.decode("utf-8"), end='')
@@ -128,12 +128,12 @@ class ConnectionHandler:
                 print("\n", end='')
                 chan.send(self.LF)
 
-        if self._stop:
+        if self._terminate:
             self._transport.close()
 
 
 # todo should be singleton if the class does what it says in the docstring
-class ConnectionManager:
+class ConnectionManager(threading.Thread):
     """ConnectionManager contains logic for listening for TCP connections
     and creating new threads of class:`ConnectionHandler`"""
 
@@ -141,6 +141,7 @@ class ConnectionManager:
                  usernames: Optional[Iterable[str]] = None,
                  passwords: Optional[Iterable[str]] = None,
                  auth_timeout: float = 60,
+                 socket_timeout: float = 5,
                  max_unaccepted_connetions: int = 100,
                  port: int = 22) -> None:
         """Creates an instance of the ConnectionManager class
@@ -158,7 +159,9 @@ class ConnectionManager:
         :param port: The port to listen on, defaults to 22
         :type port: int, optional
         """
-        self._stop = False
+        super().__init__(target=self.listen, args=(
+            [socket_timeout]), daemon=False)
+        self._terminate = False
         self._host_key = host_key
         self._port = port
         self._usernames = usernames
@@ -170,9 +173,9 @@ class ConnectionManager:
         """Stops the `listen` method listening for TCP connections and returns when
         all threads that has been created has shut down.
         """
-        self._stop = True
+        self._terminate = True
 
-    def listen(self, socket_timeout: int = 5) -> None:
+    def listen(self, socket_timeout: float = 5) -> None:
         """Starts listening for TCP connections on the given ports.
         runs new instances of class:`ConnectionHandler` in new threads.
 
@@ -200,13 +203,11 @@ class ConnectionManager:
             raise
 
         # This provides type hinting
-        thread_list:  List[Thread]
         instance_list:  List[ConnectionHandler]
-
-        thread_list = []
         instance_list = []
+
         sock.settimeout(socket_timeout)
-        while not self._stop:
+        while not self._terminate:
             try:
                 client, addr = sock.accept()
                 transport = paramiko.Transport(client)
@@ -217,16 +218,14 @@ class ConnectionManager:
             conn_handler = ConnectionHandler(
                 transport, self._host_key, self._usernames, self._passwords,
                 self._auth_timeout)
-            thread = Thread(target=conn_handler.handle, args=())
-            thread.start()
+            conn_handler.start()
 
             instance_list.append(conn_handler)
-            thread_list.append(thread)
 
         # Kill all threads it has created
         for instance in instance_list:
             instance.stop()
 
         # Make sure all threads have exited
-        for thread in thread_list:
-            thread.join()
+        for instance in instance_list:
+            instance.join()
