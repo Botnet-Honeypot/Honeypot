@@ -84,6 +84,7 @@ class ConnectionHandler(threading.Thread):
         self._transport = transport
         self._auth_timeout = auth_timeout
         self._setup_server(host_key, usernames, passwords)
+        self._lock = threading.Lock()
 
     def _setup_server(self, host_key: paramiko.PKey,
                       usernames: Optional[Iterable[str]],
@@ -97,7 +98,9 @@ class ConnectionHandler(threading.Thread):
 
     def stop(self) -> None:
         """Stops the `handle` method handling SSH connections"""
+        self._lock.acquire()
         self._terminate = True
+        self._lock.release()
 
     def handle(self) -> None:
         """Waits for an SSH channel to be established and handles
@@ -113,7 +116,13 @@ class ConnectionHandler(threading.Thread):
 
         # todo don't hardcode
         chan.settimeout(2)
-        while self._transport.active and not self._terminate:
+        while True:
+            self._lock.acquire()
+            if not self._transport.active or self._terminate:
+                self._lock.release()
+                break
+            self._lock.release()
+
             try:
                 received_bytes = chan.recv(1024)
                 print(received_bytes.decode("utf-8"), end='')
@@ -159,8 +168,7 @@ class ConnectionManager(threading.Thread):
         :param port: The port to listen on, defaults to 22
         :type port: int, optional
         """
-        super().__init__(target=self.listen, args=(
-            [socket_timeout]), daemon=False)
+        super().__init__(target=self.listen, args=(socket_timeout,), daemon=False)
         self._terminate = False
         self._host_key = host_key
         self._port = port
@@ -168,12 +176,15 @@ class ConnectionManager(threading.Thread):
         self._passwords = passwords
         self._auth_timeout = auth_timeout
         self._max_unaccepted_connections = max_unaccepted_connetions
+        self._lock = threading.Lock()
 
     def stop(self) -> None:
         """Stops the `listen` method listening for TCP connections and returns when
         all threads that has been created has shut down.
         """
+        self._lock.acquire()
         self._terminate = True
+        self._lock.release()
 
     def listen(self, socket_timeout: float = 5) -> None:
         """Starts listening for TCP connections on the given ports.
@@ -207,7 +218,13 @@ class ConnectionManager(threading.Thread):
         instance_list = []
 
         sock.settimeout(socket_timeout)
-        while not self._terminate:
+        while True:
+            self._lock.acquire()
+            if self._terminate:
+                self._lock.release()
+                break
+            self._lock.release()
+
             try:
                 client, addr = sock.accept()
                 transport = paramiko.Transport(client)
