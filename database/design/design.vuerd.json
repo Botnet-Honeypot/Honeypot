@@ -2,8 +2,8 @@
   "canvas": {
     "width": 2000,
     "height": 2000,
-    "scrollTop": 746,
-    "scrollLeft": 536,
+    "scrollTop": 881,
+    "scrollLeft": 314,
     "show": {
       "tableComment": true,
       "columnComment": true,
@@ -519,7 +519,7 @@
           "active": false,
           "left": 1117,
           "top": 1101,
-          "zIndex": 654,
+          "zIndex": 710,
           "widthName": 60,
           "widthComment": 60
         },
@@ -668,7 +668,7 @@
               "autoIncrement": false,
               "primaryKey": false,
               "unique": false,
-              "notNull": true
+              "notNull": false
             },
             "ui": {
               "active": false,
@@ -731,9 +731,9 @@
         ],
         "ui": {
           "active": false,
-          "left": 1117,
-          "top": 1368,
-          "zIndex": 615,
+          "left": 1116,
+          "top": 1367,
+          "zIndex": 725,
           "widthName": 60,
           "widthComment": 60
         },
@@ -846,8 +846,8 @@
           "columnIds": [
             "40353c98-ecf2-ef35-b4e2-a6ce25f84202"
           ],
-          "x": 1290.5,
-          "y": 1368,
+          "x": 1289.5,
+          "y": 1367,
           "direction": "top"
         },
         "end": {

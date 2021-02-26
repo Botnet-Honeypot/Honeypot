@@ -1670,7 +1670,7 @@
         <dia:int val="1"/>
       </dia:attribute>
       <dia:attribute name="end_arrow">
-        <dia:enum val="1"/>
+        <dia:enum val="24"/>
       </dia:attribute>
       <dia:attribute name="end_arrow_length">
         <dia:real val="0.5"/>
