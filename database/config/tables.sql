@@ -59,6 +59,11 @@ CREATE TABLE EventType
     CHECK (length(name) > 0)
 );
 
+INSERT INTO EventType VALUES
+  ('command'),
+  ('download'),
+  ('login_attempt');
+
 CREATE TABLE Event
 (
   id         serial    NOT NULL,
