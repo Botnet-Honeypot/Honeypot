@@ -1,63 +1,3 @@
-CREATE TABLE Command
-(
-  event_id   int   NOT NULL,
-  event_type text  NOT NULL DEFAULT 'command',
-  input      text  NOT NULL,
-  PRIMARY KEY (event_id, event_type),
-  CONSTRAINT FK_Command_TO_Event
-    FOREIGN KEY (event_id, event_type)
-    REFERENCES Event (id, type),
-  CONSTRAINT Check_Correct_Type
-    CHECK (event_type = 'command')
-);
-
-CREATE TABLE Download
-(
-  event_id   int   NOT NULL,
-  event_type text  NOT NULL DEFAULT 'download',
-  hash       bytea NOT NULL,
-  src        inet  NOT NULL,
-  url        text,
-  PRIMARY KEY (event_id, event_type),
-  CONSTRAINT FK_File_TO_Download
-    FOREIGN KEY (hash)
-    REFERENCES File (hash),
-  CONSTRAINT FK_NetworkSource_TO_Download
-    FOREIGN KEY (src)
-    REFERENCES NetworkSource (ip_address),
-  CONSTRAINT FK_Download_TO_Event
-    FOREIGN KEY (event_id, event_type)
-    REFERENCES Event (id, type),
-  CONSTRAINT Check_Correct_Type
-    CHECK (event_type = 'download'),
-  CONSTRAINT Check_Valid_URL
-    CHECK (url ~ '^(([^:/?#]+):)?(//([^/?#]*))?([^?#]*)(\?([^#]*))?(#(.*))?')
-);
-
-CREATE TABLE Event
-(
-  id         serial    NOT NULL,
-  session_id int       NOT NULL,
-  type       text      NOT NULL,
-  timestamp  timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (id),
-  UNIQUE (id, type),
-  CONSTRAINT FK_Session_TO_Event
-    FOREIGN KEY (session_id)
-    REFERENCES Session (id),
-  CONSTRAINT FK_EventType_TO_Event
-    FOREIGN KEY (type)
-    REFERENCES EventType (name)
-);
-
-CREATE TABLE EventType
-(
-  name text NOT NULL,
-  PRIMARY KEY (name),
-  CONSTRAINT Check_Valid_Name
-    CHECK (length(name) > 0)
-);
-
 CREATE TABLE File
 (
   hash bytea NOT NULL,
@@ -68,20 +8,6 @@ CREATE TABLE File
     CHECK (type ~ '^\w+\/[-+.\w]+$'),
   CONSTRAINT Check_Hash_Matches_Data
     CHECK (hash = sha256(data))
-);
-
-CREATE TABLE LoginAttempt
-(
-  event_id   int  NOT NULL,
-  event_type text NOT NULL DEFAULT 'login_attempt',
-  username   text NOT NULL,
-  password   text NOT NULL,
-  PRIMARY KEY (event_id, event_type),
-  CONSTRAINT FK_LoginAttempt_TO_Event
-    FOREIGN KEY (event_id, event_type)
-    REFERENCES Event (id, type),
-  CONSTRAINT Check_Correct_Type
-    CHECK (event_type = 'login_attempt')
 );
 
 CREATE TABLE NetworkSource
@@ -123,6 +49,80 @@ CREATE TABLE SSHSession
     REFERENCES Session (id, protocol),
   CONSTRAINT Check_Correct_Protocol
     CHECK (protocol = 'SSH')
+);
+
+CREATE TABLE EventType
+(
+  name text NOT NULL,
+  PRIMARY KEY (name),
+  CONSTRAINT Check_Valid_Name
+    CHECK (length(name) > 0)
+);
+
+CREATE TABLE Event
+(
+  id         serial    NOT NULL,
+  session_id int       NOT NULL,
+  type       text      NOT NULL,
+  timestamp  timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE (id, type),
+  CONSTRAINT FK_Session_TO_Event
+    FOREIGN KEY (session_id)
+    REFERENCES Session (id),
+  CONSTRAINT FK_EventType_TO_Event
+    FOREIGN KEY (type)
+    REFERENCES EventType (name)
+);
+
+CREATE TABLE Command
+(
+  event_id   int   NOT NULL,
+  event_type text  NOT NULL DEFAULT 'command',
+  input      text  NOT NULL,
+  PRIMARY KEY (event_id, event_type),
+  CONSTRAINT FK_Command_TO_Event
+    FOREIGN KEY (event_id, event_type)
+    REFERENCES Event (id, type),
+  CONSTRAINT Check_Correct_Type
+    CHECK (event_type = 'command')
+);
+
+CREATE TABLE Download
+(
+  event_id   int   NOT NULL,
+  event_type text  NOT NULL DEFAULT 'download',
+  hash       bytea NOT NULL,
+  src        inet  NOT NULL,
+  url        text,
+  PRIMARY KEY (event_id, event_type),
+  CONSTRAINT FK_File_TO_Download
+    FOREIGN KEY (hash)
+    REFERENCES File (hash),
+  CONSTRAINT FK_NetworkSource_TO_Download
+    FOREIGN KEY (src)
+    REFERENCES NetworkSource (ip_address),
+  CONSTRAINT FK_Download_TO_Event
+    FOREIGN KEY (event_id, event_type)
+    REFERENCES Event (id, type),
+  CONSTRAINT Check_Correct_Type
+    CHECK (event_type = 'download'),
+  CONSTRAINT Check_Valid_URL
+    CHECK (url ~ '^(([^:/?#]+):)?(//([^/?#]*))?([^?#]*)(\?([^#]*))?(#(.*))?')
+);
+
+CREATE TABLE LoginAttempt
+(
+  event_id   int  NOT NULL,
+  event_type text NOT NULL DEFAULT 'login_attempt',
+  username   text NOT NULL,
+  password   text NOT NULL,
+  PRIMARY KEY (event_id, event_type),
+  CONSTRAINT FK_LoginAttempt_TO_Event
+    FOREIGN KEY (event_id, event_type)
+    REFERENCES Event (id, type),
+  CONSTRAINT Check_Correct_Type
+    CHECK (event_type = 'login_attempt')
 );
 
 
