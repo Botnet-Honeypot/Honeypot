@@ -36,7 +36,7 @@ CREATE TABLE Session
   CONSTRAINT Check_Ports_In_Range
     CHECK (src_port BETWEEN 0 AND 65535 AND dst_port BETWEEN 0 AND 65535),
   CONSTRAINT Check_End_Timestamp_Is_After_Start
-    CHECK (end_timestamp NOT NULL AND start_timestamp <= end_timestamp)
+    CHECK (end_timestamp IS NOT NULL AND start_timestamp <= end_timestamp)
 );
 
 CREATE TABLE SSHSession
