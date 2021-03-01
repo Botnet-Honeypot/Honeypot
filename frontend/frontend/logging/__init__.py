@@ -4,10 +4,10 @@ Example Usage (SSH):
 >>> with begin_ssh_session(src_address=ip_address('43.56.223.156'),
 ...                        src_port=3463,
 ...                        dst_address=ip_address('226.64.12.2'),
-...                        dst_port=22,
-...                        term='xterm') as session:
+...                        dst_port=22) as session:
 ...     session.log_login_attempt('a_username', 'some_password')
 ...     session.log_command('sudo rm -rf /')
+...     session.log_pty_request('xterm', 5, 20, 600, 200)
 """
 
 from typing import Iterator, Optional, Protocol
@@ -15,7 +15,10 @@ from abc import abstractmethod
 from contextlib import contextmanager
 from ipaddress import ip_address
 from ._types import IPAddress
-from . import _console
+from ._console import ConsoleLogSSHSession
+
+
+__all__ = ['Session', 'SSHSession', 'begin_ssh_session']
 
 
 class Session(Protocol):
@@ -63,25 +66,40 @@ class Session(Protocol):
         raise NotImplementedError
 
 
+class SSHSession(Session, Protocol):
+    """Representation of an attacker's SSH session while being connected to the honeypot."""
+
+    @abstractmethod
+    def log_pty_request(self, term: str,
+                        term_width_cols: int, term_height_rows: int,
+                        term_width_pixels: int, term_height_pixels: int) -> None:
+        """Logs an SSH pty request associated with the current session.
+
+        :param term: ``TERM`` environment variable value (e.g. vt100).
+        :param term_width_cols: Terminal width, characters (e.g. 80)
+        :param term_height_rows: Terminal height, rows (e.g. 24)
+        :param term_width_pixels: Terminal width, pixels (e.g. 640)
+        :param term_height_pixels: Terminal height, pixels (e.g. 480)
+        """
+        raise NotImplementedError
+
+
 @contextmanager
 def begin_ssh_session(src_address: IPAddress, src_port: int,
-                      dst_address: IPAddress, dst_port: int,
-                      term: str) -> Iterator[Session]:
+                      dst_address: IPAddress, dst_port: int) -> Iterator[SSHSession]:
     """Begins to log a new SSH session.
 
     :param src_address: The IP address of the instigating origin of the session.
     :param src_port: The port number at the instigating origin.
     :param dst_address: The public IP address of the honeypot.
     :param dst_port: The port at the honeypot.
-    :param term: The SSH ``TERM`` environment variable.
     :yield: An established SSH session.
     """
 
-    session = _console.SSHSession(src_address=src_address,
-                                  src_port=src_port,
-                                  dst_address=dst_address,
-                                  dst_port=dst_port,
-                                  term=term)
+    session = ConsoleLogSSHSession(src_address=src_address,
+                                   src_port=src_port,
+                                   dst_address=dst_address,
+                                   dst_port=dst_port)
     try:
         yield session
     finally:

@@ -7,21 +7,27 @@ from ._types import IPAddress
 logger = logging.getLogger(__name__)
 
 
-class SSHSession:
-    """Implementation of logging.Session that merely logs actions to console"""
+class ConsoleLogSSHSession:
+    """Implementation of logging.SSHSession that merely logs actions to console"""
 
     source: str
 
     def __init__(self,
                  src_address: IPAddress, src_port: int,
-                 dst_address: IPAddress, dst_port: int,
-                 term: str) -> None:
+                 dst_address: IPAddress, dst_port: int) -> None:
         self.source = f'{src_address}:{src_port}'
         logger.info(
-            "SSH session from %s:%i to %s:%i begun (term: %s)",
+            "SSH session from %s:%i to %s:%i began",
             src_address, src_port,
-            dst_address, dst_port,
-            term)
+            dst_address, dst_port)
+
+    def log_pty_request(self, term: str,
+                        term_width_cols: int, term_height_rows: int,
+                        term_width_pixels: int, term_height_pixels: int) -> None:
+        logger.info("[%s] SSH PTY request: %s (%ix%i cols/rows, %ix%i pixels)",
+                    self.source, term,
+                    term_width_cols, term_height_rows,
+                    term_width_pixels, term_height_pixels)
 
     def log_login_attempt(self, username: str, password: str) -> None:
         logger.info("[%s] Login attempt: %s/%s",
