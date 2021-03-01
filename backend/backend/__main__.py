@@ -11,12 +11,12 @@ containerHandler = container.Containers()
 
 # Example code for showing multiple containers started and stopped
 
-for i in range(5):
-    containerHandler.create_container(ID, Port, "user", "password")
+for i in range(2):
+    containerHandler.create_container(ID, Port, "user"+str(ID), "password")
     ID += 1
     Port += 1
 
-time.sleep(3)
+time.sleep(10)
 
 ID = 0
 for i in range(5):
