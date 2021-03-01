@@ -1,49 +1,52 @@
-import subprocess
-
-# Sketch
-# ID (incrementing, unique) - Used for folder name and container name
-# Port (unique) - Used to connect to via ssh
-# User - Same as what the attacker used
-# Password - Same as what the attacker used
-#
+"""This module contains logic for handling the SSH server docker instances for the backend"""
+import docker
+import os
+import shutil
 
 
 class Containers:
-    def __init__(self, ID: int, Port: int, User: str, Password: str):
-        self.ID = ID
-        self.Port = Port
-        self.User = User
-        self.Password = Password
 
-    def create_container(self, ID: int, Port: int, User: str, Password: str):  # -> ?
-        """[summary]
+    def __init__(self):
+        self._client = docker.from_env()
 
-        :param input: [description]
-        :type input: float
-        :return: [description]
-        :rtype:
+    def create_container(self, id: int, port: int, user: str, password: str):
+        """Creates a docker container with the specified id, exposes the specified SSH port, and has SSH login credentials user/password
+        :param id: ID (name) of container
+        :type id: int
+        :param port: SSH port that is exposed
+        :type port: int
+        :param user: Username for SSH
+        :type user: string
+        :param password: Password for SSH
+        :type password: string
+
         """
 
-        print("container should try to start?")
+        self._client.containers.run("ghcr.io/linuxserver/openssh-server",
+                                    environment=["PUID=1000", "PGID=1000", "TZ=Europe/London", "SUDO_ACCESS=true",
+                                                 "PASSWORD_ACCESS=true", "USER_PASSWORD="+password, "USER_NAME="+user],
+                                    hostname="Dell-T140", name="openssh-server" + str(id), ports={"2222/tcp": str(port)},
+                                    volumes={"C:/Users/Oskar/Honeypot/backend/backend/containerconfig": {"bind": "/config", "mode": "rw"}}, detach=True)
 
-        c1 = "mkdir " + str(self.ID)
-        p1 = subprocess.Popen(c1.split(), stdout=subprocess.PIPE)
-        c3 = "cp -r containerconfig " + str(self.ID)
-        p3 = subprocess.Popen(c3.split(), stdout=subprocess.PIPE)
+    def stop_container(self, id: int):
+        """Stop a specified container
+        :param id: ID (name) of container
+        :type id: int
+        """
+        try:
+            self._client.containers.get("openssh-server"+str(id)).stop()
+        except:
+            raise Exception("Could not find or stop the specified container")
 
-        print("container should have started?")
+    def gather_file_diff(self, id: int):
+        print("TODO")
 
-       # bash_command = 'docker run -d --name=openssh-server' + str(self.ID) + ' '\
-       #     '--hostname=Dell-T140 -e PUID=1000 -e PGID=1000 -e '\
-       #     'TZ=Europe/London -e SUDO_ACCESS=true -e PASSWORD_ACCESS=true '\
-       #     '-e USER_PASSWORD=' + self.Password + ' -e USER_NAME=' + self.User + ' -p ' + str(self.Port) + ':2222 '\
-       #     '-v /' + \
-       #     str(self.ID)
-
-        bash_command = 'docker run --detach --name=openssh-serverID --hostname=Dell-T140 --env PUID=1000 --env PGID=1000 --env TZ=Europe/London --env SUDO_ACCESS=true --env PASSWORD_ACCESS=true --env USER_PASSWORD=password --env USER_NAME=user --publish 2222:2222 ghcr.io/linuxserver/openssh-server'
-
-        # 'docker run --detach --name=openssh-serverID --hostname=Dell-T140 --env PUID=1000 --env PGID=1000 --env TZ=Europe/London --env SUDO_ACCESS=true --env PASSWORD_ACCESS=true --env USER_PASSWORD=password --env USER_NAME=user --publish 2222:2222 ghcr.io/linuxserver/openssh-server'
-
-        process = subprocess.Popen(
-            bash_command.split(), stdout=subprocess.PIPE)
-        #output, error = process.communicate()
+    def destroy_container(self, id: int):
+        """Destroy a specified container
+        :param id: ID (name) of container
+        :type id: int
+        """
+        try:
+            self._client.containers.get("openssh-server"+str(id)).remove()
+        except:
+            raise Exception("Could not find or kill the specified container")

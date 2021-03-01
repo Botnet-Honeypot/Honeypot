@@ -1,35 +1,30 @@
-#import backend.container as container
-import docker
+import backend.container as container
 import time
-
-client = docker.from_env()
 
 print("Hello World")
 
+# Starting ID and port
+ID = 0
+Port = 2222
 
-env = ["PUID=1000", "PGID=1000", "TZ=Europe/London", "SUDO_ACCESS=true",
-       "PASSWORD_ACCESS=true", "USER_PASSWORD=password", "USER_NAME=user"]
+containerHandler = container.Containers()
 
-ID = "johan"
-port = "2222"
+# Example code for showing multiple containers started and stopped
 
-client.containers.run("ghcr.io/linuxserver/openssh-server",
-                      environment=["PUID=1000", "PGID=1000", "TZ=Europe/London", "SUDO_ACCESS=true",
-                                   "PASSWORD_ACCESS=true", "USER_PASSWORD=password", "USER_NAME=user"], hostname="Dell-T140", name="openssh-server" + ID, ports={"2222/tcp": port}, detach=True)
+for i in range(5):
+    containerHandler.create_container(ID, Port, "user", "password")
+    ID += 1
+    Port += 1
 
+time.sleep(3)
 
-time.sleep(15)
+ID = 0
+for i in range(5):
+    try:
+        containerHandler.stop_container(ID)
+        containerHandler.destroy_container(ID)
+    except:
+        print("Could not find or stop the specified container, continuing anyways")
+    ID += 1
 
-c = client.containers.get("openssh-server" + ID)
-
-
-def test(input: float) -> int:
-    """[summary]
-
-    :param input: [description]
-    :type input: float
-    :return: [description]
-    :rtype:
-    """
-
-    return 0
+print("Goodbye World")
