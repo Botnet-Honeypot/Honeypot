@@ -11,6 +11,10 @@
     {
       "name": "Robot Tests",
       "path": "tests"
+    },
+	{
+      "name": "Database",
+      "path": "database"
     }
   ],
   "settings": {
