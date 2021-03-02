@@ -14,19 +14,23 @@
     }
   ],
   "settings": {
+    "editor.codeActionsOnSave": ["source.organizeImports"],
     "python.linting.enabled": true,
     "python.linting.lintOnSave": true,
     "python.linting.pylintEnabled": true,
     "python.linting.pylintPath": "pylint",
-    "python.linting.pylintArgs": ["--rcfile=../../.pylintrc"],
+    "python.linting.pylintArgs": ["--rcfile=../.pylintrc"],
     "python.analysis.typeCheckingMode": "basic",
+    "python.analysis.autoImportCompletions": true,
     "editor.formatOnSave": true,
     "python.formatting.provider": "autopep8",
     "python.formatting.autopep8Path": "autopep8",
-    "autoDocstring.docstringFormat": "sphinx",
-    "cSpell.words": [
-      "paramiko"
-    ]
+    "python.formatting.autopep8Args": [
+      "--max-line-length",
+      "100",
+      "--experimental"
+    ],
+    "autoDocstring.docstringFormat": "sphinx"
   },
   "extensions": {
     "recommendations": [
