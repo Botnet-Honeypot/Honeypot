@@ -2,7 +2,7 @@
 name: User Story
 about: A template for user stories in Github issues
 title: ''
-labels: user story
+labels: ''
 assignees: ''
 
 ---
