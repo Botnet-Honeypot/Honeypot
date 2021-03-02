@@ -84,23 +84,19 @@ class SSHSession(Session, Protocol):
         raise NotImplementedError
 
 
-@contextmanager
 def begin_ssh_session(src_address: IPAddress, src_port: int,
-                      dst_address: IPAddress, dst_port: int) -> Iterator[SSHSession]:
+                      dst_address: IPAddress, dst_port: int) -> SSHSession:
     """Begins to log a new SSH session.
 
     :param src_address: The IP address of the instigating origin of the session.
     :param src_port: The port number at the instigating origin.
     :param dst_address: The public IP address of the honeypot.
     :param dst_port: The port at the honeypot.
-    :yield: An established SSH session.
+    :return: An established SSH session.
     """
 
     session = ConsoleLogSSHSession(src_address=src_address,
                                    src_port=src_port,
                                    dst_address=dst_address,
                                    dst_port=dst_port)
-    try:
-        yield session
-    finally:
-        session.end()
+    return session
