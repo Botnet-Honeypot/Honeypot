@@ -32,23 +32,11 @@ CREATE TABLE Session
     FOREIGN KEY (attack_src)
     REFERENCES NetworkSource (ip_address),
   CONSTRAINT Check_Protocol_Valid
-    CHECK (protocol IN ('SSH')),
+    CHECK (protocol IN ('ssh')),
   CONSTRAINT Check_Ports_In_Range
     CHECK (src_port BETWEEN 0 AND 65535 AND dst_port BETWEEN 0 AND 65535),
   CONSTRAINT Check_End_Timestamp_Is_After_Start
     CHECK (end_timestamp IS NOT NULL AND start_timestamp <= end_timestamp)
-);
-
-CREATE TABLE SSHSession
-(
-  term       text NOT NULL,
-  session_id int  NOT NULL,
-  protocol   text NOT NULL DEFAULT 'SSH',
-  CONSTRAINT FK_Session_TO_SSHSession
-    FOREIGN KEY (session_id, protocol)
-    REFERENCES Session (id, protocol),
-  CONSTRAINT Check_Correct_Protocol
-    CHECK (protocol = 'SSH')
 );
 
 CREATE TABLE EventType
@@ -60,24 +48,47 @@ CREATE TABLE EventType
 );
 
 INSERT INTO EventType VALUES
+  ('pty_request'),
   ('command'),
   ('download'),
   ('login_attempt');
 
 CREATE TABLE Event
 (
-  id         serial    NOT NULL,
-  session_id int       NOT NULL,
-  type       text      NOT NULL,
-  timestamp  timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  id               serial    NOT NULL,
+  session_id       int       NOT NULL,
+  session_protocol text      NOT NULL,
+  type             text      NOT NULL,
+  timestamp        timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   UNIQUE (id, type),
+  UNIQUE (id, type, session_protocol),
   CONSTRAINT FK_Session_TO_Event
-    FOREIGN KEY (session_id)
-    REFERENCES Session (id),
+    FOREIGN KEY (session_id, session_protocol)
+    REFERENCES Session (id, protocol),
   CONSTRAINT FK_EventType_TO_Event
     FOREIGN KEY (type)
     REFERENCES EventType (name)
+);
+
+CREATE TABLE PTYRequest
+(
+  event_id            int   NOT NULL,
+  event_type          text  NOT NULL DEFAULT 'pty_request',
+  session_protocol    text  NOT NULL DEFAULT 'ssh',
+  term                text  NOT NULL,
+  term_width_cols     int   NOT NULL,
+  term_height_rows    int   NOT NULL,
+  term_width_pixels   int   NOT NULL,
+  term_height_pixels  int   NOT NULL,
+  PRIMARY KEY (event_id, event_type),
+  CONSTRAINT FK_PTYRequest_TO_Event
+    FOREIGN KEY (event_id, event_type, session_protocol)
+    REFERENCES Event (id, type, session_protocol),
+  CONSTRAINT Check_Correct_Type
+    CHECK (event_type = 'pty_request'),
+  CONSTRAINT Check_Correct_Protocol
+    CHECK (session_protocol = 'ssh')
 );
 
 CREATE TABLE Command
