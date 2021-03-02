@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 
 
 class ConsoleLogSSHSession:
-    """Implementation of logging.SSHSession that merely logs actions to console"""
+    """Implementation of honeylogger.SSHSession that merely logs actions to console"""
 
     source: str
 
