@@ -3,7 +3,6 @@ import logging
 import sys
 from ipaddress import IPv4Address, IPv6Address
 from typing import Optional, Union
-from frontend.honeylogger import SSHSession
 
 from ._types import IPAddress
 
@@ -16,7 +15,7 @@ handler.setFormatter(formatter)
 logger.addHandler(handler)
 
 
-class ConsoleLogSSHSession(SSHSession):
+class ConsoleLogSSHSession():
     """Implementation of honeylogger.SSHSession that merely logs actions to console"""
 
     source: str
