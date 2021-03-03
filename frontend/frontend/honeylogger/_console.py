@@ -1,13 +1,22 @@
-import logging
-from typing import Optional, Union
-from ipaddress import IPv4Address, IPv6Address
 import hashlib
+import logging
+import sys
+from ipaddress import IPv4Address, IPv6Address
+from typing import Optional, Union
+from frontend.honeylogger import SSHSession
+
 from ._types import IPAddress
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+handler = logging.StreamHandler(sys.stdout)
+formatter = logging.Formatter(
+    fmt='%(asctime)s %(levelname)-8s %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+handler.setFormatter(formatter)
+logger.addHandler(handler)
 
 
-class ConsoleLogSSHSession:
+class ConsoleLogSSHSession(SSHSession):
     """Implementation of honeylogger.SSHSession that merely logs actions to console"""
 
     source: str
