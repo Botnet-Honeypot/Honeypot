@@ -2,6 +2,16 @@
 import backend.filehandler as filehandler
 import docker
 import os
+from enum import Enum
+
+
+class Status(Enum):
+    UNDEFINED = "undefined"
+    NOTFOUND = "not found"
+    PAUSED = "paused"
+    RESTARTING = "restarting"
+    EXITED = "exited"
+    RUNNING = "running"
 
 
 class Containers:
@@ -22,15 +32,15 @@ class Containers:
         :param password: Password for SSH
         :type password: string
         :param hostname: Name of the device
-        :type hostname: string 
+        :type hostname: string
         :param uid: User ID
-        :type uid: int 
+        :type uid: int
         :param gid: Group ID
-        :type gid: int 
+        :type gid: int
         :param timezone: Timezone for container
-        :type timezone: string 
+        :type timezone: string
         :param sudo: Sudo access, true or false as a string
-        :type sudo: string 
+        :type sudo: string
 
         """
 
@@ -81,10 +91,34 @@ class Containers:
             raise Exception(
                 "Could not find or destroy the specified container")
 
+    def status_container(self, id: int) -> Status:
+        """Return the status of a specific container with the ID argument
+        :param id: ID (name) of container
+        :type id: int
+        :return: Returns an enum describing the status of a container
+        :rtype: Status
+        """
+        try:
+            sts = self._client.containers.get(
+                "openssh-server" + str(id)).attrs['State']['Status']
+        except:
+            return Status.NOTFOUND
+
+        if sts == "running":
+            return Status.RUNNING
+        elif sts == "exited":
+            return Status.EXITED
+        elif sts == "restarting":
+            return Status.RESTARTING
+        elif sts == "paused":
+            return Status.PAUSED
+        else:
+            return Status.UNDEFINED
+
     def create_shared_folder(self, id: int, user: str):
-        """Creates a directory for the docker container with the specified id, 
-           exposes the specified SSH port, and has SSH login credentials user/password. 
-           Inside it creates a script for initialization that uses the specified username 
+        """Creates a directory for the docker container with the specified id,
+           exposes the specified SSH port, and has SSH login credentials user/password.
+           Inside it creates a script for initialization that uses the specified username
            for the home directory.
         :param id: ID (name) of container
         :type id: int
