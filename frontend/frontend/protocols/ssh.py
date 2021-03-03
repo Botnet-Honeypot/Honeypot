@@ -1,13 +1,15 @@
 """This module contains logic related to SSH"""
 import socket
 import threading
-from threading import Thread
-from typing import Any, Callable, Iterable, List, Mapping, Optional
+import urllib.request
+from ipaddress import ip_address
+from typing import Iterable, List, Optional
 
-import paramiko
 from paramiko.common import (AUTH_FAILED, AUTH_SUCCESSFUL,
                              OPEN_FAILED_ADMINISTRATIVELY_PROHIBITED,
                              OPEN_SUCCEEDED)
+import paramiko
+import frontend.honeylogger as logger
 
 
 class Server(paramiko.ServerInterface):
@@ -18,14 +20,17 @@ class Server(paramiko.ServerInterface):
     """
 
     def __init__(
-            self, usernames: Optional[Iterable[str]],
+            self, session: logger.SSHSession,
+            usernames: Optional[Iterable[str]],
             passwords: Optional[Iterable[str]]) -> None:
         super().__init__()
         self._usernames = usernames
         self._passwords = passwords
+        self._session = session
 
     # Normal auth method
     def check_auth_password(self, username: str, password: str) -> int:
+        self._session.log_login_attempt(username, password)
         if self._usernames is not None and not username in self._usernames:
             return AUTH_FAILED
         if self._passwords is None or password in self._passwords:
@@ -39,10 +44,6 @@ class Server(paramiko.ServerInterface):
     def get_allowed_auths(self, username: str) -> str:
         # return 'publickey' # If we allow publickey auth
         return 'password'  # If we don't allow publickey auth
-
-    # SSH Server banner
-    # def get_banner(self) -> Tuple[str, str]:
-    #     return ("SSH-2.0-OpenSSH_5.9p1 Debian-5ubuntu1.4", "en-US")
 
     # This is called after successfull auth
     def check_channel_request(self, kind: str, chanid: int) -> int:
@@ -58,14 +59,7 @@ class Server(paramiko.ServerInterface):
     def check_channel_pty_request(self, _: paramiko.Channel, term: bytes,
                                   width: int, height: int, pixelwidth: int,
                                   pixelheight: int, modes: bytes) -> bool:
-        print("term:", term.decode("utf-8"))
-        print("width:", width)
-        print("height:", height)
-        print("pixelwidth:", pixelwidth)
-        print("pixelheight:", pixelheight)
-        # print(type(modes).__name__)
-        # print("modes:", modes.decode("utf-8"))
-        # Allow everything
+        self._session.log_pty_request(term.decode("utf-8"), width, height, pixelwidth, pixelheight)
         return True
 
 
@@ -75,6 +69,7 @@ class ConnectionHandler(threading.Thread):
     LF = b"\n"  # Line feed (LF)
 
     def __init__(self, transport: paramiko.Transport,
+                 session: logger.SSHSession,
                  host_key: paramiko.PKey,
                  usernames: Optional[Iterable[str]],
                  passwords: Optional[Iterable[str]],
@@ -82,6 +77,7 @@ class ConnectionHandler(threading.Thread):
         super().__init__(target=self.handle, daemon=False)
         self._terminate = False
         self._transport = transport
+        self._session = session
         self._auth_timeout = auth_timeout
         self._setup_server(host_key, usernames, passwords)
         self._lock = threading.Lock()
@@ -93,7 +89,7 @@ class ConnectionHandler(threading.Thread):
             print("Could not load moduli")
 
         self._transport.add_server_key(host_key)
-        server = Server(usernames, passwords)
+        server = Server(self._session, usernames, passwords)
         self._transport.start_server(server=server)
 
     def stop(self) -> None:
@@ -102,18 +98,22 @@ class ConnectionHandler(threading.Thread):
         self._terminate = True
         self._lock.release()
 
+    # todo check if session.end can be called through decerator
     def handle(self) -> None:
         """Waits for an SSH channel to be established and handles
         the connection"""
         chan = self._transport.accept(self._auth_timeout)
         if chan is None:
+            # todo log this
             print("Authentication timeout")
             self._transport.close()
+            self._session.end()
             return
 
         chan.send(
             b"\r\nWelcome to the Chalmers blueprint server. Please do not steal anything.\r\n")
 
+        # todo wait for user to send shell request
         # todo don't hardcode
         chan.settimeout(2)
         while True:
@@ -139,6 +139,8 @@ class ConnectionHandler(threading.Thread):
 
         if self._terminate:
             self._transport.close()
+
+        self._session.end()
 
 
 # todo should be singleton if the class does what it says in the docstring
@@ -177,6 +179,9 @@ class ConnectionManager(threading.Thread):
         self._auth_timeout = auth_timeout
         self._max_unaccepted_connections = max_unaccepted_connetions
         self._lock = threading.Lock()
+
+        # todo is there any better way to get the public facing ip?
+        self._ip = ip_address(urllib.request.urlopen('https://ident.me').read().decode('utf8'))
 
     def stop(self) -> None:
         """Stops the `listen` method listening for TCP connections and returns when
@@ -225,18 +230,25 @@ class ConnectionManager(threading.Thread):
                 break
             self._lock.release()
 
+            # Try accepting connections
             try:
                 client, addr = sock.accept()
                 transport = paramiko.Transport(client)
             except Exception as exc:
                 # todo log
                 continue
-            print(f"Client {addr[0]}:{addr[1]} connected")
+
+            session = logger.begin_ssh_session(
+                src_address=ip_address(addr[0]),
+                src_port=addr[1],
+                dst_address=self._ip,
+                dst_port=self._port)
+
+            # Start the connectionhandler with the new connection
             conn_handler = ConnectionHandler(
-                transport, self._host_key, self._usernames, self._passwords,
+                transport, session, self._host_key,  self._usernames, self._passwords,
                 self._auth_timeout)
             conn_handler.start()
-
             instance_list.append(conn_handler)
 
         # Kill all threads it has created
