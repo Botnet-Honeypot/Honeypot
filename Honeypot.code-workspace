@@ -22,12 +22,15 @@
     "python.linting.lintOnSave": true,
     "python.linting.pylintEnabled": true,
     "python.linting.pylintPath": "pylint",
-    "python.linting.pylintArgs": ["--rcfile=../.pylintrc"],
+    "python.linting.pylintArgs": ["--rcfile=../../.pylintrc"],
     "python.analysis.typeCheckingMode": "basic",
     "editor.formatOnSave": true,
     "python.formatting.provider": "autopep8",
     "python.formatting.autopep8Path": "autopep8",
-    "autoDocstring.docstringFormat": "sphinx"
+    "autoDocstring.docstringFormat": "sphinx",
+    "cSpell.words": [
+      "paramiko"
+    ]
   },
   "extensions": {
     "recommendations": [
