@@ -1,13 +1,12 @@
 # pytest . --cov-report term-missing
 import time
-from threading import Thread
 from typing import List
 
-import frontend.protocols.ssh as ssh
 import paramiko
-import pytest
-from frontend.protocols.ssh import ConnectionManager
 from paramiko import SSHClient
+import pytest
+import frontend.protocols.ssh as ssh
+
 
 key = paramiko.RSAKey(filename="./host.key")
 server = "127.0.0.1"
@@ -73,6 +72,16 @@ def test_invalid_logins(ssh_clients: List[SSHClient]):
         ssh_clients[1].connect(server, port, "linus", "masada")
     with pytest.raises(paramiko.SSHException):
         ssh_clients[2].connect(server, port, "masada")
+    with pytest.raises(paramiko.SSHException):
+        ssh_clients[2].connect(server, port, "linus", "torvald")
+    with pytest.raises(paramiko.SSHException):
+        ssh_clients[2].connect(server, port, "")
+    with pytest.raises(paramiko.SSHException):
+        ssh_clients[2].connect(server, port, "\r\n")
+    with pytest.raises(paramiko.SSHException):
+        ssh_clients[2].connect(server, port, "\r")
+    with pytest.raises(paramiko.SSHException):
+        ssh_clients[2].connect(server, port, None)
 
     conn_manager.stop()
     conn_manager.join(20)

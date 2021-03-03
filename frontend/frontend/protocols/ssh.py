@@ -21,8 +21,8 @@ class Server(paramiko.ServerInterface):
 
     def __init__(
             self, session: logger.SSHSession,
-            usernames: Optional[Iterable[str]],
-            passwords: Optional[Iterable[str]]) -> None:
+            usernames: Optional[List[str]],
+            passwords: Optional[List[str]]) -> None:
         super().__init__()
         self._usernames = usernames
         self._passwords = passwords
@@ -71,8 +71,8 @@ class ConnectionHandler(threading.Thread):
     def __init__(self, transport: paramiko.Transport,
                  session: logger.SSHSession,
                  host_key: paramiko.PKey,
-                 usernames: Optional[Iterable[str]],
-                 passwords: Optional[Iterable[str]],
+                 usernames: Optional[List[str]],
+                 passwords: Optional[List[str]],
                  auth_timeout: float) -> None:
         super().__init__(target=self.handle, daemon=False)
         self._terminate = False
@@ -149,8 +149,8 @@ class ConnectionManager(threading.Thread):
     and creating new threads of class:`ConnectionHandler`"""
 
     def __init__(self, host_key: paramiko.PKey,
-                 usernames: Optional[Iterable[str]] = None,
-                 passwords: Optional[Iterable[str]] = None,
+                 usernames: Optional[List[str]] = None,
+                 passwords: Optional[List[str]] = None,
                  auth_timeout: float = 60,
                  socket_timeout: float = 5,
                  max_unaccepted_connetions: int = 100,
