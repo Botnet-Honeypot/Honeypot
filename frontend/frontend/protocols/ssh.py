@@ -83,8 +83,8 @@ class ConnectionHandler(threading.Thread):
         self._lock = threading.Lock()
 
     def _setup_server(self, host_key: paramiko.PKey,
-                      usernames: Optional[Iterable[str]],
-                      passwords: Optional[Iterable[str]]) -> None:
+                      usernames: Optional[List[str]],
+                      passwords: Optional[List[str]]) -> None:
         if not self._transport.load_server_moduli():
             print("Could not load moduli")
 
