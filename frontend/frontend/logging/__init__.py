@@ -1,14 +1,14 @@
 """Module for logging attacker sessions and actions.
 
 Example Usage (SSH):
->>> session = begin_ssh_session(src_address=ip_address('43.56.223.156'),
-...                        src_port=3463,
-...                        dst_address=ip_address('226.64.12.2'),
-...                        dst_port=22)
->>> session.log_login_attempt('a_username', 'some_password')
->>> session.log_command('sudo rm -rf /')
->>> session.log_pty_request('xterm', 5, 20, 600, 200)
->>> session.end()
+    session = begin_ssh_session(src_address=ip_address('43.56.223.156'),
+                        src_port=3463,
+                        dst_address=ip_address('226.64.12.2'),
+                        dst_port=22)
+    session.log_login_attempt('a_username', 'some_password')
+    session.log_command('sudo rm -rf /')
+    session.log_pty_request('xterm', 5, 20, 600, 200)
+    session.end()
 """
 
 from typing import Optional, Protocol
