@@ -93,7 +93,8 @@ class Containers:
         :type id: int
         """
         try:
-            self._client.containers.get("openssh-server"+str(id)).remove()
+            container_name = "openssh-server"+str(id)
+            self._client.containers.get(container_name).remove()
         except:
             raise Exception(
                 "Could not find or destroy the specified container")
@@ -106,8 +107,9 @@ class Containers:
         :rtype: Status
         """
         try:
+            container_name = "openssh-server"+str(id)
             sts = self._client.containers.get(
-                "openssh-server" + str(id)).attrs['State']['Status']
+                container_name).attrs['State']['Status']
         except:
             return Status.NOTFOUND
         else:
