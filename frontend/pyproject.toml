@@ -7,6 +7,7 @@ authors = ["Your Name <you@example.com>"]
 [tool.poetry.dependencies]
 python = "^3.9"
 paramiko = "^2.7.2"
+psycopg2 = "^2.8.6"
 
 [tool.poetry.dev-dependencies]
 pylint = "^2.6.2"
@@ -18,7 +19,7 @@ coverage = {extras = ["toml"], version = "^5.4"}
 
 # Pytest
 [tool.pytest.ini_options]
-addopts = "--html=tests_output/report.html --self-contained-html --cov --cov-report=term --cov-report=html"
+addopts = "--doctest-modules --html=tests_output/report.html --self-contained-html --cov --cov-report=term --cov-report=html"
 cache_dir = "tests_output/.pytest_cache"
 
 # Testing coverage
