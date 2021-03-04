@@ -59,12 +59,17 @@ class Containers:
                "PASSWORD_ACCESS=true", "USER_PASSWORD="+password, "USER_NAME="+user]
 
         # Start the container using the specified image, using the environment list and with the options specified
-        self._client.containers.run("ghcr.io/linuxserver/openssh-server",
-                                    environment=env,
-                                    hostname=hostname, name=container_name, ports={
-                                        "2222/tcp": str(port)},
-                                    volumes={host_config_dir: {"bind": "/config", "mode": "rw"},
-                                             host_home_dir: {"bind": "/home/", "mode": "rw"}}, detach=True)
+        try:
+            self._client.containers.run("ghcr.io/linuxserver/openssh-server",
+                                        environment=env,
+                                        hostname=hostname, name=container_name, ports={
+                                            "2222/tcp": str(port)},
+                                        volumes={host_config_dir: {"bind": "/config", "mode": "rw"},
+                                                 host_home_dir: {"bind": "/home/", "mode": "rw"}}, detach=True)
+        except:
+            raise Exception("Could not start container " + str(id))
+        else:
+            print("Successfully started container " + str(id))
 
     def stop_container(self, id: int):
         """Stop a specified container
@@ -76,6 +81,8 @@ class Containers:
             self._client.containers.get(container_name).stop()
         except:
             raise Exception("Could not find or stop the specified container")
+        else:
+            print("Stopped container " + str(id))
 
     def gather_file_diff(self, id: int):
         print("not implemented yet")
@@ -103,17 +110,17 @@ class Containers:
                 "openssh-server" + str(id)).attrs['State']['Status']
         except:
             return Status.NOTFOUND
-
-        if sts == "running":
-            return Status.RUNNING
-        elif sts == "exited":
-            return Status.EXITED
-        elif sts == "restarting":
-            return Status.RESTARTING
-        elif sts == "paused":
-            return Status.PAUSED
         else:
-            return Status.UNDEFINED
+            if sts == "running":
+                return Status.RUNNING
+            elif sts == "exited":
+                return Status.EXITED
+            elif sts == "restarting":
+                return Status.RESTARTING
+            elif sts == "paused":
+                return Status.PAUSED
+            else:
+                return Status.UNDEFINED
 
     def create_shared_folder(self, id: int, user: str):
         """Creates a directory for the docker container with the specified id,
