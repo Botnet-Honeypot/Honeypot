@@ -1,21 +1,21 @@
 """Module for logging attacker sessions and actions.
 
 Example Usage (SSH):
->>> with begin_ssh_session(src_address=ip_address('43.56.223.156'),
-...                        src_port=3463,
-...                        dst_address=ip_address('226.64.12.2'),
-...                        dst_port=22) as session:
-...     session.log_login_attempt('a_username', 'some_password')
-...     session.log_command('sudo rm -rf /')
-...     session.log_pty_request('xterm', 5, 20, 600, 200)
+    session = begin_ssh_session(src_address=ip_address('43.56.223.156'),
+                        src_port=3463,
+                        dst_address=ip_address('226.64.12.2'),
+                        dst_port=22)
+    session.log_login_attempt('a_username', 'some_password')
+    session.log_command('sudo rm -rf /')
+    session.log_pty_request('xterm', 5, 20, 600, 200)
+    session.end()
 """
 
-from typing import Iterator, Optional, Protocol
+from typing import Optional, Protocol
 from abc import abstractmethod
-from contextlib import contextmanager
 from ipaddress import ip_address
 from ._types import IPAddress
-from ._console import ConsoleLogSSHSession
+from ._postgres import PostgresLogSSHSession
 
 
 __all__ = ['Session', 'SSHSession', 'begin_ssh_session']
@@ -95,8 +95,8 @@ def begin_ssh_session(src_address: IPAddress, src_port: int,
     :return: An established SSH session.
     """
 
-    session = ConsoleLogSSHSession(src_address=src_address,
-                                   src_port=src_port,
-                                   dst_address=dst_address,
-                                   dst_port=dst_port)
+    session = PostgresLogSSHSession(src_address=src_address,
+                                    src_port=src_port,
+                                    dst_address=dst_address,
+                                    dst_port=dst_port)
     return session

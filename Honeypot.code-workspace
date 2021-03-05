@@ -9,6 +9,10 @@
       "path": "frontend"
     },
     {
+      "name": "Database",
+      "path": "database"
+    },
+    {
       "name": "Robot Tests",
       "path": "tests"
     }

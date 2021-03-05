@@ -48,7 +48,7 @@ class ConsoleLogSSHSession():
     def log_download(self,
                      data: memoryview,
                      file_type: str,
-                     source_address: Union[IPv4Address, IPv6Address],
+                     source_address: IPAddress,
                      source_url: Optional[str] = None,
                      save_data: bool = True) -> None:
         logger.info("[%s] Download from %s (%s) of type %s: %s",
