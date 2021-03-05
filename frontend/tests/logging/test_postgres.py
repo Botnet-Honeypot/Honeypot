@@ -1,4 +1,4 @@
-from frontend.logging import begin_ssh_session
+from frontend.honeylogger import begin_ssh_session
 from ipaddress import ip_address
 
 
