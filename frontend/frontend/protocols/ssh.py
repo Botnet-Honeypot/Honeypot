@@ -76,10 +76,12 @@ class ConnectionHandler(threading.Thread):
                  auth_timeout: float) -> None:
         super().__init__(target=self.handle, daemon=False)
         self._terminate = False
+        self._usernames = usernames
+        self._passwords = passwords
+        self._host_key = host_key
         self._transport = transport
         self._session = session
         self._auth_timeout = auth_timeout
-        self._setup_server(host_key, usernames, passwords)
         self._lock = threading.Lock()
 
     def _setup_server(self, host_key: paramiko.PKey,
@@ -102,6 +104,15 @@ class ConnectionHandler(threading.Thread):
     def handle(self) -> None:
         """Waits for an SSH channel to be established and handles
         the connection"""
+
+        # Setup the server
+        try:
+            self._setup_server(self._host_key, self._usernames, self._passwords)
+        except:
+            # todo log
+            self._session.end()
+            return
+
         chan = self._transport.accept(self._auth_timeout)
         if chan is None:
             # todo log this
