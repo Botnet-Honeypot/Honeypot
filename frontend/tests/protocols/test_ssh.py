@@ -1,10 +1,11 @@
 import time
 from threading import Thread
 
-import frontend.protocols.ssh as ssh
 import paramiko
-import pytest
 from paramiko import SSHClient
+import pytest
+
+import frontend.protocols.ssh as ssh
 
 
 @pytest.fixture()
