@@ -1,6 +1,6 @@
 # pytest . --cov-report term-missing
 from typing import List
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 import time
 import pytest
 
@@ -163,6 +163,101 @@ def test_invalid_channel_request(ssh_clients: List[SSHClient]):
         with pytest.raises(paramiko.SSHException):
             ssh_clients[0].get_transport().open_channel("sssion", timeout=2)
         ssh_clients[0].close()
+
+        conn_manager.stop()
+        conn_manager.join(20)
+
+
+def test_sessions_started_logged(ssh_clients: List[SSHClient]):
+    with patch("frontend.honeylogger.begin_ssh_session") as mock:
+        mock.return_value = MockedSSHSession()
+
+        conn_manager = ssh.ConnectionManager(
+            host_key=key, port=port, auth_timeout=1, socket_timeout=1)
+        conn_manager.start()
+        time.sleep(0.2)  # Wait for server to start
+
+        ssh_clients[0].connect(server, port, "", "")
+        ssh_clients[1].connect(server, port, "", "")
+        ssh_clients[2].connect(server, port, "", "")
+        assert mock.call_count == 3
+
+        conn_manager.stop()
+        conn_manager.join(20)
+
+
+def test_sessions_ended_logged(ssh_clients: List[SSHClient]):
+    with patch("frontend.honeylogger.begin_ssh_session") as mock:
+        instance = MockedSSHSession()
+        instance.end = MagicMock()
+        mock.return_value = instance
+
+        auth_timeout = 1
+        conn_manager = ssh.ConnectionManager(
+            host_key=key, port=port, auth_timeout=auth_timeout, socket_timeout=1, usernames=["hi"])
+        conn_manager.start()
+        time.sleep(0.2)  # Wait for server to start
+
+        with pytest.raises(paramiko.SSHException):
+            ssh_clients[0].connect(server, port, "", "")
+
+        ssh_clients[1].connect(server, port, "hi", "")
+        time.sleep(auth_timeout + 0.1)
+
+        ssh_clients[2].connect(server, port, "hi", "")
+        ssh_clients[2].close()
+
+        assert mock.call_count == 3
+        conn_manager.stop()
+        conn_manager.join(20)
+
+
+def test_logins_logged(ssh_clients: List[SSHClient]):
+    with patch("frontend.honeylogger.begin_ssh_session") as mock:
+        instance = MockedSSHSession()
+        instance.log_login_attempt = MagicMock()
+        mock.return_value = instance
+
+        conn_manager = ssh.ConnectionManager(
+            host_key=key, port=port, auth_timeout=1, socket_timeout=1)
+        conn_manager.start()
+        time.sleep(0.2)  # Wait for server to start
+
+        username = "this is a"
+        password = "te\nst"
+        ssh_clients[0].connect(server, port, username, password)
+        instance.log_login_attempt.assert_called_with(username, password)
+        username += " good"
+        ssh_clients[1].connect(server, port, username, password)
+        instance.log_login_attempt.assert_called_with(username, password)
+
+        assert instance.log_login_attempt.call_count == 2
+
+        conn_manager.stop()
+        conn_manager.join(20)
+
+
+def test_pty_request_logged(ssh_clients: List[SSHClient]):
+    with patch("frontend.honeylogger.begin_ssh_session") as mock:
+        instance = MockedSSHSession()
+        instance.log_pty_request = MagicMock()
+        mock.return_value = instance
+
+        conn_manager = ssh.ConnectionManager(
+            host_key=key, port=port, auth_timeout=1, socket_timeout=1)
+        conn_manager.start()
+        time.sleep(0.2)  # Wait for server to start
+
+        ssh_clients[0].connect(server, port, "", "")
+        t = "t"
+        w, h = 1, 5
+        wp, hp = 12, 15
+        ssh_clients[0].get_transport().open_channel("session").get_pty(
+            term=t, width=w, height=h, width_pixels=wp, height_pixels=hp)
+        ssh_clients[0].close()
+
+        instance.log_pty_request.assert_called_with(t, w, h, wp, hp)
+        instance.log_pty_request.assert_called_once()
 
         conn_manager.stop()
         conn_manager.join(20)
