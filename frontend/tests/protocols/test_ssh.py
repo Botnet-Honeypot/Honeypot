@@ -13,6 +13,8 @@ import frontend.protocols.ssh as ssh
 key = paramiko.RSAKey(filename="./host.key")
 server = "127.0.0.1"
 port = 2222
+server_start_delay = 0.1
+shutdown_timeout = 10
 
 
 class MockedSSHSession():
@@ -53,13 +55,13 @@ def test_connection_manager_shutdown(ssh_clients: List[SSHClient]):
         host_key=key, port=port, auth_timeout=1, socket_timeout=1)
     conn_manager.start()
 
-    time.sleep(0.2)  # Wait for server to start
+    time.sleep(server_start_delay)
     ssh_clients[0].connect(server, port, "", "")
     ssh_clients[1].connect(server, port, "", "")
     ssh_clients[2].connect(server, port, "", "")
 
     conn_manager.stop()
-    conn_manager.join(20)
+    conn_manager.join(shutdown_timeout)
     assert not conn_manager.is_alive()
 
 
@@ -71,14 +73,14 @@ def test_valid_logins(ssh_clients: List[SSHClient]):
         passwords=["1234", "torvalds"])
     conn_manager.start()
 
-    time.sleep(0.2)  # Wait for server to start
+    time.sleep(server_start_delay)
 
     ssh_clients[0].connect(server, port, "masada", "1234")
     ssh_clients[1].connect(server, port, "linus", "torvalds")
     ssh_clients[2].connect(server, port, "masada", "torvalds")
 
     conn_manager.stop()
-    conn_manager.join(20)
+    conn_manager.join(shutdown_timeout)
 
 
 def test_invalid_logins(ssh_clients: List[SSHClient]):
@@ -91,7 +93,7 @@ def test_invalid_logins(ssh_clients: List[SSHClient]):
             passwords=["1234", "torvalds"])
         conn_manager.start()
 
-        time.sleep(0.2)  # Wait for server to start
+        time.sleep(server_start_delay)
 
         with pytest.raises(paramiko.SSHException):
             ssh_clients[0].connect(server, port, None, "1")
@@ -111,7 +113,7 @@ def test_invalid_logins(ssh_clients: List[SSHClient]):
             ssh_clients[2].connect(server, port, None)
 
         conn_manager.stop()
-        conn_manager.join(20)
+        conn_manager.join(shutdown_timeout)
 
 
 def test_request_shell_timeout(ssh_clients: List[SSHClient]):
@@ -122,7 +124,7 @@ def test_request_shell_timeout(ssh_clients: List[SSHClient]):
         conn_manager = ssh.ConnectionManager(
             host_key=key, port=port, auth_timeout=auth_timeout, socket_timeout=1)
         conn_manager.start()
-        time.sleep(0.2)  # Wait for server to start
+        time.sleep(server_start_delay)
 
         ssh_clients[0].connect(server, port, "", "")
 
@@ -132,7 +134,7 @@ def test_request_shell_timeout(ssh_clients: List[SSHClient]):
             ssh_clients[0].invoke_shell()
 
         conn_manager.stop()
-        conn_manager.join(20)
+        conn_manager.join(shutdown_timeout)
 
 
 @patch("frontend.honeylogger.begin_ssh_session", return_value=MockedSSHSession())
@@ -140,14 +142,14 @@ def test_channel_request(ssh_clients: List[SSHClient]):
     conn_manager = ssh.ConnectionManager(
         host_key=key, port=port, auth_timeout=1, socket_timeout=1)
     conn_manager.start()
-    time.sleep(0.2)  # Wait for server to start
+    time.sleep(server_start_delay)
     ssh_clients[0].connect(server, port, "", "")
     ssh_clients[0].invoke_shell()
     ssh_clients[0].get_transport()
     ssh_clients[0].close()
 
     conn_manager.stop()
-    conn_manager.join(20)
+    conn_manager.join(shutdown_timeout)
 
 
 def test_invalid_channel_request(ssh_clients: List[SSHClient]):
@@ -157,7 +159,7 @@ def test_invalid_channel_request(ssh_clients: List[SSHClient]):
         conn_manager = ssh.ConnectionManager(
             host_key=key, port=port, auth_timeout=1, socket_timeout=1)
         conn_manager.start()
-        time.sleep(0.2)  # Wait for server to start
+        time.sleep(server_start_delay)
         ssh_clients[0].connect(server, port, "", "")
         ssh_clients[0].invoke_shell()
         with pytest.raises(paramiko.SSHException):
@@ -165,7 +167,7 @@ def test_invalid_channel_request(ssh_clients: List[SSHClient]):
         ssh_clients[0].close()
 
         conn_manager.stop()
-        conn_manager.join(20)
+        conn_manager.join(shutdown_timeout)
 
 
 def test_sessions_started_logged(ssh_clients: List[SSHClient]):
@@ -175,7 +177,7 @@ def test_sessions_started_logged(ssh_clients: List[SSHClient]):
         conn_manager = ssh.ConnectionManager(
             host_key=key, port=port, auth_timeout=1, socket_timeout=1)
         conn_manager.start()
-        time.sleep(0.2)  # Wait for server to start
+        time.sleep(server_start_delay)
 
         ssh_clients[0].connect(server, port, "", "")
         ssh_clients[1].connect(server, port, "", "")
@@ -183,7 +185,7 @@ def test_sessions_started_logged(ssh_clients: List[SSHClient]):
         assert mock.call_count == 3
 
         conn_manager.stop()
-        conn_manager.join(20)
+        conn_manager.join(shutdown_timeout)
 
 
 def test_sessions_ended_logged(ssh_clients: List[SSHClient]):
@@ -196,8 +198,11 @@ def test_sessions_ended_logged(ssh_clients: List[SSHClient]):
         conn_manager = ssh.ConnectionManager(
             host_key=key, port=port, auth_timeout=auth_timeout, socket_timeout=1, usernames=["hi"])
         conn_manager.start()
-        time.sleep(0.2)  # Wait for server to start
+        time.sleep(server_start_delay)
 
+        # Client 0 will fail to login
+        # Client 1 will fail to send a shell request
+        # Client 2 will close the session himself
         with pytest.raises(paramiko.SSHException):
             ssh_clients[0].connect(server, port, "", "")
 
@@ -209,7 +214,7 @@ def test_sessions_ended_logged(ssh_clients: List[SSHClient]):
 
         assert mock.call_count == 3
         conn_manager.stop()
-        conn_manager.join(20)
+        conn_manager.join(shutdown_timeout)
 
 
 def test_logins_logged(ssh_clients: List[SSHClient]):
@@ -221,7 +226,7 @@ def test_logins_logged(ssh_clients: List[SSHClient]):
         conn_manager = ssh.ConnectionManager(
             host_key=key, port=port, auth_timeout=1, socket_timeout=1)
         conn_manager.start()
-        time.sleep(0.2)  # Wait for server to start
+        time.sleep(server_start_delay)
 
         username = "this is a"
         password = "te\nst"
@@ -234,7 +239,7 @@ def test_logins_logged(ssh_clients: List[SSHClient]):
         assert instance.log_login_attempt.call_count == 2
 
         conn_manager.stop()
-        conn_manager.join(20)
+        conn_manager.join(shutdown_timeout)
 
 
 def test_pty_request_logged(ssh_clients: List[SSHClient]):
@@ -246,7 +251,7 @@ def test_pty_request_logged(ssh_clients: List[SSHClient]):
         conn_manager = ssh.ConnectionManager(
             host_key=key, port=port, auth_timeout=1, socket_timeout=1)
         conn_manager.start()
-        time.sleep(0.2)  # Wait for server to start
+        time.sleep(server_start_delay)
 
         ssh_clients[0].connect(server, port, "", "")
         t = "t"
@@ -260,4 +265,4 @@ def test_pty_request_logged(ssh_clients: List[SSHClient]):
         instance.log_pty_request.assert_called_once()
 
         conn_manager.stop()
-        conn_manager.join(20)
+        conn_manager.join(shutdown_timeout)
