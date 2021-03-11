@@ -27,6 +27,10 @@ jobs:
         working-directory: ./frontend/
         run: ./genkeys
         
+  frontend-tests:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
       - name: Frontend tests
         working-directory: ./frontend/
         run: |
