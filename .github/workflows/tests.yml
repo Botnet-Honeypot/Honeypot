@@ -1,0 +1,37 @@
+name: Python tests
+
+on:
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v2
+
+      - name: Set up Python 3.9
+        uses: actions/setup-python@v2
+        with:
+           python-version: 3.9
+           
+      - name: Install dependencies
+        run: |
+          apt update
+          DEBIAN_FRONTEND=noninteractive apt install -y libpq-dev build-essential postgresql
+          pip install poetry
+        
+      - name: Install python dependencies
+        working-directory: ./frontend/
+        run: poetry install
+          
+      - name: Generate RSA keys
+        working-directory: ./frontend/
+        run: ./genkeys
+        
+      - name: Frontend tests
+        working-directory: ./frontend/
+        run: |
+          . .venv/bin/activate
+          pytest
