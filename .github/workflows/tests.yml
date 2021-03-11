@@ -16,10 +16,8 @@ jobs:
         with:
            python-version: 3.9
            
-      - name: Install dependencies
-        run: |
-          sudo apt update
-          DEBIAN_FRONTEND=noninteractive sudo apt install -y libpq-dev build-essential postgresql
+      - name: Install poetry
+        run: pip install poetry
         
       - name: Install python dependencies
         working-directory: ./frontend/
