@@ -18,9 +18,8 @@ jobs:
            
       - name: Install dependencies
         run: |
-          apt update
-          DEBIAN_FRONTEND=noninteractive apt install -y libpq-dev build-essential postgresql
-          pip install poetry
+          sudo apt update
+          DEBIAN_FRONTEND=noninteractive sudo apt install -y libpq-dev build-essential postgresql
         
       - name: Install python dependencies
         working-directory: ./frontend/
