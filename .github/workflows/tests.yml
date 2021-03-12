@@ -28,22 +28,22 @@ jobs:
         run: ./genkeys
         
       - name: Pylint
+        if: always()
         working-directory: ./frontend/
-        continue-on-error: true
         run: |
           . .venv/bin/activate
           pylint --fail-under 7 frontend
           
       - name: Pyright
+        if: always()
         working-directory: ./frontend/
-        continue-on-error: true
         run: |
           . .venv/bin/activate
           pyright
           
       - name: Pytest
+        if: always()
         working-directory: ./frontend/
-        continue-on-error: true
         run: |
           . .venv/bin/activate
           pytest
@@ -67,22 +67,22 @@ jobs:
           poetry install
 
       - name: Pylint
+        if: always()
         working-directory: ./backend/
-        continue-on-error: true
         run: |
           . .venv/bin/activate
           pylint  --fail-under 7 backend
           
       - name: Pyright
+        if: always()
         working-directory: ./backend/
-        continue-on-error: true
         run: |
           . .venv/bin/activate
           pyright
           
       - name: Pytest
+        if: always()
         working-directory: ./backend/
-        continue-on-error: true
         run: |
           . .venv/bin/activate
           pytest
