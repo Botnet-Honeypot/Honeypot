@@ -26,9 +26,6 @@ def run_around_tests():
     # Before test
 
     containerHandler = container.Containers()
-    # Change into the correct directory, must be run from /backend/backend/
-    os.chdir('..')
-    os.chdir("backend")
 
     # Run test
     yield

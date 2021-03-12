@@ -18,20 +18,25 @@ timezone = "Europe/London"
 sudo = "true"
 
 
-for i in range(5):
-    containerHandler.create_container(
-        id, port, user, password, hostname, uid, gid, timezone, sudo)
-    id += 1
-    port += 1
+def main():
+    for i in range(5):
+        containerHandler.create_container(
+            id, port, user, password, hostname, uid, gid, timezone, sudo)
+        id += 1
+        port += 1
 
-time.sleep(60)
+    time.sleep(60)
 
-# Close and destroy containers after 60 seconds
-ID = 0
-for i in range(5):
-    try:
-        containerHandler.stop_container(ID)
-        containerHandler.destroy_container(ID)
-    except:
-        print("Could not find or stop the specified container, continuing anyways")
-    ID += 1
+    # Close and destroy containers after 60 seconds
+    ID = 0
+    for i in range(5):
+        try:
+            containerHandler.stop_container(ID)
+            containerHandler.destroy_container(ID)
+        except:
+            print("Could not find or stop the specified container, continuing anyways")
+        ID += 1
+
+
+if __name__ == '__main__':
+    main()
