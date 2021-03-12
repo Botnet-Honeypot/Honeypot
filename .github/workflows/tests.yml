@@ -19,7 +19,7 @@ jobs:
       - name: Install dependencies
         working-directory: ./frontend/
         run: |
-          npm install -g pyright
+          sudo npm install -g pyright
           pip install poetry
           poetry install
           
@@ -29,18 +29,21 @@ jobs:
         
       - name: Pylint
         working-directory: ./frontend/
+        continue-on-error: true
         run: |
           . .venv/bin/activate
-          pylint frontend --exit-zero
+          pylint --fail-under 7 frontend
           
       - name: Pyright
         working-directory: ./frontend/
+        continue-on-error: true
         run: |
           . .venv/bin/activate
           pyright
           
       - name: Pytest
         working-directory: ./frontend/
+        continue-on-error: true
         run: |
           . .venv/bin/activate
           pytest
@@ -59,24 +62,27 @@ jobs:
       - name: Install dependencies
         working-directory: ./backend/
         run: |
-          npm install -g pyright
+          sudo npm install -g pyright
           pip install poetry
           poetry install
 
       - name: Pylint
         working-directory: ./backend/
+        continue-on-error: true
         run: |
           . .venv/bin/activate
-          pylint backend --exit-zero
+          pylint  --fail-under 7 backend
           
       - name: Pyright
         working-directory: ./backend/
+        continue-on-error: true
         run: |
           . .venv/bin/activate
           pyright
           
       - name: Pytest
         working-directory: ./backend/
+        continue-on-error: true
         run: |
           . .venv/bin/activate
           pytest
