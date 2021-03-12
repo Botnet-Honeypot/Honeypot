@@ -15,25 +15,31 @@ jobs:
         uses: actions/setup-python@v2
         with:
            python-version: 3.9
-           
-      - name: Install poetry
-        run: pip install poetry
-        
-      - name: Install python dependencies
+                   
+      - name: Install dependencies
         working-directory: ./frontend/
-        run: poetry install
+        run: |
+          npm install -g pyright
+          pip install poetry
+          poetry install
           
       - name: Generate RSA keys
         working-directory: ./frontend/
         run: ./genkeys
         
-      - name: Frontend linting
+      - name: Pylint
         working-directory: ./frontend/
         run: |
           . .venv/bin/activate
           pylint frontend --exit-zero
           
-      - name: Frontend tests
+      - name: Pyright
+        working-directory: ./frontend/
+        run: |
+          . .venv/bin/activate
+          pyright
+          
+      - name: Pytest
         working-directory: ./frontend/
         run: |
           . .venv/bin/activate
@@ -49,21 +55,27 @@ jobs:
         uses: actions/setup-python@v2
         with:
            python-version: 3.9
-
-      - name: Install poetry
-        run: pip install poetry
-
-      - name: Install python dependencies
+           
+      - name: Install dependencies
         working-directory: ./backend/
-        run: poetry install
+        run: |
+          npm install -g pyright
+          pip install poetry
+          poetry install
 
-      - name: Backend linting
+      - name: Pylint
         working-directory: ./backend/
         run: |
           . .venv/bin/activate
           pylint backend --exit-zero
           
-      - name: Backend tests
+      - name: Pyright
+        working-directory: ./backend/
+        run: |
+          . .venv/bin/activate
+          pyright
+          
+      - name: Pytest
         working-directory: ./backend/
         run: |
           . .venv/bin/activate
