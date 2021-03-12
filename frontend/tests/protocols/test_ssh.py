@@ -6,6 +6,9 @@ import pytest
 
 import paramiko
 from paramiko import SSHClient
+import pytest
+
+import frontend.protocols.ssh as ssh
 
 import frontend.protocols.ssh as ssh
 
