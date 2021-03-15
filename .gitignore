@@ -10,3 +10,8 @@ __pycache__/
 
 *.pyc
 tests_output/
+
+# Automatically generated doc files
+docs/frontend/*
+docs/backend/*
+docs/_build/*

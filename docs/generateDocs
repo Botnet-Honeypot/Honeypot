@@ -1,0 +1,11 @@
+#!/bin/bash
+
+# Get path of the script
+path=$(dirname "$(readlink -f "$0")")
+
+cd "$path" || (echo "Failed to cd to $path" && exit 1)
+test -d frontend || (mkdir -p frontend/ || echo "Failed to create $path/frontend" && exit 1)
+test -d frontend || (mkdir -p backend/ || echo "Failed to create $path/backend" && exit 1)
+sphinx-apidoc -fMo frontend/ ../frontend/frontend
+sphinx-apidoc -fMo backend/ ../backend/backend
+make html
