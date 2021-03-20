@@ -8,4 +8,5 @@ test -d frontend || (mkdir -p frontend/ || echo "Failed to create $path/frontend
 test -d frontend || (mkdir -p backend/ || echo "Failed to create $path/backend" && exit 1)
 sphinx-apidoc -fMo frontend/ ../frontend/frontend
 sphinx-apidoc -fMo backend/ ../backend/backend
+make clean
 make html
