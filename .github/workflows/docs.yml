@@ -20,7 +20,7 @@ jobs:
 
       - name: Build docs
         working-directory: ./docs/
-        run: ./generateDocs
+        run: ./generateDocs && touch .nojekyll
 
       - name: Deploy to GitHub Pages
         if: success()
