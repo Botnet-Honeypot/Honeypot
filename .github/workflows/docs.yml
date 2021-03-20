@@ -2,7 +2,7 @@ name: Build docs
 
 on:
   push:
-    branches: [main]
+    branches: [sphinx]
 
 jobs:
   build:
@@ -20,9 +20,9 @@ jobs:
 
       - name: Install all pip packages
         run: |
-          cd ./frotend/ && poetry export -f requirements.txt > ../requirements.txt
-          cd ./backend/ && poetry export -f requirements.txt >> ../requirements.txt
-          pip install -r requirements.txt
+          cd ./frontend/ && poetry export -f requirements.txt > ../requirements.txt
+          cd ../backend/ && poetry export -f requirements.txt >> ../requirements.txt
+          pip install -r ../requirements.txt
 
       - name: Build docs
         working-directory: ./docs/

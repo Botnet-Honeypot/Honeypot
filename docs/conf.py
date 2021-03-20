@@ -12,8 +12,8 @@
 #
 import os
 import sys
-sys.path.insert(0, os.path.abspath('../frontend/frontend'))
-sys.path.insert(1, os.path.abspath('../backend/backend'))
+sys.path.insert(0, os.path.abspath('../frontend/'))
+sys.path.insert(1, os.path.abspath('../backend/'))
 
 
 # -- Project information -----------------------------------------------------
