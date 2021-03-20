@@ -22,7 +22,7 @@ class Containers:
 
     def create_container(self, id: int, port: int, user: str, password: str, hostname: str, uid: int, gid: int, timezone: str, sudo: str):
         """Creates a docker container with the specified id, exposes the specified SSH port,
-           and has SSH login credentials user/password
+        and has SSH login credentials user/password
         :param id: ID (name) of container
         :type id: int
         :param port: SSH port that is exposed
@@ -126,9 +126,9 @@ class Containers:
 
     def create_shared_folder(self, id: int, user: str):
         """Creates a directory for the docker container with the specified id,
-           exposes the specified SSH port, and has SSH login credentials user/password.
-           Inside it creates a script for initialization that uses the specified username
-           for the home directory.
+        exposes the specified SSH port, and has SSH login credentials user/password.
+        Inside it creates a script for initialization that uses the specified username
+        for the home directory.
         :param id: ID (name) of container
         :type id: int
         :param port: SSH port that is exposed
