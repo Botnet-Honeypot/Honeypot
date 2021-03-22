@@ -9,8 +9,12 @@ jobs:
   frontend:
     runs-on: ubuntu-latest
     steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: docker-practice/actions-setup-docker@master
       - uses: actions/checkout@v2
+
+      - name: Start database container
+        working-directory: ./database/
+        run: docker-compose up -d
 
       - name: Set up Python 3.9
         uses: actions/setup-python@v2
