@@ -19,6 +19,10 @@
 	{
       "name": "Database",
       "path": "database"
+    },
+	{
+      "name": "Dev",
+      "path": "dev"
     }
   ],
   "settings": {
