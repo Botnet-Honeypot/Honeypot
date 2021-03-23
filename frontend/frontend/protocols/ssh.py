@@ -1,14 +1,17 @@
 """This module contains logic related to SSH"""
 import socket
+import queue
 import threading
 import urllib.request
 from ipaddress import ip_address
-from typing import Iterable, List, Optional
+from typing import List, Optional
 
 from paramiko.common import (AUTH_FAILED, AUTH_SUCCESSFUL,
                              OPEN_FAILED_ADMINISTRATIVELY_PROHIBITED,
                              OPEN_SUCCEEDED)
 import paramiko
+
+from frontend.protocols.sshevents import ServerEvent, ShellRequest, ExecRequest
 import frontend.honeylogger as logger
 
 
@@ -22,11 +25,15 @@ class Server(paramiko.ServerInterface):
     def __init__(
             self, session: logger.SSHSession,
             usernames: Optional[List[str]],
-            passwords: Optional[List[str]]) -> None:
+            passwords: Optional[List[str]],
+            event_queue: queue.Queue[ServerEvent]) -> None:
         super().__init__()
         self._usernames = usernames
         self._passwords = passwords
         self._session = session
+        self._chan_id = None
+        self._recieved_shell_or_exec_request = False
+        self._event_queue = event_queue
 
     # Normal auth method
     def check_auth_password(self, username: str, password: str) -> int:
@@ -42,25 +49,35 @@ class Server(paramiko.ServerInterface):
         return AUTH_FAILED
 
     def get_allowed_auths(self, username: str) -> str:
-        # return 'publickey' # If we allow publickey auth
         return 'password'  # If we don't allow publickey auth
 
     # This is called after successfull auth
     def check_channel_request(self, kind: str, chanid: int) -> int:
-        # print("Channel request received")
-        if kind == "session":
+        # Only allow one session to be opened
+        if kind == "session" and self._chan_id is None:
+            self._chan_id = chanid
             return OPEN_SUCCEEDED
         return OPEN_FAILED_ADMINISTRATIVELY_PROHIBITED
 
     def check_channel_shell_request(self, channel: paramiko.Channel) -> bool:
-        # print("Request for shell received")
-        return True
+        if channel.get_id() == self._chan_id and not self._recieved_shell_or_exec_request:
+            self._recieved_shell_or_exec_request = True
+            self._event_queue.put(ShellRequest())
+            return True
+        return False
 
-    def check_channel_pty_request(self, _: paramiko.Channel, term: bytes,
+    def check_channel_pty_request(self, channel: paramiko.Channel, term: bytes,
                                   width: int, height: int, pixelwidth: int,
                                   pixelheight: int, modes: bytes) -> bool:
         self._session.log_pty_request(term.decode("utf-8"), width, height, pixelwidth, pixelheight)
-        return True
+        return channel.get_id() == self._chan_id
+
+    def check_channel_exec_request(self, channel: paramiko.Channel, command: bytes) -> bool:
+        if channel.get_id() == self._chan_id and not self._recieved_shell_or_exec_request:
+            self._recieved_shell_or_exec_request = True
+            self._event_queue.put(ExecRequest(command))
+            return True
+        return False
 
 
 class ConnectionHandler(threading.Thread):
@@ -83,6 +100,7 @@ class ConnectionHandler(threading.Thread):
         self._session = session
         self._auth_timeout = auth_timeout
         self._lock = threading.Lock()
+        self._server_event_queue = queue.Queue(maxsize=0)  # infinite capacity
 
     def _setup_server(self, host_key: paramiko.PKey,
                       usernames: Optional[List[str]],
@@ -91,7 +109,7 @@ class ConnectionHandler(threading.Thread):
             print("Could not load moduli")
 
         self._transport.add_server_key(host_key)
-        server = Server(self._session, usernames, passwords)
+        server = Server(self._session, usernames, passwords, self._server_event_queue)
         self._transport.start_server(server=server)
 
     def stop(self) -> None:
@@ -99,6 +117,9 @@ class ConnectionHandler(threading.Thread):
         self._lock.acquire()
         self._terminate = True
         self._lock.release()
+        # It may be the case that the handle method is blocking on the queue
+        # so putting something in it will force it to continue
+        self._server_event_queue.put(None)
 
     # todo check if session.end can be called through decerator
     def handle(self) -> None:
@@ -121,37 +142,52 @@ class ConnectionHandler(threading.Thread):
             self._session.end()
             return
 
-        chan.send(
-            b"\r\nWelcome to the Chalmers blueprint server. Please do not steal anything.\r\n")
-
-        # todo wait for user to send shell request
-        # todo don't hardcode
-        chan.settimeout(2)
-        while True:
+        event = None
+        try:
+            # The 30 seconds acts as a safety precaution if someone were to
+            # connect and disconnect without sending a session or exec request
+            event = self._server_event_queue.get(block=True, timeout=30)
+        except queue.Empty:
             self._lock.acquire()
-            if not self._transport.active or self._terminate:
-                self._lock.release()
-                break
+            self._terminate = True
             self._lock.release()
-
-            try:
-                received_bytes = chan.recv(1024)
-                print(received_bytes.decode("utf-8"), end='')
-                chan.send(received_bytes)
-            except socket.timeout:
-                continue
-            except:
-                # todo log this
-                continue
-            # When we receive CR show LF as well
-            if received_bytes == self.CR:
-                print("\n", end='')
-                chan.send(self.LF)
 
         if self._terminate:
             self._transport.close()
+            self._session.end()
+        elif isinstance(event, ShellRequest):
+            # Here we the user sent a shell request
+            chan.settimeout(2)
+            while True:
+                self._lock.acquire()
+                if not self._transport.active or self._terminate:
+                    self._lock.release()
+                    break
+                self._lock.release()
 
-        self._session.end()
+                try:
+                    received_bytes = chan.recv(1024)
+                    print(received_bytes.decode("utf-8"), end='')
+                    chan.send(received_bytes)
+                except socket.timeout:
+                    continue
+                except:
+                    # todo log this
+                    continue
+                # When we receive CR show LF as well
+                if received_bytes == self.CR:
+                    print("\n", end='')
+                    chan.send(self.LF)
+
+            if self._terminate:
+                self._transport.close()
+
+            self._session.end()
+        elif isinstance(event, ExecRequest):
+            # Here we the user sent an exec request
+            chan.sendall(event.get_command())
+            self._transport.close()
+            self._session.end()
 
 
 # todo should be singleton if the class does what it says in the docstring

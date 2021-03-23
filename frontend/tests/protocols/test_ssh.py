@@ -269,3 +269,57 @@ def test_pty_request_logged(ssh_clients: List[SSHClient]):
 
         conn_manager.stop()
         conn_manager.join(shutdown_timeout)
+
+
+def test_multiple_channels(ssh_clients: List[SSHClient]):
+    with patch("frontend.honeylogger.begin_ssh_session") as mock:
+        mock.return_value = MockedSSHSession()
+        conn_manager = ssh.ConnectionManager(
+            host_key=key, port=port, auth_timeout=1, socket_timeout=1)
+        conn_manager.start()
+        time.sleep(server_start_delay)
+        ssh_clients[0].connect(server, port, "", "")
+        transport = ssh_clients[0].get_transport()
+
+        with pytest.raises(paramiko.SSHException):
+            transport.open_channel("sssion")
+
+        transport.open_channel("session")
+
+        # Should not be able to open another channel since already has been established
+        with pytest.raises(paramiko.SSHException):
+            transport.open_channel("session")
+
+        ssh_clients[0].close()
+        conn_manager.stop()
+        conn_manager.join(shutdown_timeout)
+
+
+def test_exec_and_shell_request(ssh_clients: List[SSHClient]):
+    with patch("frontend.honeylogger.begin_ssh_session") as mock:
+        mock.return_value = MockedSSHSession()
+        conn_manager = ssh.ConnectionManager(
+            host_key=key, port=port, auth_timeout=1, socket_timeout=1)
+        conn_manager.start()
+        time.sleep(server_start_delay)
+        ssh_clients[0].connect(server, port, "", "")
+
+        ssh_clients[0].get_transport().open_channel("session")
+
+        # Should not be able to send an exec command since a channel already
+        # has been established and requesting an "exec request" would have to open another channel
+        with pytest.raises(paramiko.SSHException):
+            ssh_clients[0].exec_command("ls -la")
+        ssh_clients[0].close()
+
+        ssh_clients[1].connect(server, port, "", "")
+        ssh_clients[1].exec_command("ls -la")
+
+        time.sleep(0.2)
+
+        # Should not be active anymore since the server should have recieved and
+        # handled the previous exec request and then closed the channel
+        assert not ssh_clients[1].get_transport().active
+
+        conn_manager.stop()
+        conn_manager.join(shutdown_timeout)
