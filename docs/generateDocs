@@ -1,10 +1,15 @@
 #!/bin/bash
+set -e
 
 # Get path of the script
 path=$(dirname "$(readlink -f "$0")")
 
-cd "$path" || (echo "Failed to cd to $path" && exit 1)
-rm -rf frontend/ backend/ _build/
-(. ../frontend/.venv/bin/activate && sphinx-apidoc -fMo frontend/ ../frontend/frontend)
-(. ../backend/.venv/bin/activate && sphinx-apidoc -fMo backend/ ../backend/backend)
-make html
+cd "$path"
+mkdir -p _static/
+rm -rf frontend/ backend/ _build/ _static/*
+
+. ../frontend/.venv/bin/activate # Source to get sphinx-apidoc binary
+sphinx-apidoc -fMo frontend/ ../frontend/frontend
+(. ../frontend/.venv/bin/activate && sphinx-build -M html . _build/)
+sphinx-apidoc -fMo backend/ ../backend/backend
+(. ../backend/.venv/bin/activate && sphinx-build -M html . _build/)
