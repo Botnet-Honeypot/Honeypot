@@ -1,8 +1,8 @@
 """This module contains logic for handling the SSH server docker instances for the backend"""
-import backend.filehandler as filehandler
-import docker
 import os
 from enum import Enum
+import docker
+import backend.filehandler as filehandler
 
 
 class Status(Enum):
@@ -20,11 +20,12 @@ class Containers:
         self._client = docker.from_env()
         self._filehandler = filehandler.FileHandle()
 
-    def create_container(self, id: int, port: int, user: str, password: str, hostname: str, uid: int, gid: int, timezone: str, sudo: str):
-        """Creates a docker container with the specified id, exposes the specified SSH port,
+    def create_container(self, container_id: int, port: int, user: str, password: str,
+                         hostname: str, uid: int, gid: int, timezone: str, sudo: str):
+        """Creates a docker container with the specified container_id, exposes the specified SSH port,
            and has SSH login credentials user/password
-        :param id: ID (name) of container
-        :type id: int
+        :param container_id: container_id (name) of container
+        :type container_id: int
         :param port: SSH port that is exposed
         :type port: int
         :param user: Username for SSH
@@ -33,9 +34,9 @@ class Containers:
         :type password: string
         :param hostname: Name of the device
         :type hostname: string
-        :param uid: User ID
+        :param uid: User container_id
         :type uid: int
-        :param gid: Group ID
+        :param gid: Group container_id
         :type gid: int
         :param timezone: Timezone for container
         :type timezone: string
@@ -45,72 +46,73 @@ class Containers:
         """
 
         # Creates shared folder between host and SSH server container
-        Containers.create_shared_folder(self, id, user)
+        Containers.create_shared_folder(self, container_id, user)
 
         # Get current dir and set paths for shared folders
         current_dir = os.getcwd()
-        host_config_dir = current_dir + "/" + str(id) + "/config"
-        host_home_dir = current_dir + "/" + str(id) + "/home/"
+        host_config_dir = current_dir + "/" + str(container_id) + "/config"
+        host_home_dir = current_dir + "/" + str(container_id) + "/home/"
 
-        container_name = "openssh-server"+str(id)
+        container_name = "openssh-server"+str(container_id)
 
         # Environment variables for the container
         env = ["PUID="+str(uid), "PGID="+str(gid), "TZ="+timezone, "SUDO_ACCESS="+sudo,
                "PASSWORD_ACCESS=true", "USER_PASSWORD="+password, "USER_NAME="+user]
 
-        # Start the container using the specified image, using the environment list and with the options specified
+        # Start the container using the specified image,
+        # using the environment list and with the options specified
         try:
-            self._client.containers.run("ghcr.io/linuxserver/openssh-server",
-                                        environment=env,
-                                        hostname=hostname, name=container_name, ports={
-                                            "2222/tcp": str(port)},
-                                        volumes={host_config_dir: {"bind": "/config", "mode": "rw"},
-                                                 host_home_dir: {"bind": "/home/", "mode": "rw"}}, detach=True)
+            self._client.containers.run(
+                "ghcr.io/linuxserver/openssh-server", environment=env, hostname=hostname,
+                name=container_name, ports={"2222/tcp": str(port)},
+                volumes={host_config_dir: {"bind": "/config", "mode": "rw"},
+                         host_home_dir: {"bind": "/home/", "mode": "rw"}},
+                detach=True)
         except:
-            raise Exception("Could not start container " + str(id))
+            raise Exception("Could not start container " + str(container_id))
         else:
-            print("Successfully started container " + str(id))
+            print("Successfully started container " + str(container_id))
 
-    def stop_container(self, id: int):
+    def stop_container(self, container_id: int):
         """Stop a specified container
-        :param id: ID (name) of container
-        :type id: int
+        :param container_id: container_id (name) of container
+        :type container_id: int
         """
         try:
-            container_name = "openssh-server"+str(id)
+            container_name = "openssh-server"+str(container_id)
             self._client.containers.get(container_name).stop()
-        except:
-            raise Exception("Could not find or stop the specified container")
+        except Exception as exception:
+            raise exception
         else:
-            print("Stopped container " + str(id))
+            print("Stopped container " + str(container_id))
 
-    def gather_file_diff(self, id: int):
+    def gather_file_diff(self, container_id: int):
         print("not implemented yet")
 
-    def destroy_container(self, id: int):
+    def destroy_container(self, container_id: int):
         """Destroy a specified container
-        :param id: ID (name) of container
-        :type id: int
+        :param container_id: container_id (name) of container
+        :type container_id: int
         """
         try:
-            container_name = "openssh-server"+str(id)
+            container_name = "openssh-server"+str(container_id)
             self._client.containers.get(container_name).remove()
         except:
             raise Exception(
                 "Could not find or destroy the specified container")
 
-    def status_container(self, id: int) -> Status:
-        """Return the status of a specific container with the ID argument
-        :param id: ID (name) of container
-        :type id: int
+    def status_container(self, container_id: int) -> Status:
+        """Return the status of a specific container with the container_id argument
+        :param container_id: container_id (name) of container
+        :type container_id: int
         :return: Returns an enum describing the status of a container
         :rtype: Status
         """
         try:
-            container_name = "openssh-server"+str(id)
+            container_name = "openssh-server"+str(container_id)
             sts = self._client.containers.get(
                 container_name).attrs['State']['Status']
-        except:
+        except Exception:
             return Status.NOTFOUND
         else:
             if sts == "running":
@@ -124,13 +126,13 @@ class Containers:
             else:
                 return Status.UNDEFINED
 
-    def create_shared_folder(self, id: int, user: str):
-        """Creates a directory for the docker container with the specified id,
+    def create_shared_folder(self, container_id: int, user: str):
+        """Creates a directory for the docker container with the specified container_id,
            exposes the specified SSH port, and has SSH login credentials user/password.
            Inside it creates a script for initialization that uses the specified username
            for the home directory.
-        :param id: ID (name) of container
-        :type id: int
+        :param container_id: container_id (name) of container
+        :type container_id: int
         :param port: SSH port that is exposed
         :type port: int
         :param user: Username for SSH
@@ -142,14 +144,14 @@ class Containers:
         # Save current working directory, must be able to restore later
         current_dir = os.getcwd()
 
-        # Makes a shared folder named with the id
-        os.mkdir(str(id))
+        # Makes a shared folder named with the container_id
+        os.mkdir(str(container_id))
 
         # Paths to files needed by the container
         src = current_dir + "/template/"
-        dst = current_dir + "/" + str(id)
+        dst = current_dir + "/" + str(container_id)
         config_file = current_dir + "/" + \
-            str(id) + "/config/custom-cont-init.d/init.sh"
+            str(container_id) + "/config/custom-cont-init.d/init.sh"
 
         # Copy files and modify config to SSH server container
         self._filehandler.copytree(src, dst)
