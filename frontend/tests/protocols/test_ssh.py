@@ -84,6 +84,7 @@ def test_valid_logins(ssh_clients: List[SSHClient]):
 
     conn_manager.stop()
     conn_manager.join(shutdown_timeout)
+    assert not conn_manager.is_alive()
 
 
 def test_invalid_logins(ssh_clients: List[SSHClient]):
@@ -117,6 +118,7 @@ def test_invalid_logins(ssh_clients: List[SSHClient]):
 
         conn_manager.stop()
         conn_manager.join(shutdown_timeout)
+        assert not conn_manager.is_alive()
 
 
 def test_request_shell_timeout(ssh_clients: List[SSHClient]):
@@ -138,6 +140,7 @@ def test_request_shell_timeout(ssh_clients: List[SSHClient]):
 
         conn_manager.stop()
         conn_manager.join(shutdown_timeout)
+        assert not conn_manager.is_alive()
 
 
 @patch("frontend.honeylogger.begin_ssh_session", return_value=MockedSSHSession())
@@ -153,6 +156,7 @@ def test_channel_request(ssh_clients: List[SSHClient]):
 
     conn_manager.stop()
     conn_manager.join(shutdown_timeout)
+    assert not conn_manager.is_alive()
 
 
 def test_invalid_channel_request(ssh_clients: List[SSHClient]):
@@ -171,6 +175,7 @@ def test_invalid_channel_request(ssh_clients: List[SSHClient]):
 
         conn_manager.stop()
         conn_manager.join(shutdown_timeout)
+        assert not conn_manager.is_alive()
 
 
 def test_sessions_started_logged(ssh_clients: List[SSHClient]):
@@ -189,6 +194,7 @@ def test_sessions_started_logged(ssh_clients: List[SSHClient]):
 
         conn_manager.stop()
         conn_manager.join(shutdown_timeout)
+        assert not conn_manager.is_alive()
 
 
 def test_sessions_ended_logged(ssh_clients: List[SSHClient]):
@@ -218,6 +224,7 @@ def test_sessions_ended_logged(ssh_clients: List[SSHClient]):
         assert mock.call_count == 3
         conn_manager.stop()
         conn_manager.join(shutdown_timeout)
+        assert not conn_manager.is_alive()
 
 
 def test_logins_logged(ssh_clients: List[SSHClient]):
@@ -243,6 +250,7 @@ def test_logins_logged(ssh_clients: List[SSHClient]):
 
         conn_manager.stop()
         conn_manager.join(shutdown_timeout)
+        assert not conn_manager.is_alive()
 
 
 def test_pty_request_logged(ssh_clients: List[SSHClient]):
@@ -269,6 +277,7 @@ def test_pty_request_logged(ssh_clients: List[SSHClient]):
 
         conn_manager.stop()
         conn_manager.join(shutdown_timeout)
+        assert not conn_manager.is_alive()
 
 
 def test_multiple_channels(ssh_clients: List[SSHClient]):
@@ -293,6 +302,7 @@ def test_multiple_channels(ssh_clients: List[SSHClient]):
         ssh_clients[0].close()
         conn_manager.stop()
         conn_manager.join(shutdown_timeout)
+        assert not conn_manager.is_alive()
 
 
 def test_exec_and_shell_request(ssh_clients: List[SSHClient]):
@@ -323,3 +333,4 @@ def test_exec_and_shell_request(ssh_clients: List[SSHClient]):
 
         conn_manager.stop()
         conn_manager.join(shutdown_timeout)
+        assert not conn_manager.is_alive()

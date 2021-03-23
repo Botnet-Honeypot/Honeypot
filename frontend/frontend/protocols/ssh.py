@@ -114,9 +114,8 @@ class ConnectionHandler(threading.Thread):
 
     def stop(self) -> None:
         """Stops the `handle` method handling SSH connections"""
-        self._lock.acquire()
-        self._terminate = True
-        self._lock.release()
+        with self._lock:
+            self._terminate = True
         # It may be the case that the handle method is blocking on the queue
         # so putting something in it will force it to continue
         self._server_event_queue.put(None)
@@ -148,9 +147,8 @@ class ConnectionHandler(threading.Thread):
             # connect and disconnect without sending a session or exec request
             event = self._server_event_queue.get(block=True, timeout=30)
         except queue.Empty:
-            self._lock.acquire()
-            self._terminate = True
-            self._lock.release()
+            with self._lock:
+                self._terminate = True
 
         if self._terminate:
             self._transport.close()
@@ -159,11 +157,9 @@ class ConnectionHandler(threading.Thread):
             # Here we the user sent a shell request
             chan.settimeout(2)
             while True:
-                self._lock.acquire()
-                if not self._transport.active or self._terminate:
-                    self._lock.release()
-                    break
-                self._lock.release()
+                with self._lock:
+                    if not self._transport.active or self._terminate:
+                        break
 
                 try:
                     received_bytes = chan.recv(1024)
@@ -234,9 +230,8 @@ class ConnectionManager(threading.Thread):
         """Stops the `listen` method listening for TCP connections and returns when
         all threads that has been created has shut down.
         """
-        self._lock.acquire()
-        self._terminate = True
-        self._lock.release()
+        with self._lock:
+            self._terminate = True
 
     def listen(self, socket_timeout: float = 5) -> None:
         """Starts listening for TCP connections on the given ports.
@@ -271,11 +266,9 @@ class ConnectionManager(threading.Thread):
 
         sock.settimeout(socket_timeout)
         while True:
-            self._lock.acquire()
-            if self._terminate:
-                self._lock.release()
-                break
-            self._lock.release()
+            with self._lock:
+                if self._terminate:
+                    break
 
             # Try accepting connections
             try:
