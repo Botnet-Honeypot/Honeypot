@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+package target_system_provider;
+
+service TargetSystemProvider {
+    // Provide a target system
+    rpc ProvideTargetSystem (ProvisionRequest) returns (ProvisionResult) {}
+
+    // Request to stop an existing target system
+    rpc YieldTargetSystem (YieldRequest) returns (YieldResult) {}
+}
+
+message ProvisionRequest {
+    string user = 1;
+    string password = 2;
+}
+
+message ProvisionResult {
+    uint32 id = 1;
+    // TODO: IP number & port
+}
+
+message YieldRequest {
+    uint32 id = 1;
+}
+
+message YieldResult {
+    // Collected data about system
+}
