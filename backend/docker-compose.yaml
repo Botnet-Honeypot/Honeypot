@@ -3,7 +3,7 @@ services:
   python-controller:
     build: .
     ports:
-      - "22:2222" # TODO
+      - "80:80"
     volumes:
       - "./backend:/usr/src/backend/backend"
       - "/var/run/docker.sock:/var/run/docker.sock"
