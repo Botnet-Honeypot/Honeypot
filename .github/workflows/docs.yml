@@ -21,9 +21,8 @@ jobs:
 
       - name: Install all pip packages
         run: |
-          cd ./frontend/ && poetry export -f requirements.txt > ../requirements.txt
-          cd ../backend/ && poetry export -f requirements.txt >> ../requirements.txt
-          pip install -r ../requirements.txt
+          cd ./frontend/ && poetry install
+          cd ../backend/ && poetry install
 
       - name: Build docs
         working-directory: ./docs/
