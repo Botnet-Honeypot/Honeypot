@@ -1,0 +1,59 @@
+{
+Image: 'ghcr.io/linuxserver/openssh-server',
+ID: '@id',
+Environment: '@env',
+Port: {'2222/tcp': '@port'},
+User: '@user',
+Password: '@password',
+Hostname: '@hostname',
+UID: '@uid',
+GID: '@gid',
+Timezone: '@timezone',
+SUDO: '@sudo'
+}
+
+
+bcp 22:49
+{
+'Image': 'ghcr.io/linuxserver/openssh-server',
+'ID': 1002,
+'Environment': ['PUID=1000', 'PGID=1000', 'TZ=Europe/London', 'SUDO_ACCESS=true', 'PASSWORD_ACCESS=true', 'USER_PASSWORD=password', 'USER_NAME=user'],
+'Port': {'2222/tcp': 2222},
+'User': 'user',
+'Password': 'password',
+'Hostname': 'hostname',
+'UID': 1001,
+'GID': 1001,
+'Timezone': 'Europe/London',
+'SUDO': True,
+'Volumes': [
+    {'C:/Users/Oskar/Documents/Honeypot/backend/1002/config': [
+        {'bind': '/config', 'mode': 'rw'},
+    ],
+    'C:/Users/Oskar/Documents/Honeypot/backend/1002/user': [
+            {'bind': '/home/', 'mode': 'rw'}
+    ]
+    }
+]
+}
+
+bcp 07:28 - fungerar
+{
+'Image': 'ghcr.io/linuxserver/openssh-server',
+'ID': 1002,
+'Environment': ['PUID=1000', 'PGID=1000', 'TZ=Europe/London', 'SUDO_ACCESS=true', 'PASSWORD_ACCESS=true', 'USER_PASSWORD=password', 'USER_NAME=user'],
+'Port': {'2222/tcp': 2222},
+'User': 'user',
+'Password': 'password',
+'Hostname': 'hostname',
+'UID': 1001,
+'GID': 1001,
+'Timezone': 'Europe/London',
+'SUDO': True,
+'Volumes':
+    {'C:/Users/Oskar/Documents/Honeypot/backend/1002/config': 
+        {'bind': '/config', 'mode': 'rw'},
+    'C:/Users/Oskar/Documents/Honeypot/backend/1002/user': 
+            {'bind': '/home/', 'mode': 'rw'}
+    }
+}

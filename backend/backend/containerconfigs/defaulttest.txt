@@ -1,0 +1,19 @@
+{
+'Image': 'ghcr.io/linuxserver/openssh-server',
+'ID': "@ID",
+'Environment': @Environment,
+'Port': @Port,
+'User': "@User",
+'Password': "@Password",
+'Hostname': "@Hostname",
+'UID': "@UID",
+'GID': "@GID",
+'Timezone': "@Timezone",
+'SUDO': "@SUDO",
+'Volumes':
+    {'C:/Users/Oskar/Documents/Honeypot/backend/1002/config': 
+        {'bind': '/config', 'mode': 'rw'},
+    'C:/Users/Oskar/Documents/Honeypot/backend/1002/user': 
+            {'bind': '/home/', 'mode': 'rw'}
+    }
+}
