@@ -16,7 +16,6 @@ class Server(paramiko.ServerInterface):
     """Server implements the ServerInterface from paramiko
 
     :param paramiko: The SSH server interface
-    :type paramiko: paramiko.ServerInterface
     """
 
     def __init__(
@@ -157,7 +156,7 @@ class ConnectionHandler(threading.Thread):
 # todo should be singleton if the class does what it says in the docstring
 class ConnectionManager(threading.Thread):
     """ConnectionManager contains logic for listening for TCP connections
-    and creating new threads of class:`ConnectionHandler`"""
+    and creating new threads of :class:`frontend.protocols.ssh.ConnectionManager`"""
 
     def __init__(self, host_key: paramiko.PKey,
                  usernames: Optional[List[str]] = None,
@@ -169,17 +168,11 @@ class ConnectionManager(threading.Thread):
         """Creates an instance of the ConnectionManager class
 
         :param host_key: The public key used by the server
-        :type host_key: paramiko.PKey
         :param usernames: Allowed usernames, if it is None everything is allowed, defaults to None
-        :type usernames: Optional[Iterable[str]], optional
         :param passwords: Allowed passwords, if it is None everything is allowed, defaults to None
-        :type passwords: Optional[Iterable[str]], optional
         :param auth_timeout: Timeout in seconds for clients to authenticate, defaults to 60
-        :type auth_timeout: float, optional
         :param max_unaccepted_connetions: Max unaccepted connections, defaults to 100
-        :type max_unaccepted_connetions: int, optional
         :param port: The port to listen on, defaults to 22
-        :type port: int, optional
         """
         super().__init__(target=self.listen, args=(socket_timeout,), daemon=False)
         self._terminate = False
@@ -204,11 +197,10 @@ class ConnectionManager(threading.Thread):
 
     def listen(self, socket_timeout: float = 5) -> None:
         """Starts listening for TCP connections on the given ports.
-        runs new instances of class:`ConnectionHandler` in new threads.
+        runs new instances of :class:`frontend.protocols.ssh.ConnectionHandler` in new threads.
 
         :param socket_timeout:
             Seconds to wait before timeouting a connection attempt, defaults to 5
-        :type socket_timeout: int, optional
         """
         try:
             # SOCK_STREAM is TCP
