@@ -22,26 +22,17 @@ class Containers:
 
     def create_container(self, id: int, port: int, user: str, password: str, hostname: str, uid: int, gid: int, timezone: str, sudo: str):
         """Creates a docker container with the specified id, exposes the specified SSH port,
-           and has SSH login credentials user/password
-        :param id: ID (name) of container
-        :type id: int
-        :param port: SSH port that is exposed
-        :type port: int
-        :param user: Username for SSH
-        :type user: string
-        :param password: Password for SSH
-        :type password: string
-        :param hostname: Name of the device
-        :type hostname: string
-        :param uid: User ID
-        :type uid: int
-        :param gid: Group ID
-        :type gid: int
-        :param timezone: Timezone for container
-        :type timezone: string
-        :param sudo: Sudo access, true or false as a string
-        :type sudo: string
+        and has SSH login credentials user/password
 
+        :param id: ID (name) of container
+        :param port: SSH port that is exposed
+        :param user: Username for SSH
+        :param password: Password for SSH
+        :param hostname: Name of the device
+        :param uid: User ID
+        :param gid: Group ID
+        :param timezone: Timezone for container
+        :param sudo: Sudo access, true or false as a string
         """
 
         # Creates shared folder between host and SSH server container
@@ -73,8 +64,8 @@ class Containers:
 
     def stop_container(self, id: int):
         """Stop a specified container
+
         :param id: ID (name) of container
-        :type id: int
         """
         try:
             container_name = "openssh-server"+str(id)
@@ -89,8 +80,8 @@ class Containers:
 
     def destroy_container(self, id: int):
         """Destroy a specified container
+
         :param id: ID (name) of container
-        :type id: int
         """
         try:
             container_name = "openssh-server"+str(id)
@@ -101,10 +92,9 @@ class Containers:
 
     def status_container(self, id: int) -> Status:
         """Return the status of a specific container with the ID argument
+
         :param id: ID (name) of container
-        :type id: int
         :return: Returns an enum describing the status of a container
-        :rtype: Status
         """
         try:
             container_name = "openssh-server"+str(id)
@@ -126,18 +116,14 @@ class Containers:
 
     def create_shared_folder(self, id: int, user: str):
         """Creates a directory for the docker container with the specified id,
-           exposes the specified SSH port, and has SSH login credentials user/password.
-           Inside it creates a script for initialization that uses the specified username
-           for the home directory.
-        :param id: ID (name) of container
-        :type id: int
-        :param port: SSH port that is exposed
-        :type port: int
-        :param user: Username for SSH
-        :type user: string
-        :param password: Password for SSH
-        :type password: string
+        exposes the specified SSH port, and has SSH login credentials user/password.
+        Inside it creates a script for initialization that uses the specified username
+        for the home directory.
 
+        :param id: ID (name) of container
+        :param port: SSH port that is exposed
+        :param user: Username for SSH
+        :param password: Password for SSH
         """
         # Save current working directory, must be able to restore later
         current_dir = os.getcwd()

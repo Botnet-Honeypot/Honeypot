@@ -39,7 +39,7 @@
       "100",
       "--experimental"
     ],
-    "autoDocstring.docstringFormat": "sphinx"
+    "autoDocstring.customTemplatePath": "../.vscode/docstring-template",
   },
   "extensions": {
     "recommendations": [
