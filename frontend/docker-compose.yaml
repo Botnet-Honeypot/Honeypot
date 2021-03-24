@@ -6,3 +6,4 @@ services:
       - "22:2222"
     volumes:
       - "./frontend:/usr/src/frontend/frontend"
+    restart: always

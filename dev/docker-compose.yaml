@@ -21,6 +21,7 @@ services:
       dev:
         aliases: 
           - database
+    restart: always
 
 # frontend
   python-hp:
@@ -33,6 +34,7 @@ services:
       dev:
         aliases: 
           - frontend
+    restart: always
 
 # dev network
 networks:
