@@ -15,6 +15,10 @@
     {
       "name": "Robot Tests",
       "path": "tests"
+    },
+    {
+      "name": "Dev",
+      "path": "dev"
     }
   ],
   "settings": {
@@ -22,7 +26,9 @@
     "python.linting.lintOnSave": true,
     "python.linting.pylintEnabled": true,
     "python.linting.pylintPath": "pylint",
-    "python.linting.pylintArgs": ["--rcfile=../.pylintrc"],
+    "python.linting.pylintArgs": [
+      "--rcfile=../.pylintrc"
+    ],
     "python.analysis.typeCheckingMode": "basic",
     "python.analysis.autoImportCompletions": true,
     "editor.formatOnSave": true,
