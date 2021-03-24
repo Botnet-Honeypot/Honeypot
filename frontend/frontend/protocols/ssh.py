@@ -14,6 +14,8 @@ import paramiko
 from frontend.protocols.sshevents import ServerEvent, ShellRequest, ExecRequest
 import frontend.honeylogger as logger
 
+SSH_VERSION = "SSH-2.0-dropbear_2020.80"
+
 
 class Server(paramiko.ServerInterface):
     """Server implements the ServerInterface from paramiko
@@ -274,6 +276,7 @@ class ConnectionManager(threading.Thread):
             try:
                 client, addr = sock.accept()
                 transport = paramiko.Transport(client)
+                transport.local_version = SSH_VERSION
             except Exception as exc:
                 # todo log
                 continue
