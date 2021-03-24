@@ -102,6 +102,20 @@ class PostgresLogSSHSession:
         finally:
             conn.close()
 
+    def log_ssh_channel_output(self, data: memoryview, channel: int) -> None:
+        conn = db.connect()
+        try:
+            with conn:
+                with conn.cursor() as cur:
+                    event_id = insert_new_event(
+                        cur, self.session_id, 'ssh_channel_output')
+                    cur.execute("""
+                        INSERT INTO SSHChannelOutput (event_id, data, channel)
+                            VALUES (%s, %s, %s)
+                        """, (event_id, data, channel))
+        finally:
+            conn.close()
+
     def log_download(self,
                      data: memoryview,
                      file_type: str,
