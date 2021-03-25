@@ -43,6 +43,15 @@ class Session(Protocol):
         raise NotImplementedError
 
     @abstractmethod
+    def log_ssh_channel_output(self, data: memoryview, channel: int) -> None:
+        """Logs a new block of output associated with the current session and SSH channel.
+
+        :param data: The raw bytes that were output.
+        :param channel: The SSH channel the data was output on. 
+        """
+        raise NotImplementedError
+
+    @abstractmethod
     def log_download(self,
                      data: memoryview,
                      file_type: str,

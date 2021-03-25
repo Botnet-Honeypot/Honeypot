@@ -15,5 +15,9 @@ def test_no_runtime_errors():
                          'text/plain',
                          ip_address('2.43.12.243'),
                          'https://google.com/hello.txt')
+    session.log_ssh_channel_output(memoryview(b'ls\noutput of ls....\n'), 1)
+    session.log_ssh_channel_output(memoryview(b'more output of ls\n'), 1)
+    session.log_ssh_channel_output(memoryview(b'SOME COMMAND ONE SECOND CHANNEL\n'), 2)
+    session.log_ssh_channel_output(memoryview(b'output on second channel\n'), 2)
 
     session.end()
