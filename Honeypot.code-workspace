@@ -9,6 +9,10 @@
       "path": "frontend"
     },
     {
+      "name": "Protocols",
+      "path": "protocols"
+    },
+    {
       "name": "Database",
       "path": "database"
     },

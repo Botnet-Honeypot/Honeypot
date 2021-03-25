@@ -11,6 +11,7 @@ __pycache__/
 
 *.pyc
 tests_output/
+.hypothesis/
 
 # Automatically generated doc files
 docs/frontend/*
