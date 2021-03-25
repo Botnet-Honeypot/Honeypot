@@ -1,5 +1,6 @@
 import time
 import os
+from typing import Container
 from backend.container import Containers, Status
 
 container_handler = Containers()
@@ -14,24 +15,25 @@ def main():
     user = "user"
     password = "password"
     port = 2222
+    print(container_handler.root_path())
 
-    for container_id in range(5):
-        volumes = {os.getcwd() + "/" + Containers.ID_PREFIX + str(container_id) +
+    for container_id in range(1):
+        volumes = {container_handler.root_path() + "/" + Containers.ID_PREFIX + str(container_id) +
                    "/config": {'bind': '/config', 'mode': 'rw'},
-                   os.getcwd() + "/" + Containers.ID_PREFIX + str(container_id) +
+                   container_handler.root_path() + "/" + Containers.ID_PREFIX + str(container_id) +
                    "/home/": {'bind': '/home/', 'mode': 'rw'}}
         config = container_handler.format_config(container_id, port, user, password, volumes)
         container_handler.create_container(config)
         port += 1
-        container_id += 1
 
     # Close and destroy containers after a delay (this does not remove the storage folders)
-    time.sleep(60)
+    time.sleep(30)
 
-    for container_id in range(5):
+    for container_id in range(1):
         try:
-            container_handler.stop_container(container_id)
-            container_handler.destroy_container(container_id)
+            container_handler.stop_container(Containers.ID_PREFIX + str(container_id))
+            container_handler.destroy_container(Containers.ID_PREFIX + str(container_id))
+            container_handler.remove_folder(Containers.ID_PREFIX + str(container_id))
 
         except Exception as exception:
             print("Could not find or stop the specified container")

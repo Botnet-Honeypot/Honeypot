@@ -51,12 +51,19 @@ perl -wle '$0=shift;sleep shift' dbus-daemon 100000 &
 perl -wle '$0=shift;sleep shift' netspeed_apple 100000 &
 # Set up home directory
 mkdir /home/$USERNAME/ 
-chmod 777 /home/$USERNAME/
+chown -R $USERNAME /home/user
+chmod -R 777 /home/$USERNAME/
+chown -R root /config
+chgrp -R root /config
+chmod -R 600 /config/
+ls -lah /config/logs/openssh
+sleep 5 && cat /config/logs/openssh &
 # Update home directory path in passwd file 
 sed -i "s/\/config/\/home\/$USERNAME/" "/etc/passwd" 
 # Remove setup files
-rm -rf /config/logs/
-rm -rf /docker-mods
+#rm -rf /config/logs/
+#rm -rf /docker-mods
+
 # Copy template/decoy files
 cp -r /home/templatefiles/. /home/$USERNAME/
 # Remove setup files

@@ -82,7 +82,7 @@ class Containers:
         :param container_id: ID (name) of which container's storage directory to remove
         """
         try:
-            current_path = os.getcwd()
+            current_path = self.root_path()
             shutil.rmtree(os.path.join(current_path, container_id))
         except IOError as exception:
             print(f"Failed to open file \n Error: {exception}")
@@ -121,18 +121,19 @@ class Containers:
         :param password: Password for SSH
         """
         # Save current working directory, must be able to restore later
-        current_dir = os.getcwd()
+        current_dir = self.root_path()
 
         # Makes a shared folder named with the container_id
-        os.mkdir(container_id)
+        os.mkdir(os.path.join(current_dir, container_id))
 
         # Paths to files needed by the container
-        src = current_dir + "/template/"
+        src = "template"
         dst = current_dir + "/" + container_id
         config_file = current_dir + "/" + container_id + "/config/custom-cont-init.d/init.sh"
 
         # Copy files and modify config to SSH server container
         self._filehandler.copytree(src, dst)
+
         self._filehandler.replaceStringInFile(config_file, "user", user)
 
     def format_config(
@@ -166,7 +167,7 @@ class Containers:
 
     def format_environment(
             self, user: str, password: str, user_id: str, group_id: str, timezone: str,
-            sudo_access: str) -> list[str]:
+            sudo_access: str) -> list:
         """Formats the given parameters into a list of environment variables used by the container
 
         :param user: Username for container
@@ -179,3 +180,7 @@ class Containers:
         """
         return ['PUID='+user_id, 'PGID='+group_id, 'TZ='+timezone, 'SUDO_ACCESS='+sudo_access,
                 'PASSWORD_ACCESS=true', 'USER_PASSWORD='+password, 'USER_NAME='+user]
+
+    def root_path(self):
+        # https://stackoverflow.com/questions/12041525/a-system-independent-way-using-python-to-get-the-root-directory-drive-on-which-p
+        return "/var/lib/docker/data"
