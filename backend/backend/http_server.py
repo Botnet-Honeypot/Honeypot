@@ -8,12 +8,16 @@ import backend.container as container
 
 logger = logging.getLogger(__name__)
 
+__all__ = ['start_http_server']
+
 
 class TargetSystemProvider(tsp.TargetSystemProviderServicer):
-    containerHandler: container.Containers
+    """Implementation of gRPC TargetSystemProvider service"""
 
-    def __init__(self, containerHandler: container.Containers):
-        self.containerHandler = containerHandler
+    container_handler: container.Containers
+
+    def __init__(self, container_handler: container.Containers):
+        self.container_handler = container_handler
 
     def AcquireTargetSystem(self, request, context):
         container_id = uuid.uuid4().int % (2**32)
@@ -27,7 +31,7 @@ class TargetSystemProvider(tsp.TargetSystemProviderServicer):
         timezone = "Europe/London"
         sudo = "true"
 
-        self.containerHandler.create_container(
+        self.container_handler.create_container(
             container_id, port, user, password, hostname, uid, gid, timezone, sudo)
 
         return messages.AcquisitionResult(
@@ -36,18 +40,25 @@ class TargetSystemProvider(tsp.TargetSystemProviderServicer):
             port=port)
 
     def YieldTargetSystem(self, request, context):
-        self.containerHandler.stop_container(request.id)
-        self.containerHandler.destroy_container(request.id)
+        self.container_handler.stop_container(request.id)
+        self.container_handler.destroy_container(request.id)
 
         return messages.YieldResult()
 
 
-def start_http_server(containerHandler: container.Containers, port: int = 50051) -> grpc.Server:
+def start_http_server(container_handler: container.Containers, port: int = 80) -> grpc.Server:
+    """Starts a gRPC HTTP server with pre-configured services.
+
+    :param container_handler: Container handler to use for managing containers in response to service requests.
+    :param port: The TCP port to run the server on, defaults to 80.
+    :return: The gRPC server that was started.
+    """
+
     logger.info('Starting gRPC HTTP Server...')
 
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
-    tsp.add_TargetSystemProviderServicer_to_server(TargetSystemProvider(containerHandler), server)
-    server.add_insecure_port('[::]:' + str(port))
+    tsp.add_TargetSystemProviderServicer_to_server(TargetSystemProvider(container_handler), server)
+    server.add_insecure_port('[::]:' + str(port))  # TODO: ADD TLS!
     server.start()
-    # server.wait_for_termination()
+
     return server

@@ -8,6 +8,7 @@ authors = ["Your Name <you@example.com>"]
 python = "^3.9"
 paramiko = "^2.7.2"
 psycopg2 = "^2.8.6"
+protocols = { path = "../protocols", develop = false }
 
 [tool.poetry.dev-dependencies]
 pylint = "^2.6.2"

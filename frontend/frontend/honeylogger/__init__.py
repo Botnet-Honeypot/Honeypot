@@ -14,7 +14,6 @@ Example Usage (SSH):
 
 from typing import Optional, Protocol
 from abc import abstractmethod
-from ipaddress import ip_address
 from ._types import IPAddress
 from ._postgres import PostgresLogSSHSession
 
