@@ -1,6 +1,9 @@
-"""This module contains logic for handling the SSH server docker instances for the backend"""
+"""Contains class and methods used for handling docker containers 
+
+    :raises exception: May raise exceptions on IOError (when appropriate) and Docker api failure
+    :return: Returns a container handler that can start, stop, destroy containers as well as manage storage
+    """
 import os
-import ast
 import shutil
 from enum import Enum
 import docker
@@ -16,11 +19,8 @@ class Status(Enum):
     RUNNING = "running"
 
 
-DICT_KEYS = ["Image", "ID", "Environment", "Port", "User", "Password",
-             "Hostname", "UID", "GID", "Timezone", "SUDO", "Volumes"]
-
-
 class Containers:
+    ID_PREFIX = "openssh-server"
 
     def __init__(self):
         self._client = docker.from_env()
@@ -29,44 +29,20 @@ class Containers:
     def create_container(self, config: dict):
         """Creates a docker container with the specified container_id, exposes the specified SSH port,
            and has SSH login credentials user/password
-        :param container_id: container_id (name) of container
-        :type container_id: int
-        :param port: SSH port that is exposed
-        :type port: int
-        :param user: Username for SSH
-        :type user: string
-        :param password: Password for SSH
-        :type password: string
-        :param hostname: Name of the device
-        :type hostname: string
-        :param uid: User container_id
-        :type uid: int
-        :param gid: Group container_id
-        :type gid: int
-        :param timezone: Timezone for container
-        :type timezone: string
-        :param sudo: Sudo access, true or false as a string
-        :type sudo: string
 
+        :param container_id: container_id (name) of container
+        :param port: SSH port that is exposed
+        :param user: Username for SSH
+        :param password: Password for SSH
+        :param hostname: Name of the device
+        :param uid: User container_id
+        :param gid: Group container_id
+        :param timezone: Timezone for container
+        :param sudo: Sudo access, true or false as a string
         """
         # Creates shared folder between host and SSH server container
         Containers.create_shared_folder(self, config["ID"], config["User"])
 
-        # Get current dir and set paths for shared folders
-        #current_dir = os.getcwd()
-        #host_config_dir = current_dir + "/" + str(container_id) + "/config"
-        #host_home_dir = current_dir + "/" + str(container_id) + "/home/"
-
-        #container_name = "openssh-server"+str(container_id)
-
-        # Environment variables for the container
-        # env = ["PUID="+str(uid), "PGID="+str(gid), "TZ="+timezone, "SUDO_ACCESS="+sudo,
-        #       "PASSWORD_ACCESS=true", "USER_PASSWORD="+password, "USER_NAME="+user]
-
-        # Start the container using the specified image,
-        # using the environment list and with the options specified
-        #config = self.load_config_from_file("./containerconfigs/default.txt")
-        config = self.format_config("backend/containerconfigs/defaulttest.txt", config)
         try:
             self._client.containers.run(
                 config["Image"],
@@ -76,64 +52,53 @@ class Containers:
                 ports=config["Port"],
                 volumes=config["Volumes"],
                 detach=True)
-            # self._client.containers.run(
-            #    "ghcr.io/linuxserver/openssh-server", environment=env, hostname=hostname,
-            #    name=container_name, ports={"2222/tcp": str(port)},
-            #    volumes={host_config_dir: {"bind": "/config", "mode": "rw"},
-            #             host_home_dir: {"bind": "/home/", "mode": "rw"}},
-            #    detach=True)
-        except Exception as e:
-            raise e
+        except Exception as exception:
+            raise exception
         else:
             print("Successfully started container ")
 
-    def stop_container(self, container_id: int):
+    def stop_container(self, container_id: str):
         """Stop a specified container
+
         :param container_id: container_id (name) of container
-        :type container_id: int
         """
         try:
-            container_name = "openssh-server"+str(container_id)
-            self._client.containers.get(container_name).stop()
+            self._client.containers.get(container_id).stop()
         except Exception as exception:
             raise exception
         else:
             print("Stopped container " + str(container_id))
 
-    def gather_file_diff(self, container_id: int):
-        print("not implemented yet")
-
-    def destroy_container(self, container_id: int):
+    def destroy_container(self, container_id: str):
         """Destroy a specified container
+
         :param container_id: container_id (name) of container
-        :type container_id: int
         """
         try:
-            container_name = "openssh-server"+str(container_id)
-            self._client.containers.get(container_name).remove()
-        except:
-            raise Exception(
-                "Could not find or destroy the specified container")
+            self._client.containers.get(container_id).remove()
+        except Exception as exception:
+            raise exception
 
-    def remove_folder(self, container_id: int):
+    def remove_folder(self, container_id: str):
+        """Removes a containers storage folder.
+
+        :param container_id: container id folder to remove
+        """
         try:
             current_path = os.getcwd()
-            shutil.rmtree(os.path.join(current_path, str(container_id)))
-        except IOError as ioe:
-            print(f"Failed to open file \n Error: {ioe}")
-            raise
+            shutil.rmtree(os.path.join(current_path, container_id))
+        except IOError as exception:
+            print(f"Failed to open file \n Error: {exception}")
+            raise exception
 
-    def status_container(self, container_id: int) -> Status:
+    def status_container(self, container_id: str) -> Status:
         """Return the status of a specific container with the container_id argument
+
         :param container_id: container_id (name) of container
-        :type container_id: int
         :return: Returns an enum describing the status of a container
-        :rtype: Status
         """
         try:
-            container_name = "openssh-server"+str(container_id)
-            sts = self._client.containers.get(
-                container_name).attrs['State']['Status']
+            sts = self._client.containers.get(container_id).attrs['State']['Status']
         except Exception:
             return Status.NOTFOUND
         else:
@@ -148,57 +113,73 @@ class Containers:
             else:
                 return Status.UNDEFINED
 
-    def create_shared_folder(self, container_id: int, user: str):
+    def create_shared_folder(self, container_id: str, user: str):
         """Creates a directory for the docker container with the specified container_id,
            exposes the specified SSH port, and has SSH login credentials user/password.
            Inside it creates a script for initialization that uses the specified username
-           for the home directory.
-        :param container_id: container_id (name) of container
-        :type container_id: int
-        :param port: SSH port that is exposed
-        :type port: int
-        :param user: Username for SSH
-        :type user: string
-        :param password: Password for SSH
-        :type password: string
+           for the home directory
 
+        :param container_id: container_id (name) of container
+        :param port: SSH port that is exposed
+        :param user: Username for SSH
+        :param password: Password for SSH
         """
         # Save current working directory, must be able to restore later
         current_dir = os.getcwd()
 
         # Makes a shared folder named with the container_id
-        os.mkdir(str(container_id))
+        os.mkdir(container_id)
 
         # Paths to files needed by the container
         src = current_dir + "/template/"
-        dst = current_dir + "/" + str(container_id)
-        config_file = current_dir + "/" + \
-            str(container_id) + "/config/custom-cont-init.d/init.sh"
+        dst = current_dir + "/" + container_id
+        config_file = current_dir + "/" + container_id + "/config/custom-cont-init.d/init.sh"
 
         # Copy files and modify config to SSH server container
         self._filehandler.copytree(src, dst)
         self._filehandler.replaceStringInFile(config_file, "user", user)
 
-    def config_as_dict(self, config_file: str) -> dict:
-        # Credit https://www.geeksforgeeks.org/how-to-read-dictionary-from-file-in-python/
-        with open(config_file) as file:
-            return ast.literal_eval(file.read())
+    def format_config(
+            self, container_id: int, port: int, user: str, password: str, volumes: dict,
+            hostname='Dell-T140', user_id='1000', group_id='1000', timezone='Europe/London',
+            sudo_access='true', image='ghcr.io/linuxserver/openssh-server') -> dict:
+        """Formats the given parameters as a dictionary that fits docker-py
 
-    def string_to_dict(self, string: str) -> dict:
-        return ast.literal_eval(string)
+        :param container_id: Unique ID for container
+        :param port: Unique external port for container
+        :param user: Username for container
+        :param password: Password for container
+        :param volumes: Volumes on host to mount to the container.
+        :param hostname: Hostname for container, defaults to 'Dell-T140'
+        :param user_id: UID for container user, defaults to '1000'
+        :param group_id: GID for container user, defaults to '1000'
+        :param timezone: Timezone for container, defaults to 'Europe/London'
+        :param sudo_access: Sudo access for container, defaults to 'true'
+        :param image: Image for container, defaults to 'ghcr.io/linuxserver/openssh-server'
+        :return: Dictionary that can be easily used for docker-py
+        """
 
-    def replace_substring(self, substring, new_string, full_string) -> str:
-        full_string = full_string.replace(substring, str(new_string))
-        return full_string
+        config = {
+            'Image': image, 'ID': Containers.ID_PREFIX + str(container_id),
+            'Environment': self.format_environment(
+                user, password, user_id, group_id, timezone, sudo_access),
+            'Port': {'2222/tcp': str(port)},
+            'User': user, 'Password': password, 'Hostname': hostname, 'UID': user_id, 'GID': group_id,
+            'Timezone': timezone, 'SUDO': sudo_access, 'Volumes': volumes}
+        return config
 
-    def config_as_string(self, config_to_use):
-        file = open(config_to_use, "r")
-        return file.read()
+    def format_environment(
+            self, user: str, password: str, user_id: str, group_id: str, timezone: str,
+            sudo_access: str) -> list[str]:
+        """Formats the given parameters into a list of environment variables used by the container
 
-    def format_config(self, config_to_use: str, config_params: dict) -> dict:
-        config_string = self.config_as_string(config_to_use)
-        for string in DICT_KEYS:
-            config_string = self.replace_substring(
-                "@" + string, config_params[string],
-                config_string)
-        return self.string_to_dict(config_string)
+        :param user: Username for container
+        :param password: Password for the user inside the container
+        :param user_id: User id for user inside container
+        :param group_id: Group id for user inside container
+        :param timezone: Timezone for the container
+        :param sudo_access: Sudo access for container
+        :return: List of variables used by the container
+        """
+        return ['PUID='+user_id, 'PGID='+group_id, 'TZ='+timezone, 'SUDO_ACCESS='+sudo_access,
+                'PASSWORD_ACCESS=true', 'USER_PASSWORD='+password, 'USER_NAME='+user]

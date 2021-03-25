@@ -1,36 +1,38 @@
 import time
-import backend.container as container
+import os
+from backend.container import Containers, Status
 
-
-containerHandler = container.Containers()
+container_handler = Containers()
 
 # Example code for showing multiple containers started and stopped
-# These are the environment variables that needs to be provided to
-# the container to start an instance.
-# Some of these should be given by the frontend of the honeypot.
+# Some of the parameters should be given by the frontend of the honeypot via HTTP API.
 
 
 def main():
-    data = {
-        'Image': 'ghcr.io/linuxserver/openssh-server', 'ID': 1002,
-        'Environment': "['PUID=1000', 'PGID=1000', 'TZ=Europe/London', 'SUDO_ACCESS=true', \
-                        'PASSWORD_ACCESS=true', 'USER_PASSWORD=password', 'USER_NAME=user']",
-        'Port': "{'2222/tcp': 2222}",
-        'User': 'user', 'Password': 'password', 'Hostname': 'hostname', 'UID': 1001,
-        'GID': 1001, 'Timezone': 'Europe/London', 'SUDO': True, 'Volumes': ""}
-    containerHandler.create_container(data)
-    # for container_id in range(5):
-    #    containerHandler.create_container(
-    #        container_id, port, user, password, hostname, uid, gid, timezone, sudo)
-    #    port += 1
-    exit()
+
+    container_id = 0
+    user = "user"
+    password = "password"
+    port = 2222
+
+    for container_id in range(5):
+        volumes = {os.getcwd() + "/" + Containers.ID_PREFIX + str(container_id) +
+                   "/config": {'bind': '/config', 'mode': 'rw'},
+                   os.getcwd() + "/" + Containers.ID_PREFIX + str(container_id) +
+                   "/home/": {'bind': '/home/', 'mode': 'rw'}}
+        config = container_handler.format_config(container_id, port, user, password, volumes)
+        container_handler.create_container(config)
+        port += 1
+        container_id += 1
+
+    # Close and destroy containers after a delay (this does not remove the storage folders)
     time.sleep(60)
 
-    # Close and destroy containers after 60 seconds
     for container_id in range(5):
         try:
-            containerHandler.stop_container(container_id)
-            containerHandler.destroy_container(container_id)
+            container_handler.stop_container(container_id)
+            container_handler.destroy_container(container_id)
+
         except Exception as exception:
             print("Could not find or stop the specified container")
             raise exception

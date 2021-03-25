@@ -1,31 +1,31 @@
 import pytest
 import os
 import shutil
-import backend.container as container
+from backend.container import Containers, Status
 
 MAX_CONTAINERS = 5
 
-ID = 1
-PORT = 2222
-USER = "user"
-PASSWORD = "password"
-HOSTNAME = "Dell-T140"
-UID = 1000
-GID = 1000
-TIMEZONE = "Europe/London"
-SUDO = "true"
-
 
 @pytest.fixture()
-def containerH() -> container.Containers:
-    return container.Containers()
+def config() -> dict:
+    container_handler = Containers()
+    container_id = 0
+    user = "user"
+    password = "password"
+    port = 2222
+
+    volumes = {os.getcwd() + "/" + Containers.ID_PREFIX + str(container_id) +
+               "/config": {'bind': '/config', 'mode': 'rw'},
+               os.getcwd() + "/" + Containers.ID_PREFIX + str(container_id) +
+               "/home/": {'bind': '/home/', 'mode': 'rw'}}
+    return container_handler.format_config(container_id, port, user, password, volumes)
 
 
 @pytest.fixture(autouse=True)
 def run_around_tests():
-    # Before test
 
-    containerHandler = container.Containers()
+    # Before test
+    container_handler = Containers()
 
     # Run test
     yield
@@ -36,81 +36,148 @@ def run_around_tests():
 
     for i in range(MAX_CONTAINERS):
         try:
-            containerHandler.stop_container(i)
-            containerHandler.destroy_container(i)
+            container_id = Containers.ID_PREFIX + str(i)
+            container_handler.stop_container(container_id)
+            container_handler.destroy_container(container_id)
         except:
             continue
     # Remove folders for container storage
     for i in range(MAX_CONTAINERS):
         try:
-            shutil.rmtree(os.path.join(current_path, str(i)))
+            shutil.rmtree(os.path.join(current_path, Containers.ID_PREFIX+str(i)))
         except:
             continue
 
 
-def test_create_one_container(containerH: container.Containers):
-    containerH.create_container(
-        ID, PORT, USER, PASSWORD, HOSTNAME, UID, GID, TIMEZONE, SUDO)
-    assert containerH.status_container(1) == container.Status.RUNNING
+def test_create_one_container(config: dict):
+    container_handler = Containers()
+    container_handler.create_container(config)
+    assert container_handler.status_container(config["ID"]) == Status.RUNNING
 
 
-def test_shared_folder_func(containerH: container.Containers):
-    containerH.create_shared_folder(1, USER)
+def test_shared_folder_func(config: dict):
+    container_handler = Containers()
+    container_handler.create_shared_folder(config["ID"], config["User"])
     current_path = os.getcwd()
-    assert os.path.isdir(os.path.join(current_path, str(1)))
+    assert os.path.isdir(os.path.join(current_path, Containers.ID_PREFIX+str(0)))
 
 
-def test_multiple_shared_folder_func(containerH: container.Containers):
+def test_multiple_shared_folder_func(config: dict):
+    container_handler = Containers()
     for i in range(MAX_CONTAINERS):
-        containerH.create_shared_folder(i, USER)
+        container_handler.create_shared_folder(Containers.ID_PREFIX+str(i), "user")
     current_path = os.getcwd()
     for i in range(MAX_CONTAINERS):
-        assert(os.path.isdir(os.path.join(current_path, str(i))))
+        assert(os.path.isdir(os.path.join(current_path, Containers.ID_PREFIX+str(i))))
 
 
-def test_stop_container(containerH: container.Containers):
-    containerH.create_container(
-        ID, PORT, USER, PASSWORD, HOSTNAME, UID, GID, TIMEZONE, SUDO)
-    containerH.stop_container(ID)
-    assert containerH.status_container(ID) == container.Status.EXITED
+def test_stop_container(config: dict):
+    container_handler = Containers()
+    container_handler.create_container(config)
+    container_handler.stop_container(config["ID"])
+    assert container_handler.status_container(config["ID"]) == Status.EXITED
 
 
-def test_destroy_container(containerH: container.Containers):
-    containerH.create_container(
-        ID, PORT, USER, PASSWORD, HOSTNAME, UID, GID, TIMEZONE, SUDO)
-    containerH.stop_container(ID)
-    containerH.destroy_container(ID)
-    assert containerH.status_container(ID) == container.Status.NOTFOUND
+def test_destroy_container(config: dict):
+    container_handler = Containers()
+    container_handler.create_container(config)
+    container_handler.stop_container(config["ID"])
+    container_handler.destroy_container(config["ID"])
+    assert container_handler.status_container(config["ID"]) == Status.NOTFOUND
 
 
-def test_start_multiple_containers(containerH: container.Containers):
+def test_start_multiple_containers(config: dict):
+    container_handler = Containers()
+    container_id = 0
+    user = "user"
+    password = "password"
     port = 2222
     for i in range(MAX_CONTAINERS):
-        containerH.create_container(
-            i, port, USER, PASSWORD, HOSTNAME, UID, GID, TIMEZONE, SUDO)
+        volumes = {os.getcwd() + "/" + Containers.ID_PREFIX + str(container_id) +
+                   "/config": {'bind': '/config', 'mode': 'rw'},
+                   os.getcwd() + "/" + Containers.ID_PREFIX + str(container_id) +
+                   "/home/": {'bind': '/home/', 'mode': 'rw'}}
+        config = container_handler.format_config(container_id, port, user, password, volumes)
         port += 1
+        container_id += 1
+        container_handler.create_container(config)
     for i in range(MAX_CONTAINERS):
-        assert containerH.status_container(i) == container.Status.RUNNING
+        assert container_handler.status_container(Containers.ID_PREFIX + str(i)) == Status.RUNNING
 
 
-def test_start_container_same_port(containerH: container.Containers):
+def test_start_container_same_port(config: dict):
+    container_handler = Containers()
+    container_id = 0
+    user = "user"
+    password = "password"
+    port = 2222
     with pytest.raises(Exception):
         for i in range(MAX_CONTAINERS):
-            containerH.create_container(
-                i, PORT, USER, PASSWORD, HOSTNAME, UID, GID, TIMEZONE, SUDO)
+            volumes = {os.getcwd() + "/" + Containers.ID_PREFIX + str(container_id) +
+                       "/config": {'bind': '/config', 'mode': 'rw'},
+                       os.getcwd() + "/" + Containers.ID_PREFIX + str(container_id) +
+                       "/home/": {'bind': '/home/', 'mode': 'rw'}}
+            config = container_handler.format_config(container_id, port, user, password, volumes)
+            container_id += 1
+            container_handler.create_container(config)
 
 
-def test_start_container_same_id(containerH: container.Containers):
+def test_start_container_same_id(config: dict):
+    container_handler = Containers()
+    container_id = 0
+    user = "user"
+    password = "password"
+    port = 2222
     with pytest.raises(Exception):
         for i in range(MAX_CONTAINERS):
-            containerH.create_container(
-                ID, PORT, USER, PASSWORD, HOSTNAME, UID, GID, TIMEZONE, SUDO)
+            volumes = {os.getcwd() + "/" + Containers.ID_PREFIX + str(container_id) +
+                       "/config": {'bind': '/config', 'mode': 'rw'},
+                       os.getcwd() + "/" + Containers.ID_PREFIX + str(container_id) +
+                       "/home/": {'bind': '/home/', 'mode': 'rw'}}
+            config = container_handler.format_config(container_id, port, user, password, volumes)
+            port += 1
+            container_handler.create_container(config)
 
 
-def test_destroy_twice(containerH: container.Containers):
+def test_destroy_twice(config: dict):
+    container_handler = Containers()
     with pytest.raises(Exception):
-        containerH.create_container(
-            ID, PORT, USER, PASSWORD, HOSTNAME, UID, GID, TIMEZONE, SUDO)
-        containerH.stop_container(ID)
-        containerH.destroy_container(ID)
-        containerH.destroy_container(ID)
+        container_handler.create_container(config)
+        container_handler.stop_container(config["ID"])
+        container_handler.destroy_container(config["ID"])
+        container_handler.destroy_container(config["ID"])
+
+
+def test_format_config():
+    container_handler = Containers()
+    container_id = 0
+    user = "user"
+    password = "password"
+    port = 2222
+    config = container_handler.format_config(container_id, port, user, password, {})
+    assert config["User"] == "user"
+    assert config["Password"] == "password"
+    assert config["Port"] == {'2222/tcp': str(port)}
+    assert config["ID"] == Containers.ID_PREFIX + str(container_id)
+
+
+def test_format_environment():
+    container_handler = Containers()
+    uid = "1000"
+    gid = "1001"
+    timezone = "Europe/London"
+    user = "user"
+    password = "password"
+    sudo_access = "true"
+    env = container_handler.format_environment(user, password, uid, gid, timezone, sudo_access)
+    assert env == ['PUID='+uid, 'PGID='+gid, 'TZ='+timezone, 'SUDO_ACCESS='+sudo_access,
+                   'PASSWORD_ACCESS=true', 'USER_PASSWORD='+password, 'USER_NAME='+user]
+
+
+def test_remove_folder(config: dict):
+    container_handler = Containers()
+    container_handler.create_shared_folder(config["ID"], config["User"])
+    current_path = os.getcwd()
+    assert os.path.isdir(os.path.join(current_path, config["ID"]))
+    container_handler.remove_folder(config["ID"])
+    assert not os.path.isdir(os.path.join(current_path, config["ID"]))
