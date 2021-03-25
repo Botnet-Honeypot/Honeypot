@@ -1,15 +1,214 @@
 """This module contains logic related to SSH"""
 import socket
 import threading
+from time import sleep
 import urllib.request
 from ipaddress import ip_address
-from typing import Iterable, List, Optional
+from typing import Callable,  List, Optional, Set
+
 
 from paramiko.common import (AUTH_FAILED, AUTH_SUCCESSFUL,
                              OPEN_FAILED_ADMINISTRATIVELY_PROHIBITED,
                              OPEN_SUCCEEDED)
 import paramiko
+from paramiko.ssh_exception import SSHException
+from paramiko.transport import Transport
+from paramiko.channel import Channel
+
+from frontend.honeylogger import SSHSession
 import frontend.honeylogger as logger
+
+
+def try_send_data(data: bytes, send_method: Callable[[bytes], None]) -> bool:
+    """Tries to send data and catch exceptions
+
+    :param data: The data to send
+    :param send_method: The send method
+    :return: True if suceeded to send data
+    """
+    try:
+        send_method(data)
+    except socket.timeout:
+        return False
+    except socket.error:
+        return False
+    return True
+
+
+def shell_session(
+        attacker_channel: paramiko.Channel, backend_channel: paramiko.Channel, log: SSHSession):
+    """This will proxy data between two channels and log the data
+
+    :param attacker_channel: The attacker channel
+    :param backend_channel: The backend channeel
+    """
+
+    attacker_channel.settimeout(10)
+    backend_channel.settimeout(10)
+    # attacker_fd = attacker_channel.fileno()
+    # backend_fd = backend_channel.fileno()
+    while not attacker_channel.eof_received and not backend_channel.eof_received:
+        if attacker_channel.recv_ready():
+            data = attacker_channel.recv(1024)
+            try_send_data(data, backend_channel.sendall)
+        if backend_channel.recv_ready():
+            data = backend_channel.recv(1024)
+            try_send_data(data, attacker_channel.sendall)
+        if backend_channel.recv_stderr_ready():
+            data = backend_channel.recv_stderr(1024)
+            try_send_data(data, attacker_channel.sendall_stderr)
+
+        sleep(0.1)
+
+    # If one is channel has recieeved eof make sure to send it to the other
+    if attacker_channel.eof_received and not backend_channel.eof_sent:
+        backend_channel.close()
+    if backend_channel.eof_received and not attacker_channel.eof_sent:
+        attacker_channel.close()
+
+
+class ProxyHandler:
+    """This class is responsible for proxying information from recieved attacker SSH channels
+    to corresponding backend channels
+    """
+
+    def __init__(self) -> None:
+        # This is the SSH transport to the backend
+        self._backend_transport: Transport
+        # This is the dict mapping the attacker channel ID's to a proxy channel to the backend
+        self._backend_chan_proxies: dict[int, Channel]
+        self._backend_chan_proxies = dict()
+
+        # This is the session log we can log things to
+        self._session_log: logger.SSHSession
+
+        self._backend_connection_success = False
+        self._open_proxy_transport()  # Open the backend transport
+
+    def _open_proxy_transport(self) -> None:
+        # Here we need to open a SSH connection to the backend
+        # This will be done with our backend API later
+        client = paramiko.SSHClient()
+        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        try:
+            client.connect("REDACTED", port=2223, username="REDACTED", password="REDACTED")
+        except:
+            print("Failed to connect to dozy")
+            return
+
+        transport = client.get_transport()
+        if transport is not None:
+            self._backend_connection_success = True
+            self._backend_transport = transport
+
+    def _get_corresponding_backend_channel(self, attacker_chan_id: int) -> paramiko.Channel:
+        """Retrieves the corresponding backend channel that is related to the attacker channel
+
+        :param attacker_chan_id: The attacker channel id
+        :raises ValueError: If the corresponding backend channel does not exist
+        :return: The corresponding backend channel
+        """
+        chan = self._backend_chan_proxies[attacker_chan_id]
+        if chan is None:
+            print("This should not happen")
+            raise ValueError
+        return chan
+
+    def open_channel(self, kind: str, chanid: int) -> int:
+        """Tries to open a channel to the backend
+
+        :param kind: The channel kind
+        :param chanid: The channel id of the channel that the attacker requested
+        :return: An int given by paramiko
+        """
+        try:
+            chan = self._backend_transport.open_channel(kind)
+        except SSHException:
+            return OPEN_FAILED_ADMINISTRATIVELY_PROHIBITED
+
+        # Save the opened channel in our dict
+        self._backend_chan_proxies[chanid] = chan
+        return OPEN_SUCCEEDED
+
+    def handle_shell_request(self, attacker_channel: paramiko.Channel):
+        """Tries to send a shell request to the corresponding backend channel.
+        If the shell request succeeds data will be proxied between the two channels
+
+        :param attacker_channel: The attacker channel
+        :return: True if we managed to send a shell request to the backend channel
+        """
+        backend_channel = self._get_corresponding_backend_channel(attacker_channel.chanid)
+        try:
+            backend_channel.invoke_shell()
+        except SSHException:
+            return False
+
+        handle_thread = threading.Thread(
+            target=shell_session, args=(attacker_channel, backend_channel, None))
+        handle_thread.start()
+
+        return True
+
+    def handle_exec_request(self, attacker_channel: paramiko.Channel, command: bytes) -> bool:
+        """Tries to send an exec request to the corresponding backend channel.
+        If the exec request succeeds data will be proxied between the two channels
+
+        :param attacker_channel: The attacker channel
+        :param command: The command to execute
+        :return: True if we managed to send an exec request to the backend channel
+        """
+        backend_channel = self._get_corresponding_backend_channel(attacker_channel.chanid)
+        try:
+            cmd = command.decode("utf-8")
+            backend_channel.exec_command(cmd)
+        except UnicodeDecodeError:
+            return False
+        except SSHException:
+            return False
+
+        # We have to create a method that connects the output of the proxy channel to the
+        # attacker channel and run it in a new thread
+
+        return True
+
+    def handle_pty_request(self, attacker_channel: paramiko.Channel, term: bytes,
+                           width: int, height: int, pixelwidth: int,
+                           pixelheight: int) -> bool:
+        """Tries to send a pty request to the corresponding backend channel.
+
+        :param attacker_channel: The attacker channel
+        :param term: The type of terminal requested
+        :param width: The width of the screen in characters
+        :param height: The height of the screen in characters
+        :param pixelwidth: The width of the screen in pixels, if known (may be 0 if unknown)
+        :param pixelheight: The height of the screen in pixels, if known (may be 0 if unknown)
+        :return: True if the pty request succeeded
+        """
+        backend_channel = self._get_corresponding_backend_channel(attacker_channel.chanid)
+        try:
+            term_string = term.decode("utf-8")
+            backend_channel.get_pty(term_string, width, height, pixelwidth, pixelheight)
+        except SSHException:
+            return False
+        return True
+
+    def handle_window_change_request(self, attacker_channel: Channel, width: int, height: int,
+                                     pixelwidth: int, pixelheight: int) -> bool:
+        """Tries to send a window change request to the corresponding backend channel.
+
+        :param attacker_channel: The attacker channel
+        :param width: The width of the screen in characters
+        :param height: The height of the screen in characters
+        :param pixelwidth: The width of the screen in pixels, if known (may be 0 if unknown)
+        :param pixelheight: The height of the screen in pixels, if known (may be 0 if unknown)
+        :return: True if the window change request succeeded
+        """
+        backend_channel = self._get_corresponding_backend_channel(attacker_channel.chanid)
+        try:
+            backend_channel.resize_pty(width, height, pixelwidth, pixelheight)
+        except SSHException:
+            return False
+        return True
 
 
 class Server(paramiko.ServerInterface):
@@ -20,14 +219,19 @@ class Server(paramiko.ServerInterface):
 
     def __init__(
             self, session: logger.SSHSession,
+            proxy_handler: ProxyHandler,
             usernames: Optional[List[str]],
             passwords: Optional[List[str]]) -> None:
         super().__init__()
         self._usernames = usernames
         self._passwords = passwords
         self._session = session
+        self._proxy_handler = proxy_handler
 
-    # Normal auth method
+        # The set of channels that have successfully issued a shell or exec request
+        self._channels_done: Set[int]
+        self._channels_done = set()
+
     def check_auth_password(self, username: str, password: str) -> int:
         self._session.log_login_attempt(username, password)
         if self._usernames is not None and not username in self._usernames:
@@ -41,116 +245,39 @@ class Server(paramiko.ServerInterface):
         return AUTH_FAILED
 
     def get_allowed_auths(self, username: str) -> str:
-        # return 'publickey' # If we allow publickey auth
-        return 'password'  # If we don't allow publickey auth
+        return 'password'
 
     # This is called after successfull auth
     def check_channel_request(self, kind: str, chanid: int) -> int:
-        # print("Channel request received")
         if kind == "session":
-            return OPEN_SUCCEEDED
+            return self._proxy_handler.open_channel(kind, chanid)
+
         return OPEN_FAILED_ADMINISTRATIVELY_PROHIBITED
 
     def check_channel_shell_request(self, channel: paramiko.Channel) -> bool:
-        # print("Request for shell received")
+        if channel.chanid in self._channels_done or not self._proxy_handler.handle_shell_request(
+                channel):
+            return False
+        self._channels_done.add(channel.chanid)
         return True
 
-    def check_channel_pty_request(self, _: paramiko.Channel, term: bytes,
+    def check_channel_exec_request(self, channel: paramiko.Channel, command: bytes) -> bool:
+        if channel.chanid in self._channels_done or not self._proxy_handler.handle_exec_request(
+                channel, command):
+            return False
+        self._channels_done.add(channel.chanid)
+        return True
+
+    def check_channel_pty_request(self, channel: paramiko.Channel, term: bytes,
                                   width: int, height: int, pixelwidth: int,
-                                  pixelheight: int, modes: bytes) -> bool:
-        self._session.log_pty_request(term.decode("utf-8"), width, height, pixelwidth, pixelheight)
-        return True
+                                  pixelheight: int, _: bytes) -> bool:
+        return self._proxy_handler.handle_pty_request(
+            channel, term, width, height, pixelwidth, pixelheight)
 
-
-class ConnectionHandler(threading.Thread):
-    # todo move these to some constants file or something
-    CR = b"\r"  # Carriage return (CR)
-    LF = b"\n"  # Line feed (LF)
-
-    def __init__(self, transport: paramiko.Transport,
-                 session: logger.SSHSession,
-                 host_key: paramiko.PKey,
-                 usernames: Optional[List[str]],
-                 passwords: Optional[List[str]],
-                 auth_timeout: float) -> None:
-        super().__init__(target=self.handle, daemon=False)
-        self._terminate = False
-        self._usernames = usernames
-        self._passwords = passwords
-        self._host_key = host_key
-        self._transport = transport
-        self._session = session
-        self._auth_timeout = auth_timeout
-        self._lock = threading.Lock()
-
-    def _setup_server(self, host_key: paramiko.PKey,
-                      usernames: Optional[List[str]],
-                      passwords: Optional[List[str]]) -> None:
-        if not self._transport.load_server_moduli():
-            print("Could not load moduli")
-
-        self._transport.add_server_key(host_key)
-        server = Server(self._session, usernames, passwords)
-        self._transport.start_server(server=server)
-
-    def stop(self) -> None:
-        """Stops the `handle` method handling SSH connections"""
-        self._lock.acquire()
-        self._terminate = True
-        self._lock.release()
-
-    # todo check if session.end can be called through decerator
-    def handle(self) -> None:
-        """Waits for an SSH channel to be established and handles
-        the connection"""
-
-        # Setup the server
-        try:
-            self._setup_server(self._host_key, self._usernames, self._passwords)
-        except:
-            # todo log
-            self._session.end()
-            return
-
-        chan = self._transport.accept(self._auth_timeout)
-        if chan is None:
-            # todo log this
-            print("Authentication timeout")
-            self._transport.close()
-            self._session.end()
-            return
-
-        chan.send(
-            b"\r\nWelcome to the Chalmers blueprint server. Please do not steal anything.\r\n")
-
-        # todo wait for user to send shell request
-        # todo don't hardcode
-        chan.settimeout(2)
-        while True:
-            self._lock.acquire()
-            if not self._transport.active or self._terminate:
-                self._lock.release()
-                break
-            self._lock.release()
-
-            try:
-                received_bytes = chan.recv(1024)
-                print(received_bytes.decode("utf-8"), end='')
-                chan.send(received_bytes)
-            except socket.timeout:
-                continue
-            except:
-                # todo log this
-                continue
-            # When we receive CR show LF as well
-            if received_bytes == self.CR:
-                print("\n", end='')
-                chan.send(self.LF)
-
-        if self._terminate:
-            self._transport.close()
-
-        self._session.end()
+    def check_channel_window_change_request(self, channel: Channel, width: int, height: int,
+                                            pixelwidth: int, pixelheight: int) -> bool:
+        return self._proxy_handler.handle_window_change_request(
+            channel, width, height, pixelwidth, pixelheight)
 
 
 # todo should be singleton if the class does what it says in the docstring
@@ -247,12 +374,10 @@ class ConnectionManager(threading.Thread):
                 dst_address=self._ip,
                 dst_port=self._port)
 
-            # Start the connectionhandler with the new connection
-            conn_handler = ConnectionHandler(
-                transport, session, self._host_key,  self._usernames, self._passwords,
-                self._auth_timeout)
-            conn_handler.start()
-            instance_list.append(conn_handler)
+            proxy_handler = ProxyHandler()
+            transport.add_server_key(self._host_key)
+            server = Server(session, proxy_handler, self._usernames, self._passwords)
+            transport.start_server(server=server)
 
         # Kill all threads it has created
         for instance in instance_list:
