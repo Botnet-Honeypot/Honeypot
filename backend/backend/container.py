@@ -1,4 +1,4 @@
-"""Contains class and methods used for handling docker containers 
+"""Contains class and methods used for handling docker containers
 
     :raises exception: May raise exceptions on IOError (when appropriate) and Docker api failure
     :return: Returns a container handler that can start, stop, destroy containers as well as manage storage
@@ -11,6 +11,8 @@ import backend.filehandler as filehandler
 
 
 class Status(Enum):
+    """Enum for the status of a container
+    """
     UNDEFINED = "undefined"
     NOTFOUND = "not found"
     PAUSED = "paused"
@@ -20,6 +22,8 @@ class Status(Enum):
 
 
 class Containers:
+    """Class for handling docker containers, as well as format the parameters for them
+    """
     ID_PREFIX = "openssh-server"
 
     def __init__(self):
@@ -30,15 +34,8 @@ class Containers:
         """Creates a docker container with the specified container_id, exposes the specified SSH port,
            and has SSH login credentials user/password
 
-        :param container_id: container_id (name) of container
-        :param port: SSH port that is exposed
-        :param user: Username for SSH
-        :param password: Password for SSH
-        :param hostname: Name of the device
-        :param uid: User container_id
-        :param gid: Group container_id
-        :param timezone: Timezone for container
-        :param sudo: Sudo access, true or false as a string
+        :param config: Dictionary, preferrably formatted using format_config,
+        containing all environment variables and config needed for setting up a container.
         """
         # Creates shared folder between host and SSH server container
         Containers.create_shared_folder(self, config["ID"], config["User"])
@@ -60,7 +57,7 @@ class Containers:
     def stop_container(self, container_id: str):
         """Stop a specified container
 
-        :param container_id: container_id (name) of container
+        :param container_id: ID (name) of container to be stopped
         """
         try:
             self._client.containers.get(container_id).stop()
@@ -72,7 +69,7 @@ class Containers:
     def destroy_container(self, container_id: str):
         """Destroy a specified container
 
-        :param container_id: container_id (name) of container
+        :param container_id: ID (name) of container to be destroyed
         """
         try:
             self._client.containers.get(container_id).remove()
@@ -80,9 +77,9 @@ class Containers:
             raise exception
 
     def remove_folder(self, container_id: str):
-        """Removes a containers storage folder.
+        """Removes storage folder for the specified container
 
-        :param container_id: container id folder to remove
+        :param container_id: ID (name) of which container's storage directory to remove
         """
         try:
             current_path = os.getcwd()
@@ -94,7 +91,7 @@ class Containers:
     def status_container(self, container_id: str) -> Status:
         """Return the status of a specific container with the container_id argument
 
-        :param container_id: container_id (name) of container
+        :param container_id: ID (name) of container
         :return: Returns an enum describing the status of a container
         """
         try:
@@ -110,8 +107,7 @@ class Containers:
                 return Status.RESTARTING
             elif sts == "paused":
                 return Status.PAUSED
-            else:
-                return Status.UNDEFINED
+        return Status.UNDEFINED
 
     def create_shared_folder(self, container_id: str, user: str):
         """Creates a directory for the docker container with the specified container_id,
@@ -119,7 +115,7 @@ class Containers:
            Inside it creates a script for initialization that uses the specified username
            for the home directory
 
-        :param container_id: container_id (name) of container
+        :param container_id: ID (name) of container
         :param port: SSH port that is exposed
         :param user: Username for SSH
         :param password: Password for SSH
