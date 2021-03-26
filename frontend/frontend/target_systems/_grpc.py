@@ -2,7 +2,7 @@ from typing import Optional
 import grpc
 import target_system_provider.target_system_provider_pb2_grpc as tsp
 import target_system_provider.target_system_provider_pb2 as messages
-from . import TargetSystem, TargetSystemProvider
+from ._interface import TargetSystem, TargetSystemProvider
 
 
 class _GrpcTargetSystem(TargetSystem):
@@ -20,7 +20,6 @@ class _GrpcTargetSystemProvider(TargetSystemProvider):
     """TargetSystemProvider implementation using the target_system_provider gRPC protocol
     for forwarding of requests to a remote service."""
 
-    server_address: str
     channel: Optional[grpc.Channel]
 
     def __init__(self, server_address: str) -> None:
@@ -28,18 +27,16 @@ class _GrpcTargetSystemProvider(TargetSystemProvider):
         :param server_address: The address of a gRPC server.
         """
         super().__init__()
-        self.server_address = server_address
+        self.channel = grpc.insecure_channel(server_address)  # TODO: TLS
 
-    def __enter__(self) -> None:
-        self.channel = grpc.insecure_channel(self.server_address)  # TODO: TLS
-
-    def __exit__(self, exc_type, exc_value, traceback) -> None:
+    def close_channel(self):
+        """Closes the underlying gRPC channel"""
         self.channel.close()
         self.channel = None
 
     def acquire_target_system(self, user: str, password: str) -> Optional[TargetSystem]:
         if self.channel is None:
-            raise RuntimeError('Cannot be used outside with-statement')
+            raise RuntimeError('gRPC channel was closed')
 
         # TODO: Error handling when acquisition failed, should return None
 
