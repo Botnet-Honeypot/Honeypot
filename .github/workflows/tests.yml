@@ -1,0 +1,113 @@
+name: Python tests
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: docker-practice/actions-setup-docker@master
+      - uses: actions/checkout@v2
+
+      - name: Start database container
+        working-directory: ./database/
+        run: docker-compose up -d
+
+      - name: Set up Python 3.9
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.9
+
+      - name: Install dependencies
+        working-directory: ./frontend/
+        run: |
+          sudo npm install -g pyright
+          pip install poetry
+          poetry install
+
+      - name: Fix host setting in database for the tests
+        working-directory: ./frontend/config/
+        run: sed -i 's/host=.*/host=localhost/' database.ini
+
+      - name: Generate RSA keys
+        working-directory: ./frontend/
+        run: ./genkeys
+
+      - name: Pylint
+        if: always()
+        working-directory: ./frontend/
+        run: |
+          . .venv/bin/activate
+          pylint --fail-under 7 frontend
+
+      - name: Pyright
+        if: always()
+        working-directory: ./frontend/
+        run: |
+          . .venv/bin/activate
+          pyright
+
+      - name: Pytest
+        if: always()
+        working-directory: ./frontend/
+        run: |
+          . .venv/bin/activate
+          pytest
+
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: docker-practice/actions-setup-docker@master
+      - uses: actions/checkout@v2
+
+      - name: Set up Python 3.9
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.9
+
+      - name: Install dependencies
+        working-directory: ./backend/
+        run: |
+          sudo npm install -g pyright
+          pip install poetry
+          poetry install
+
+      - name: Pylint
+        if: always()
+        working-directory: ./backend/
+        run: |
+          . .venv/bin/activate
+          pylint  --fail-under 7 backend
+
+      - name: Pyright
+        if: always()
+        working-directory: ./backend/
+        run: |
+          . .venv/bin/activate
+          pyright
+
+      - name: Pytest
+        if: always()
+        working-directory: ./backend/
+        run: |
+          sudo -- sh -c '. .venv/bin/activate; pytest --capture=tee-sys'
+
+  robot-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Python 3.9
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.9
+
+      - name: Install dependencies
+        run: pip install robotframework
+
+      - name: Robot tests
+        continue-on-error: true
+        run: robot --outputdir tests_output .
