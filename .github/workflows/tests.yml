@@ -28,6 +28,10 @@ jobs:
           pip install poetry
           poetry install
 
+      - name: Fix host setting in database for the tests
+        working-directory: ./frontend/config/
+        run: sed -i 's/host=.*/host=localhost/' database.ini
+
       - name: Generate RSA keys
         working-directory: ./frontend/
         run: ./genkeys
@@ -89,8 +93,7 @@ jobs:
         if: always()
         working-directory: ./backend/
         run: |
-          . .venv/bin/activate
-          pytest
+          sudo -- sh -c '. .venv/bin/activate; pytest --capture=tee-sys'
 
   robot-tests:
     runs-on: ubuntu-latest
