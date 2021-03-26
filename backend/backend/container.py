@@ -7,6 +7,7 @@ import os
 import shutil
 from enum import Enum
 import docker
+from docker import client
 import backend.filehandler as filehandler
 
 
@@ -38,7 +39,7 @@ class Containers:
         containing all environment variables and config needed for setting up a container.
         """
         # Creates shared folder between host and SSH server container
-        Containers.create_shared_folder(self, config["ID"], config["User"])
+        # Containers.create_shared_folder(self, config["ID"], config["User"])
 
         try:
             self._client.containers.run(
@@ -82,7 +83,7 @@ class Containers:
         :param container_id: ID (name) of which container's storage directory to remove
         """
         try:
-            current_path = self.root_path()
+            current_path = ""
             shutil.rmtree(os.path.join(current_path, container_id))
         except IOError as exception:
             print(f"Failed to open file \n Error: {exception}")
@@ -136,10 +137,10 @@ class Containers:
 
         self._filehandler.replaceStringInFile(config_file, "user", user)
 
-    def format_config(
-            self, container_id: int, port: int, user: str, password: str, volumes: dict,
-            hostname='Dell-T140', user_id='1000', group_id='1000', timezone='Europe/London',
-            sudo_access='true', image='ghcr.io/linuxserver/openssh-server') -> dict:
+    def format_config(self, container_id: int, port: int, user: str, password: str,
+                      hostname='Dell-T140', user_id='1000', group_id='1000',
+                      timezone='Europe/London', sudo_access='true',
+                      image='ghcr.io/linuxserver/openssh-server') -> dict:
         """Formats the given parameters as a dictionary that fits docker-py
 
         :param container_id: Unique ID for container
@@ -156,13 +157,27 @@ class Containers:
         :return: Dictionary that can be easily used for docker-py
         """
 
-        config = {
-            'Image': image, 'ID': Containers.ID_PREFIX + str(container_id),
-            'Environment': self.format_environment(
-                user, password, user_id, group_id, timezone, sudo_access),
+        full_container_id = Containers.ID_PREFIX + str(container_id)
+        self._client.volumes.create(name=full_container_id + "config")
+        self._client.volumes.create(name=full_container_id + "home")
+
+        # Helper container to copy init script to volume
+        self._client.containers.run(
+            "busybox", name="copy",
+            volumes={full_container_id + "config": {'bind': '/dst', 'mode': 'rw'}})
+        os.system("docker cp ./custom-cont-init.d/ copy:/dst")
+        # Stop and remove the helper container
+        self.stop_container("copy")
+        self.destroy_container("copy")
+
+        config = {'Image': image, 'ID': full_container_id, 'Environment': self.format_environment(
+            user, password, user_id, group_id, timezone, sudo_access),
             'Port': {'2222/tcp': str(port)},
-            'User': user, 'Password': password, 'Hostname': hostname, 'UID': user_id, 'GID': group_id,
-            'Timezone': timezone, 'SUDO': sudo_access, 'Volumes': volumes}
+            'User': user, 'Password': password, 'Hostname': hostname, 'UID': user_id,
+            'GID': group_id, 'Timezone': timezone, 'SUDO': sudo_access,
+            'Volumes':
+            {full_container_id + "config": {'bind': '/config', 'mode': 'rw'},
+             full_container_id + "home": {'bind': '/home', 'mode': 'rw'}}}
         return config
 
     def format_environment(
@@ -180,7 +195,3 @@ class Containers:
         """
         return ['PUID='+user_id, 'PGID='+group_id, 'TZ='+timezone, 'SUDO_ACCESS='+sudo_access,
                 'PASSWORD_ACCESS=true', 'USER_PASSWORD='+password, 'USER_NAME='+user]
-
-    def root_path(self):
-        # https://stackoverflow.com/questions/12041525/a-system-independent-way-using-python-to-get-the-root-directory-drive-on-which-p
-        return "/var/lib/docker/data"
