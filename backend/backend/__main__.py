@@ -1,3 +1,5 @@
+"""Main entrypoint for backend."""
+
 import logging
 import backend.container as container
 import backend.http_server as server
@@ -5,6 +7,7 @@ import backend.config as config
 
 
 def main():
+    """Main entrypoint for backend."""
     # Configure logging
     logging.basicConfig(level=logging.INFO)
 

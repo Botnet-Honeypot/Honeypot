@@ -1,3 +1,8 @@
+"""Module implementing a gRPC HTTP API.
+
+Currently handles requests to acquire and yield target systems.
+"""
+
 import logging
 import uuid
 from concurrent import futures
@@ -50,7 +55,8 @@ def start_http_server(container_handler: container.Containers,
                       bind_address: str = 'localhost:80') -> grpc.Server:
     """Starts a gRPC HTTP server with pre-configured services.
 
-    :param container_handler: Container handler to use for managing containers in response to service requests.
+    :param container_handler: Container handler to use for
+                              managing containers in response to service requests.
     :param port: The TCP port to run the server on, defaults to 80.
     :return: The gRPC server that was started.
     """
