@@ -16,7 +16,7 @@ def container_handler():
 
 @pytest.fixture(scope='module', autouse=True)
 def http_server(container_handler: Containers):
-    http_server = server.start_http_server(container_handler, port=50051)
+    http_server = server.start_http_server(container_handler, bind_address='localhost:50051')
     yield http_server
     http_server.stop(grace=None)
 

@@ -8,6 +8,7 @@ authors = ["Your Name <you@example.com>"]
 python = "^3.9"
 docker = "^4.4.4"
 protocols = { path = "../protocols", develop = false }
+python-dotenv = "^0.15.0"
 
 [tool.poetry.dev-dependencies]
 pylint = "^2.6.2"

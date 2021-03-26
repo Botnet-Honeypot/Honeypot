@@ -46,7 +46,8 @@ class TargetSystemProvider(tsp.TargetSystemProviderServicer):
         return messages.YieldResult()
 
 
-def start_http_server(container_handler: container.Containers, port: int = 80) -> grpc.Server:
+def start_http_server(container_handler: container.Containers,
+                      bind_address: str = 'localhost:80') -> grpc.Server:
     """Starts a gRPC HTTP server with pre-configured services.
 
     :param container_handler: Container handler to use for managing containers in response to service requests.
@@ -54,11 +55,11 @@ def start_http_server(container_handler: container.Containers, port: int = 80) -
     :return: The gRPC server that was started.
     """
 
-    logger.info('Starting gRPC HTTP Server...')
+    logger.info('Starting gRPC HTTP Server on %s...', bind_address)
 
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
     tsp.add_TargetSystemProviderServicer_to_server(TargetSystemProvider(container_handler), server)
-    server.add_insecure_port('[::]:' + str(port))  # TODO: ADD TLS!
+    server.add_insecure_port(bind_address)  # TODO: ADD TLS!
     server.start()
 
     return server
