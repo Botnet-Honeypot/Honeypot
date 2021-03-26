@@ -4,11 +4,8 @@
     :return: Returns a container handler that can start, stop, destroy containers as well as manage storage
     """
 import os
-import shutil
 from enum import Enum
 import docker
-from docker import client
-import backend.filehandler as filehandler
 
 
 class Status(Enum):
@@ -29,7 +26,6 @@ class Containers:
 
     def __init__(self):
         self._client = docker.from_env()
-        self._filehandler = filehandler.FileHandle()
 
     def create_container(self, config: dict):
         """Creates a docker container with the specified container_id, exposes the specified SSH port,
@@ -38,8 +34,6 @@ class Containers:
         :param config: Dictionary, preferrably formatted using format_config,
         containing all environment variables and config needed for setting up a container.
         """
-        # Creates shared folder between host and SSH server container
-        # Containers.create_shared_folder(self, config["ID"], config["User"])
 
         try:
             self._client.containers.run(
@@ -77,16 +71,22 @@ class Containers:
         except Exception as exception:
             raise exception
 
-    def remove_folder(self, container_id: str):
-        """Removes storage folder for the specified container
+    def prune_volumes(self):
+        """Removes storage volumes for all inactive (destroyed) containers
 
         :param container_id: ID (name) of which container's storage directory to remove
         """
+        self._client.volumes.prune()
+
+    def get_volume(self, volume_id: str):
+        """Returns the specified volume in form <Volume: short_id>,
+        where short_id is the volume id truncated to 10 characters
+
+        :param volume_id: The name of the volume
+        """
         try:
-            current_path = ""
-            shutil.rmtree(os.path.join(current_path, container_id))
+            return self._client.volumes.get(volume_id)
         except IOError as exception:
-            print(f"Failed to open file \n Error: {exception}")
             raise exception
 
     def status_container(self, container_id: str) -> Status:
@@ -102,46 +102,20 @@ class Containers:
         else:
             if sts == "running":
                 return Status.RUNNING
-            elif sts == "exited":
-                return Status.EXITED
             elif sts == "restarting":
                 return Status.RESTARTING
             elif sts == "paused":
                 return Status.PAUSED
+            elif sts == "exited":
+                return Status.EXITED
         return Status.UNDEFINED
-
-    def create_shared_folder(self, container_id: str, user: str):
-        """Creates a directory for the docker container with the specified container_id,
-           exposes the specified SSH port, and has SSH login credentials user/password.
-           Inside it creates a script for initialization that uses the specified username
-           for the home directory
-
-        :param container_id: ID (name) of container
-        :param port: SSH port that is exposed
-        :param user: Username for SSH
-        :param password: Password for SSH
-        """
-        # Save current working directory, must be able to restore later
-        current_dir = self.root_path()
-
-        # Makes a shared folder named with the container_id
-        os.mkdir(os.path.join(current_dir, container_id))
-
-        # Paths to files needed by the container
-        src = "template"
-        dst = current_dir + "/" + container_id
-        config_file = current_dir + "/" + container_id + "/config/custom-cont-init.d/init.sh"
-
-        # Copy files and modify config to SSH server container
-        self._filehandler.copytree(src, dst)
-
-        self._filehandler.replaceStringInFile(config_file, "user", user)
 
     def format_config(self, container_id: int, port: int, user: str, password: str,
                       hostname='Dell-T140', user_id='1000', group_id='1000',
                       timezone='Europe/London', sudo_access='true',
                       image='ghcr.io/linuxserver/openssh-server') -> dict:
-        """Formats the given parameters as a dictionary that fits docker-py
+        """Formats the given parameters as a dictionary that fits docker-py.
+        Creates the volumes for the config and home dirs of the container
 
         :param container_id: Unique ID for container
         :param port: Unique external port for container
@@ -157,27 +131,26 @@ class Containers:
         :return: Dictionary that can be easily used for docker-py
         """
 
-        full_container_id = Containers.ID_PREFIX + str(container_id)
-        self._client.volumes.create(name=full_container_id + "config")
-        self._client.volumes.create(name=full_container_id + "home")
+        # Format the container id to ID_PREFIX + id
+        _container_id = Containers.ID_PREFIX + str(container_id)
+        _config_path = _container_id + "config"
+        _home_path = _container_id + "home"
 
-        # Helper container to copy init script to volume
-        self._client.containers.run(
-            "busybox", name="copy",
-            volumes={full_container_id + "config": {'bind': '/dst', 'mode': 'rw'}})
-        os.system("docker cp ./custom-cont-init.d/ copy:/dst")
-        # Stop and remove the helper container
-        self.stop_container("copy")
-        self.destroy_container("copy")
+        # Create volimes for the container to store its home and config
+        self._client.volumes.create(name=_config_path)
+        self._client.volumes.create(name=_home_path)
 
-        config = {'Image': image, 'ID': full_container_id, 'Environment': self.format_environment(
+        self.copy_init_to_volume(_container_id)
+
+        # Format the config dict of this container
+        config = {'Image': image, 'ID': _container_id, 'Environment': self.format_environment(
             user, password, user_id, group_id, timezone, sudo_access),
             'Port': {'2222/tcp': str(port)},
             'User': user, 'Password': password, 'Hostname': hostname, 'UID': user_id,
             'GID': group_id, 'Timezone': timezone, 'SUDO': sudo_access,
             'Volumes':
-            {full_container_id + "config": {'bind': '/config', 'mode': 'rw'},
-             full_container_id + "home": {'bind': '/home', 'mode': 'rw'}}}
+            {_config_path: {'bind': '/config', 'mode': 'rw'},
+             _home_path: {'bind': '/home', 'mode': 'rw'}}}
         return config
 
     def format_environment(
@@ -195,3 +168,23 @@ class Containers:
         """
         return ['PUID='+user_id, 'PGID='+group_id, 'TZ='+timezone, 'SUDO_ACCESS='+sudo_access,
                 'PASSWORD_ACCESS=true', 'USER_PASSWORD='+password, 'USER_NAME='+user]
+
+    def copy_init_to_volume(self, container_id: str):
+        """Creates a temporary helper container to copy the init script from
+            backend/custom-cont-init.d/ to the container's volume.
+
+        :param container_id: container id to copy files to
+        """
+
+        # Helper container to copy init script to volume
+        self._client.containers.run(
+            "busybox", name="copy",
+            volumes={container_id + "config": {'bind': '/dst', 'mode': 'rw'}})
+
+        # Call docker cp from system
+        # Copies local dir ./custom-cont-init.d into volume of container copy at path /dst
+        os.system("docker cp ./custom-cont-init.d/ copy:/dst")
+
+        # Stop and remove the helper container
+        self.stop_container("copy")
+        self.destroy_container("copy")

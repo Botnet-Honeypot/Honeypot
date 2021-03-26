@@ -1,5 +1,4 @@
 import time
-import backend.filehandler as filehandler
 from backend.container import Containers, Status
 
 
@@ -23,13 +22,13 @@ def main():
         port += 1
 
     # Close and destroy containers after a delay (this does not remove the storage folders)
-    time.sleep(60)
+    time.sleep(30)
 
     for container_id in range(5):
         try:
             container_handler.stop_container(Containers.ID_PREFIX + str(container_id))
             container_handler.destroy_container(Containers.ID_PREFIX + str(container_id))
-            #container_handler.remove_folder(Containers.ID_PREFIX + str(container_id))
+            container_handler.prune_volumes()
 
         except Exception as exception:
             print("Could not find or stop the specified container")

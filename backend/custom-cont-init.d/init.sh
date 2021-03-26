@@ -53,19 +53,13 @@ perl -wle '$0=shift;sleep shift' netspeed_apple 100000 &
 mkdir /home/$USERNAME/ 
 chown -R $USERNAME /home/user
 chmod -R 777 /home/$USERNAME/
-chown -R root /config
-chgrp -R root /config
-chmod -R 600 /config/
-ls -lah /config/logs/openssh
-sleep 5 && cat /config/logs/openssh &
+
 # Update home directory path in passwd file 
 sed -i "s/\/config/\/home\/$USERNAME/" "/etc/passwd" 
 # Remove setup files
-#rm -rf /config/logs/
-#rm -rf /docker-mods
+rm -rf /config/logs/
+rm -rf /docker-mods
 
-# Copy template/decoy files
-cp -r /home/templatefiles/. /home/$USERNAME/
 # Remove setup files
 rm -rf /home/templatefiles
 rm -rf /config/custom-cont-init.d

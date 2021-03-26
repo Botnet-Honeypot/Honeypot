@@ -1,6 +1,5 @@
-import pytest
 import os
-import shutil
+import pytest
 from backend.container import Containers, Status
 
 MAX_CONTAINERS = 5
@@ -14,11 +13,7 @@ def config() -> dict:
     password = "password"
     port = 2222
 
-    volumes = {os.getcwd() + "/" + Containers.ID_PREFIX + str(container_id) +
-               "/config": {'bind': '/config', 'mode': 'rw'},
-               os.getcwd() + "/" + Containers.ID_PREFIX + str(container_id) +
-               "/home/": {'bind': '/home/', 'mode': 'rw'}}
-    return container_handler.format_config(container_id, port, user, password, volumes)
+    return container_handler.format_config(container_id, port, user, password)
 
 
 @pytest.fixture(autouse=True)
@@ -44,7 +39,7 @@ def run_around_tests():
     # Remove folders for container storage
     for i in range(MAX_CONTAINERS):
         try:
-            shutil.rmtree(os.path.join(current_path, Containers.ID_PREFIX+str(i)))
+            container_handler.prune_volumes()
         except:
             continue
 
@@ -53,22 +48,6 @@ def test_create_one_container(config: dict):
     container_handler = Containers()
     container_handler.create_container(config)
     assert container_handler.status_container(config["ID"]) == Status.RUNNING
-
-
-def test_shared_folder_func(config: dict):
-    container_handler = Containers()
-    container_handler.create_shared_folder(config["ID"], config["User"])
-    current_path = os.getcwd()
-    assert os.path.isdir(os.path.join(current_path, Containers.ID_PREFIX+str(0)))
-
-
-def test_multiple_shared_folder_func(config: dict):
-    container_handler = Containers()
-    for i in range(MAX_CONTAINERS):
-        container_handler.create_shared_folder(Containers.ID_PREFIX+str(i), "user")
-    current_path = os.getcwd()
-    for i in range(MAX_CONTAINERS):
-        assert(os.path.isdir(os.path.join(current_path, Containers.ID_PREFIX+str(i))))
 
 
 def test_stop_container(config: dict):
@@ -93,11 +72,7 @@ def test_start_multiple_containers(config: dict):
     password = "password"
     port = 2222
     for i in range(MAX_CONTAINERS):
-        volumes = {os.getcwd() + "/" + Containers.ID_PREFIX + str(container_id) +
-                   "/config": {'bind': '/config', 'mode': 'rw'},
-                   os.getcwd() + "/" + Containers.ID_PREFIX + str(container_id) +
-                   "/home/": {'bind': '/home/', 'mode': 'rw'}}
-        config = container_handler.format_config(container_id, port, user, password, volumes)
+        config = container_handler.format_config(container_id, port, user, password)
         port += 1
         container_id += 1
         container_handler.create_container(config)
@@ -113,11 +88,7 @@ def test_start_container_same_port(config: dict):
     port = 2222
     with pytest.raises(Exception):
         for i in range(MAX_CONTAINERS):
-            volumes = {os.getcwd() + "/" + Containers.ID_PREFIX + str(container_id) +
-                       "/config": {'bind': '/config', 'mode': 'rw'},
-                       os.getcwd() + "/" + Containers.ID_PREFIX + str(container_id) +
-                       "/home/": {'bind': '/home/', 'mode': 'rw'}}
-            config = container_handler.format_config(container_id, port, user, password, volumes)
+            config = container_handler.format_config(container_id, port, user, password)
             container_id += 1
             container_handler.create_container(config)
 
@@ -130,11 +101,7 @@ def test_start_container_same_id(config: dict):
     port = 2222
     with pytest.raises(Exception):
         for i in range(MAX_CONTAINERS):
-            volumes = {os.getcwd() + "/" + Containers.ID_PREFIX + str(container_id) +
-                       "/config": {'bind': '/config', 'mode': 'rw'},
-                       os.getcwd() + "/" + Containers.ID_PREFIX + str(container_id) +
-                       "/home/": {'bind': '/home/', 'mode': 'rw'}}
-            config = container_handler.format_config(container_id, port, user, password, volumes)
+            config = container_handler.format_config(container_id, port, user, password)
             port += 1
             container_handler.create_container(config)
 
@@ -174,10 +141,17 @@ def test_format_environment():
                    'PASSWORD_ACCESS=true', 'USER_PASSWORD='+password, 'USER_NAME='+user]
 
 
-def test_remove_folder(config: dict):
+def test_prune_volumes(config: dict):
     container_handler = Containers()
-    container_handler.create_shared_folder(config["ID"], config["User"])
-    current_path = os.getcwd()
-    assert os.path.isdir(os.path.join(current_path, config["ID"]))
-    container_handler.remove_folder(config["ID"])
-    assert not os.path.isdir(os.path.join(current_path, config["ID"]))
+    container_handler.create_container(config)
+    container_handler.stop_container(config["ID"])
+    container_handler.destroy_container(config["ID"])
+    container_handler.prune_volumes()
+    with pytest.raises(Exception):
+        container_handler.get_volume(config["ID"])
+
+
+def test_get_volume(config: dict):
+    container_handler = Containers()
+    container_handler.create_container(config)
+    assert str(container_handler.get_volume(config["ID"] + "config")) == "<Volume: openssh-se>"
