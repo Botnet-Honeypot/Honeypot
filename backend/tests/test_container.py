@@ -1,3 +1,4 @@
+from backend.__main__ import HIGH_PORT, LOW_PORT, acquire_port, release_port
 import os
 import pytest
 from backend.container import Containers, Status
@@ -161,3 +162,39 @@ def test_get_port(config: dict):
     container_handler = Containers()
     container_handler.create_container(config)
     assert container_handler.get_container_port(config["ID"]) == 2222
+
+
+def test_acquire_port():
+    port = acquire_port()
+    assert port in list(range(LOW_PORT, HIGH_PORT + 1))
+
+
+def test_acquire_multiple_ports():
+    port1 = acquire_port()
+    port2 = acquire_port()
+    assert port1 in list(range(LOW_PORT, HIGH_PORT + 1))
+    assert port2 in list(range(LOW_PORT, HIGH_PORT + 1))
+    assert port1 != port2
+    release_port(port1)
+    release_port(port2)
+
+
+@pytest.mark.skip(reason="Locks on lock.acquire")
+def test_acquire_all_ports():
+    port = []
+    for i in range(HIGH_PORT - LOW_PORT):
+        port.append(acquire_port())
+    with pytest.raises(Exception):
+        acquire_port()
+    for i in port:
+        release_port(i)
+
+
+def test_release_port():
+    port = []
+    for i in range(HIGH_PORT - LOW_PORT):
+        port.append(acquire_port())
+    release_port(port.pop())
+    port.append(acquire_port())
+    for i in port:
+        release_port(i)

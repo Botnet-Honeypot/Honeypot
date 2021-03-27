@@ -1,7 +1,8 @@
 import time
-from backend.container import Containers, Status
 import threading
 import logging
+from backend.container import Containers, Status
+
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +30,7 @@ def main():
         container_handler.create_container(config)
 
     # Close and destroy containers after a delay
-    time.sleep(5)
+    time.sleep(30)
 
     for container_id in range(5):
         try:

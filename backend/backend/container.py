@@ -4,9 +4,10 @@
     :return: Returns a container handler that can start, stop, destroy containers as well as manage storage
     """
 import os
+import logging
 from enum import Enum
 import docker
-import logging
+
 
 logger = logging.getLogger(__name__)
 
