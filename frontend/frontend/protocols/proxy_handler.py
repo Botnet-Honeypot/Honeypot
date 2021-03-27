@@ -1,3 +1,7 @@
+"""This file contains the ProxyHandler class which can be used to
+proxy data between the backend and log commands recieved from the attacker and
+all the data recieved from the backend during the sesison.
+"""
 import logging
 import socket
 import threading
@@ -44,7 +48,7 @@ class ProxyHandler:
         try:
             client.connect("40.69.80.66", port=22, username="john", password="Superman1234")
         except Exception as exc:
-            debug_log.exception("Failed to the backend", exc_info=exc)
+            debug_log.exception("Failed to connect to the backend", exc_info=exc)
             return
 
         transport = client.get_transport()
@@ -122,7 +126,7 @@ class ProxyHandler:
 
         debug_log.info("Attacker opening a shell on the backend")
         handle_thread = threading.Thread(
-            target=proxy_data, args=(attacker_channel, backend_channel, None))
+            target=proxy_data, args=(attacker_channel, backend_channel, self._session_log))
         handle_thread.start()
 
         return True
@@ -151,7 +155,7 @@ class ProxyHandler:
         debug_log.info("Attacker executing %s via an exec request", cmd)
 
         handle_thread = threading.Thread(
-            target=proxy_data, args=(attacker_channel, backend_channel, None))
+            target=proxy_data, args=(attacker_channel, backend_channel, self._session_log))
         handle_thread.start()
 
         return True
@@ -242,11 +246,12 @@ def try_send_int(
 def proxy_data(
         attacker_channel: paramiko.Channel,
         backend_channel: paramiko.Channel,
-        log: SSHSession):
+        session_log: SSHSession):
     """This will proxy data between two channels and log the data
 
     :param attacker_channel: The attacker channel
     :param backend_channel: The backend channeel
+    :param session_log: The SSH logging session
     """
     attacker_channel.settimeout(10)
     backend_channel.settimeout(10)
@@ -255,6 +260,8 @@ def proxy_data(
     cmd_buffer = []
     carriage_return = "\r"
     delete = "\x7f"
+    left_arrow = "\x1b[D"
+    right_arrow = "\x1b[C"
     while not (attacker_channel.eof_received or attacker_channel.closed):
         # If the backend channel is shut down
         if backend_channel.eof_received or backend_channel.closed:
@@ -271,23 +278,44 @@ def proxy_data(
             data = attacker_channel.recv(1024)
             if not try_send_data(data, backend_channel.sendall):
                 debug_log.debug("Failed to send data to backend_channel")
+
             try:
-                for char in data.decode("utf"):
-                    if char == carriage_return:
-                        debug_log.info("Command sent %s", ''.join(cmd_buffer))
+                cmd = data.decode("utf-8")
+                for char in cmd:
+                    if char == carriage_return:  # Treat everything before \r as a command
+                        recieved_cmd = ''.join(cmd_buffer)
+                        # Log parsed command
+                        debug_log.info("Command sent %s", recieved_cmd)
+                        session_log.log_command(recieved_cmd)
                         cmd_buffer = []
-                    elif char == delete:
-                        cmd_buffer.pop()
+                    elif char == delete:  # Pop from the cmd_buffer if we recieved delete
+                        if len(cmd_buffer) > 0:
+                            cmd_buffer.pop()
+                    elif char == "D" or char == "C":  # Left or right arrow ending
+                        cmd_buffer.append(char)
+                        if ''.join(cmd_buffer).endswith(left_arrow):
+                            print("Got left arrow")
+                            cmd_buffer.pop()
+                            cmd_buffer.pop()
+                            cmd_buffer.pop()
+                        if ''.join(cmd_buffer).endswith(right_arrow):
+                            print("Got right arrow")
+                            cmd_buffer.pop()
+                            cmd_buffer.pop()
+                            cmd_buffer.pop()
                     else:
                         cmd_buffer.append(char)
-            except:
-                pass
+            except UnicodeDecodeError:
+                debug_log.debug("Failed to decode command data")
+
         if backend_channel.recv_ready():
             data = backend_channel.recv(1024)
+            session_log.log_ssh_channel_output(memoryview(data), attacker_channel.chanid)
             if not try_send_data(data, attacker_channel.sendall):
                 debug_log.debug("Failed to send data to attacker_channel")
         if backend_channel.recv_stderr_ready():
             data = backend_channel.recv_stderr(1024)
+            session_log.log_ssh_channel_output(memoryview(data), attacker_channel.chanid)
             if not try_send_data(data, attacker_channel.sendall_stderr):
                 debug_log.debug("Failed to send data to attacker_channel stderr")
 
