@@ -52,6 +52,15 @@ class Containers:
         else:
             print("Successfully started container ")
 
+    def get_container_port(self, container_id: str) -> int:
+        """Returns the port bound to a container. Undefined if multiple ports are used.
+
+        :param container_id: The container id
+        :return: The port bound to container container_id
+        """
+        return int(self._client.containers.get(container_id).
+                   attrs["HostConfig"]["PortBindings"]["2222/tcp"][0]["HostPort"])
+
     def stop_container(self, container_id: str):
         """Stop a specified container
 

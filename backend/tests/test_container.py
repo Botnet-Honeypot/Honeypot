@@ -155,3 +155,9 @@ def test_get_volume(config: dict):
     container_handler = Containers()
     container_handler.create_container(config)
     assert str(container_handler.get_volume(config["ID"] + "config")) == "<Volume: openssh-se>"
+
+
+def test_get_port(config: dict):
+    container_handler = Containers()
+    container_handler.create_container(config)
+    assert container_handler.get_container_port(config["ID"]) == 2222
