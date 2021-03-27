@@ -56,7 +56,7 @@ class TransportManager:
         """
         while True:
             for transport_tuple in self.get_transports():
-                # End the session if it isn't active anymore
+                # End the session if the attacker transport isn't active anymore
                 if not transport_tuple[0].is_active():
                     transport_tuple[1].close_connection()
                     self._remove_transport(transport_tuple)
@@ -66,7 +66,6 @@ class TransportManager:
                     curr_time = datetime.datetime.now()
                     last_activity_time = transport_tuple[2].get_last_activity()
                     difference = curr_time - last_activity_time
-                    print(difference.seconds)
                     if difference.seconds > 300:
                         debug_log.info("Killing inactive session")
                         transport_tuple[0].close()

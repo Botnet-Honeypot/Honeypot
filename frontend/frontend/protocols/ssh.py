@@ -122,7 +122,9 @@ class ConnectionManager(threading.Thread):
                 debug_log.exception(
                     "Failed to accept a connection from somewhere",  exc_info=exc)
                 continue
+
             transport = paramiko.Transport(client)
+            transport.local_version = "SSH-2.0-dropbear_2019.78"
 
             session = logger.begin_ssh_session(
                 src_address=ip_address(addr[0]),
@@ -139,5 +141,11 @@ class ConnectionManager(threading.Thread):
                 debug_log.error("Failed to start the SSH server for %s", addr[0])
                 session.end()
                 continue
+            except Exception as exc:
+                debug_log.exception("Failed to start the SSH server for %s", addr[0], exc_info=exc)
+                session.end()
+                continue
+
+            debug_log.info("Remote SSH version %s", transport.remote_version)
 
             transport_manager.add_transport((transport, proxy_handler, server))

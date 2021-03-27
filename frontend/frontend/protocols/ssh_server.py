@@ -1,12 +1,10 @@
 import logging
-import random
 import datetime
-import time
-from typing import List, Optional, Set
+from typing import List, Optional, Set, Tuple
 
 
 from paramiko.common import (AUTH_FAILED, AUTH_SUCCESSFUL,
-                             OPEN_FAILED_ADMINISTRATIVELY_PROHIBITED, )
+                             OPEN_FAILED_ADMINISTRATIVELY_PROHIBITED, OPEN_SUCCEEDED, )
 import paramiko
 from paramiko.channel import Channel
 
@@ -37,7 +35,6 @@ class Server(paramiko.ServerInterface):
         # The set of channels that have successfully issued a shell or exec request
         self._channels_done: Set[int]
         self._channels_done = set()
-        self._count = 0  # todo remove
 
         self._last_activity = datetime.datetime.now()
 
@@ -56,20 +53,7 @@ class Server(paramiko.ServerInterface):
     def check_auth_password(self, username: str, password: str) -> int:
         self._update_last_activity()
         self._session.log_login_attempt(username, password)
-        self._count += 1
-        r = random.randint(2, 8)
-        if self._count < 3:
-            # debug_log.info(
-            #     "[AUTH] Sleeping %s seconds and denying, hopefully we see another login", r)
-            debug_log.info("[AUTH] Denying, hopefully we see another login")
-            # time.sleep(r)
-            return AUTH_FAILED
-        else:
-            debug_log.info(
-                "[AUTH] Sleeping %s seconds and accepting, hopefully we see a shell/exec attempt",
-                r)
-            time.sleep(r)
-            return AUTH_SUCCESSFUL
+        return AUTH_SUCCESSFUL
 
     def check_auth_publickey(self, username: str, key: paramiko.PKey) -> int:
         self._update_last_activity()
@@ -81,8 +65,11 @@ class Server(paramiko.ServerInterface):
 
     def check_channel_request(self, kind: str, chanid: int) -> int:
         self._update_last_activity()
+        debug_log.info("Attacker requested a channel of id %s and kind %s", chanid, kind)
         if kind == "session":
             return self._proxy_handler.open_channel(kind, chanid)
+        else:
+            return OPEN_SUCCEEDED
 
         return OPEN_FAILED_ADMINISTRATIVELY_PROHIBITED
 
@@ -97,11 +84,6 @@ class Server(paramiko.ServerInterface):
 
     def check_channel_exec_request(self, channel: paramiko.Channel, command: bytes) -> bool:
         self._update_last_activity()
-        r = random.randint(2, 8)
-        debug_log.info(
-            "[CHANNEL] Sleeping %s seconds and then running, hopefully we see another shell/exec attempt",
-            r)
-        time.sleep(r)
         if channel.chanid in self._channels_done or not self._proxy_handler.handle_exec_request(
                 channel, command):
             return False
@@ -127,3 +109,33 @@ class Server(paramiko.ServerInterface):
         self._update_last_activity()
         return self._proxy_handler.handle_window_change_request(
             channel, width, height, pixelwidth, pixelheight)
+
+    def check_channel_env_request(self, channel: Channel, name: str, value: str) -> bool:
+        debug_log.info(
+            "Got channel env request for channel %s. name: %s value:%s", channel.chanid,
+            name, value)
+        return False
+
+    def check_channel_direct_tcpip_request(
+            self, chanid: int, origin: Tuple[str, int],
+            destination: Tuple[str, int]) -> int:
+        debug_log.info(
+            "Got channel direct tcpip request for channel %s. origin: %s destination:%s", chanid,
+            origin, destination)
+        return False
+
+    def check_channel_x11_request(
+            self, channel: Channel, single_connection: bool, auth_protocol: str, auth_cookie: bytes,
+            screen_number: int) -> bool:
+        debug_log.info(
+            "Got channel x11 request on channel %s. single_connection: %s auth_protocol: %s auth_cookie: %s screen_number: %s",
+            channel.chanid, single_connection, auth_protocol, auth_cookie, screen_number)
+        return False
+
+    def check_channel_forward_agent_request(self, channel: Channel) -> bool:
+        debug_log.info("Got channel forward agent request for channel %s", channel.chanid)
+        return False
+
+    def check_port_forward_request(self, address: str, port: int) -> int:
+        debug_log.info("Got port forward request. Address: %s, Port: %s", address, port)
+        return False
