@@ -49,8 +49,9 @@ class Containers:
                 volumes=config["Volumes"])
 
             self.copy_init_to_volume(config["ID"])
-            container.reload()
             self._client.containers.get(config["ID"]).start()
+
+            # reload to get the correct port in config
             container.reload()
             logging.info("Started contianer %s", config["ID"])
         except Exception as exception:
