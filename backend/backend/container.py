@@ -30,6 +30,7 @@ class Containers:
 
     def __init__(self):
         self._client = docker.from_env()
+        self._client.images.pull('ghcr.io/linuxserver/openssh-server:latest')
 
     def create_container(self, config: dict):
         """Creates a docker container with the specified container_id, exposes the specified SSH port,
