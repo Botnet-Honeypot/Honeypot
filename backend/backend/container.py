@@ -4,7 +4,9 @@
     :return: Returns a container handler that can start, stop, destroy containers as well as manage storage
     """
 import os
+import io
 from enum import Enum
+from typing import cast
 import docker
 
 
@@ -176,15 +178,22 @@ class Containers:
         :param container_id: container id to copy files to
         """
 
+        # Empty image for helper container
+        # (https://github.com/moby/moby/issues/25245#issuecomment-372354767)
+        EMPTY_IMAGE_ID = 'empty'
+        self._client.images.build(
+            tag=EMPTY_IMAGE_ID,
+            fileobj=io.BytesIO('FROM scratch\nCMD'.encode('utf8'))
+        )
+
         # Helper container to copy init script to volume
-        self._client.containers.run(
-            "busybox", name="copy",
+        copy_container = self._client.containers.create(
+            EMPTY_IMAGE_ID,
             volumes={container_id + "config": {'bind': '/dst', 'mode': 'rw'}})
 
         # Call docker cp from system
         # Copies local dir ./custom-cont-init.d into volume of container copy at path /dst
-        os.system("docker cp ./custom-cont-init.d/ copy:/dst")
+        os.system(f"docker cp ./custom-cont-init.d/ {copy_container.id}:/dst")
 
-        # Stop and remove the helper container
-        self.stop_container("copy")
-        self.destroy_container("copy")
+        # Remove the helper container
+        self.destroy_container(cast(str, copy_container.id))
