@@ -21,7 +21,7 @@ def main():
 
         port += 1
 
-    # Close and destroy containers after a delay (this does not remove the storage folders)
+    # Close and destroy containers after a delay
     time.sleep(30)
 
     for container_id in range(5):
