@@ -4,9 +4,7 @@
     :return: Returns a container handler that can start, stop, destroy containers as well as manage storage
     """
 import os
-import io
 from enum import Enum
-from typing import cast
 import docker
 
 
@@ -38,14 +36,17 @@ class Containers:
         """
 
         try:
-            self._client.containers.run(
+            self._client.containers.create(
                 config["Image"],
                 environment=config["Environment"],
                 hostname=config["Hostname"],
                 name=config["ID"],
                 ports=config["Port"],
-                volumes=config["Volumes"],
-                detach=True)
+                volumes=config["Volumes"])
+
+            self.copy_init_to_volume(config["ID"])
+
+            self._client.containers.get(config["ID"]).start()
         except Exception as exception:
             raise exception
         else:
@@ -138,12 +139,6 @@ class Containers:
         _config_path = _container_id + "config"
         _home_path = _container_id + "home"
 
-        # Create volimes for the container to store its home and config
-        self._client.volumes.create(name=_config_path)
-        self._client.volumes.create(name=_home_path)
-
-        self.copy_init_to_volume(_container_id)
-
         # Format the config dict of this container
         config = {'Image': image, 'ID': _container_id, 'Environment': self.format_environment(
             user, password, user_id, group_id, timezone, sudo_access),
@@ -172,28 +167,12 @@ class Containers:
                 'PASSWORD_ACCESS=true', 'USER_PASSWORD='+password, 'USER_NAME='+user]
 
     def copy_init_to_volume(self, container_id: str):
-        """Creates a temporary helper container to copy the init script from
+        """Copies the init script from
             backend/custom-cont-init.d/ to the container's volume.
 
         :param container_id: container id to copy files to
         """
 
-        # Empty image for helper container
-        # (https://github.com/moby/moby/issues/25245#issuecomment-372354767)
-        EMPTY_IMAGE_ID = 'empty'
-        self._client.images.build(
-            tag=EMPTY_IMAGE_ID,
-            fileobj=io.BytesIO('FROM scratch\nCMD'.encode('utf8'))
-        )
-
-        # Helper container to copy init script to volume
-        copy_container = self._client.containers.create(
-            EMPTY_IMAGE_ID,
-            volumes={container_id + "config": {'bind': '/dst', 'mode': 'rw'}})
-
         # Call docker cp from system
-        # Copies local dir ./custom-cont-init.d into volume of container copy at path /dst
-        os.system(f"docker cp ./custom-cont-init.d/ {copy_container.id}:/dst")
-
-        # Remove the helper container
-        self.destroy_container(cast(str, copy_container.id))
+        # Copies local dir ./custom-cont-init.d into volume of container copy at path /config
+        os.system(f"docker cp ./custom-cont-init.d/ {container_id}:/config")
