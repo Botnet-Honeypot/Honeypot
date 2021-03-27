@@ -33,6 +33,7 @@ class TargetSystemProviderServicer(object):
 
     def AcquireTargetSystem(self, request, context):
         """Request to be provided a target system
+        Returns error code UNAVAILABLE if no target system can currently be aqcuired. May be retried.
         """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')

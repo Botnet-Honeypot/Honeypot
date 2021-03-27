@@ -14,6 +14,9 @@ class TargetSystemProvider(Protocol):
     def acquire_target_system(self, user: str, password: str) -> Optional[TargetSystem]:
         """Request to be given a target system.
 
+        If no target system is currently available for acquisition,
+        this method may be called again.
+
         :param user: The user to access the system using.
         :param password: The password of the user.
         :return: The acquired target system, if available, otherwise None.
@@ -25,7 +28,5 @@ class TargetSystemProvider(Protocol):
         """Yield a previously acquired target system.
 
         :param target_system: The target system to yield.
-        :raises ValueError: If given target system has already been yielded.
-        :raises ValueError: If given target system was not acquired from this provider.
         """
         raise NotImplementedError

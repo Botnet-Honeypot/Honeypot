@@ -1,16 +1,19 @@
-from typing import Optional
+import logging
+from typing import Optional, cast
 import grpc
 import target_system_provider.target_system_provider_pb2_grpc as tsp
 import target_system_provider.target_system_provider_pb2 as messages
 from ._interface import TargetSystem, TargetSystemProvider
 
+logger = logging.getLogger(__file__)
+
 
 class _GrpcTargetSystem(TargetSystem):
     """Internal gRPC implementation of TargetSystem"""
 
-    target_id: int
+    target_id: str
 
-    def __init__(self, target_id: int, address: str, port: int) -> None:
+    def __init__(self, target_id: str, address: str, port: int) -> None:
         self.target_id = target_id
         self.address = address
         self.port = port
@@ -38,20 +41,34 @@ class _GrpcTargetSystemProvider(TargetSystemProvider):
         if self.channel is None:
             raise RuntimeError('gRPC channel was closed')
 
-        # TODO: Error handling when acquisition failed, should return None
-
-        stub = tsp.TargetSystemProviderStub(self.channel)
-        response = stub.AcquireTargetSystem(
-            messages.AcquisitionRequest(
-                user=user,
-                password=password
-            ))
+        try:
+            stub = tsp.TargetSystemProviderStub(self.channel)
+            response = stub.AcquireTargetSystem(
+                messages.AcquisitionRequest(
+                    user=user,
+                    password=password
+                ))
+        except grpc.RpcError as err:
+            call = cast(grpc.Call, err)
+            code = call.code()  # pylint: disable=no-member
+            details = call.details()  # pylint: disable=no-member
+            if code == grpc.StatusCode.UNAVAILABLE:
+                logger.debug(
+                    'No target system was available from remote TargetSystemProvider: %s',
+                    details)
+                return None
+            raise Exception('Failed to aqcuire target system') from err
 
         return _GrpcTargetSystem(response.id, response.address, response.port)
 
     def yield_target_system(self, target_system: _GrpcTargetSystem) -> None:
         if self.channel is None:
-            raise RuntimeError('Cannot be used outside with-statement')
+            raise RuntimeError('gRPC channel was closed')
 
-        stub = tsp.TargetSystemProviderStub(self.channel)
-        stub.YieldTargetSystem(messages.YieldRequest(id=target_system.target_id))
+        try:
+            stub = tsp.TargetSystemProviderStub(self.channel)
+            stub.YieldTargetSystem(messages.YieldRequest(id=target_system.target_id))
+        except grpc.RpcError:
+            logger.warning(
+                'Failed to yield target system to remote TargetSystemProvider',
+                exc_info=True)

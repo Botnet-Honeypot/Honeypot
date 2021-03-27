@@ -16,7 +16,10 @@ def container_handler():
 
 @pytest.fixture(scope='module', autouse=True)
 def http_server(container_handler: Containers):
-    http_server = server.start_http_server(container_handler, bind_address='localhost:50051')
+    http_server = server.start_http_server(
+        container_handler,
+        'PUBLIC_ADDRESS',
+        bind_address='localhost:50051')
     yield http_server
     http_server.stop(grace=None)
 
@@ -38,11 +41,13 @@ def test_AcquireTargetSystem_no_exceptions(
             password=password
         ))
 
+    assert response.address == 'PUBLIC_ADDRESS'
 
-@given(id=st.integers(min_value=0, max_value=2**32-1))
+
+@given(id=st.text())
 def test_YieldTargetSystem_no_exceptions(
         grpc_channel: grpc.Channel,
-        id: int):
+        id: str):
     stub = tsp.TargetSystemProviderStub(grpc_channel)
-    response = stub.YieldTargetSystem(
+    stub.YieldTargetSystem(
         messages.YieldRequest(id=id))

@@ -19,7 +19,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   syntax='proto3',
   serialized_options=None,
   create_key=_descriptor._internal_create_key,
-  serialized_pb=b'\n3target_system_provider/target_system_provider.proto\x12\x16target_system_provider\"4\n\x12\x41\x63quisitionRequest\x12\x0c\n\x04user\x18\x01 \x01(\t\x12\x10\n\x08password\x18\x02 \x01(\t\">\n\x11\x41\x63quisitionResult\x12\n\n\x02id\x18\x01 \x01(\r\x12\x0f\n\x07\x61\x64\x64ress\x18\x02 \x01(\t\x12\x0c\n\x04port\x18\x03 \x01(\r\"\x1a\n\x0cYieldRequest\x12\n\n\x02id\x18\x01 \x01(\r\"\r\n\x0bYieldResult2\xe8\x01\n\x14TargetSystemProvider\x12n\n\x13\x41\x63quireTargetSystem\x12*.target_system_provider.AcquisitionRequest\x1a).target_system_provider.AcquisitionResult\"\x00\x12`\n\x11YieldTargetSystem\x12$.target_system_provider.YieldRequest\x1a#.target_system_provider.YieldResult\"\x00\x62\x06proto3'
+  serialized_pb=b'\n3target_system_provider/target_system_provider.proto\x12\x16target_system_provider\"4\n\x12\x41\x63quisitionRequest\x12\x0c\n\x04user\x18\x01 \x01(\t\x12\x10\n\x08password\x18\x02 \x01(\t\">\n\x11\x41\x63quisitionResult\x12\n\n\x02id\x18\x01 \x01(\t\x12\x0f\n\x07\x61\x64\x64ress\x18\x02 \x01(\t\x12\x0c\n\x04port\x18\x03 \x01(\r\"\x1a\n\x0cYieldRequest\x12\n\n\x02id\x18\x01 \x01(\t\"\r\n\x0bYieldResult2\xe8\x01\n\x14TargetSystemProvider\x12n\n\x13\x41\x63quireTargetSystem\x12*.target_system_provider.AcquisitionRequest\x1a).target_system_provider.AcquisitionResult\"\x00\x12`\n\x11YieldTargetSystem\x12$.target_system_provider.YieldRequest\x1a#.target_system_provider.YieldResult\"\x00\x62\x06proto3'
 )
 
 
@@ -74,8 +74,8 @@ _ACQUISITIONRESULT = _descriptor.Descriptor(
   fields=[
     _descriptor.FieldDescriptor(
       name='id', full_name='target_system_provider.AcquisitionResult.id', index=0,
-      number=1, type=13, cpp_type=3, label=1,
-      has_default_value=False, default_value=0,
+      number=1, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=b"".decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
@@ -120,8 +120,8 @@ _YIELDREQUEST = _descriptor.Descriptor(
   fields=[
     _descriptor.FieldDescriptor(
       name='id', full_name='target_system_provider.YieldRequest.id', index=0,
-      number=1, type=13, cpp_type=3, label=1,
-      has_default_value=False, default_value=0,
+      number=1, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=b"".decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),

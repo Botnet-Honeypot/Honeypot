@@ -14,7 +14,7 @@ def server_target_system_provider():
     mock = create_autospec(tsp.TargetSystemProviderServicer)
 
     mock.AcquireTargetSystem.return_value = messages.AcquisitionResult(
-        id=6587567,
+        id='6587567',
         address='ADDRESS',
         port=53453)
     mock.YieldTargetSystem.return_value = messages.YieldResult()
@@ -54,7 +54,7 @@ def test_acquire_target_system_roundtrip_no_problems(
                              password='LetMeIn'
                          ))
 
-    assert target_system.target_id == 6587567
+    assert target_system.target_id == '6587567'
     assert target_system.address == 'ADDRESS'
     assert target_system.port == 53453
 
@@ -65,6 +65,23 @@ def test_acquire_target_system_roundtrip_no_problems(
         ),
         ANY
     )
+
+
+def test_acquire_target_system_UNAVAILABLE_returns_None(
+        client_target_system_provider: TargetSystemProvider,
+        server_target_system_provider: tsp.TargetSystemProviderServicer):
+
+    def MockAcquireTargetSystem(request, context):
+        context.abort(grpc.StatusCode.UNAVAILABLE, '')
+        return messages.AcquisitionResult()
+    server_target_system_provider.AcquireTargetSystem.side_effect = MockAcquireTargetSystem
+
+    target_system = client_target_system_provider.acquire_target_system(
+        user='Ello',
+        password='LetMeIn'
+    )
+
+    assert target_system is None
 
 
 def test_yield_target_system_roundtrip_no_problems(

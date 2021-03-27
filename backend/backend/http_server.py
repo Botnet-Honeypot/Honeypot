@@ -20,9 +20,11 @@ class TargetSystemProvider(tsp.TargetSystemProviderServicer):
     """Implementation of gRPC TargetSystemProvider service"""
 
     container_handler: container.Containers
+    public_address: str
 
-    def __init__(self, container_handler: container.Containers):
+    def __init__(self, container_handler: container.Containers, public_address: str):
         self.container_handler = container_handler
+        self.public_address = public_address
 
     def AcquireTargetSystem(self, request, context):
         container_id = uuid.uuid4().int % (2**32)
@@ -36,12 +38,17 @@ class TargetSystemProvider(tsp.TargetSystemProviderServicer):
         timezone = "Europe/London"
         sudo = "true"
 
+        # TODO:
+        # if no target system:
+        #    context.abort(grpc.StatusCode.UNAVAILABLE, "No target system is available to be acquired")
+        #    return messages.AcquisitionResult()
+
         self.container_handler.create_container(
             container_id, port, user, password, hostname, uid, gid, timezone, sudo)
 
         return messages.AcquisitionResult(
-            id=container_id,
-            address='TEMP',  # TODO: Find network address of host that runs container
+            id=str(container_id),
+            address=self.public_address,
             port=port)
 
     def YieldTargetSystem(self, request, context):
@@ -52,6 +59,7 @@ class TargetSystemProvider(tsp.TargetSystemProviderServicer):
 
 
 def start_http_server(container_handler: container.Containers,
+                      public_address: str,
                       bind_address: str = 'localhost:80') -> grpc.Server:
     """Starts a gRPC HTTP server with pre-configured services.
 
@@ -64,7 +72,8 @@ def start_http_server(container_handler: container.Containers,
     logger.info('Starting gRPC HTTP Server on %s...', bind_address)
 
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
-    tsp.add_TargetSystemProviderServicer_to_server(TargetSystemProvider(container_handler), server)
+    tsp.add_TargetSystemProviderServicer_to_server(
+        TargetSystemProvider(container_handler, public_address), server)
     server.add_insecure_port(bind_address)  # TODO: ADD TLS!
     server.start()
 
