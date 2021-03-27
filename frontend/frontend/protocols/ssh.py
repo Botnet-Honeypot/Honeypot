@@ -1,23 +1,20 @@
 """This module contains logic related to SSH"""
 import logging
-import random
 import socket
 import sys
 import threading
-import time
 import urllib.request
 from ipaddress import ip_address
-from typing import List, Optional, Set
+from typing import List, Optional
 
 
-from paramiko.common import (AUTH_FAILED, AUTH_SUCCESSFUL,
-                             OPEN_FAILED_ADMINISTRATIVELY_PROHIBITED, )
 import paramiko
-from paramiko.channel import Channel
 from paramiko.ssh_exception import SSHException
 
 import frontend.honeylogger as logger
-from frontend.protocols.ssh_utils import TransportManager, ProxyHandler
+from frontend.protocols.proxy_handler import ProxyHandler
+from frontend.protocols.transport_manager import TransportManager
+from frontend.protocols.ssh_server import Server
 
 debug_log = logging.getLogger("debuglogger")
 debug_log.setLevel(logging.INFO)
@@ -36,87 +33,6 @@ def check_alive(transport: paramiko.Transport):
         transport.global_request("keepalive@lag.net", wait=False)
         transport.global_request("keepalive@lag.net", wait=False)
         transport.global_request("keepalive@lag.net", wait=True)
-
-
-class Server(paramiko.ServerInterface):
-    """Server implements the ServerInterface from paramiko
-
-    :param paramiko: The SSH server interface
-    """
-
-    def __init__(
-            self, session: logger.SSHSession,
-            proxy_handler: ProxyHandler,
-            usernames: Optional[List[str]],
-            passwords: Optional[List[str]]) -> None:
-        super().__init__()
-        self._usernames = usernames
-        self._passwords = passwords
-        self._session = session
-        self._proxy_handler = proxy_handler
-
-        # The set of channels that have successfully issued a shell or exec request
-        self._channels_done: Set[int]
-        self._channels_done = set()
-
-    def check_auth_password(self, username: str, password: str) -> int:
-        self._session.log_login_attempt(username, password)
-
-        r = random.randint(2, 8)
-        debug_log.info(
-            "[AUTH] Sleeping %s seconds and accepting, hopefully we see a shell/exec attempt", r)
-        time.sleep(r)
-        return AUTH_SUCCESSFUL
-
-    def check_auth_publickey(self, username: str, key: paramiko.PKey) -> int:
-        return AUTH_FAILED
-
-    def get_allowed_auths(self, username: str) -> str:
-        return 'password'
-
-    def check_channel_request(self, kind: str, chanid: int) -> int:
-        if kind == "session":
-            return self._proxy_handler.open_channel(kind, chanid)
-
-        return OPEN_FAILED_ADMINISTRATIVELY_PROHIBITED
-
-    def check_channel_shell_request(self, channel: paramiko.Channel) -> bool:
-        debug_log.info("Wow this is rare, we got a shell request")
-        if channel.chanid in self._channels_done or not self._proxy_handler.handle_shell_request(
-                channel):
-            return False
-        self._channels_done.add(channel.chanid)
-        return True
-
-    def check_channel_exec_request(self, channel: paramiko.Channel, command: bytes) -> bool:
-        r = random.randint(2, 8)
-        debug_log.info(
-            "[CHANNEL] Sleeping %s seconds and then running, hopefully we see another shell/exec attempt",
-            r)
-        time.sleep(r)
-        if channel.chanid in self._channels_done or not self._proxy_handler.handle_exec_request(
-                channel, command):
-            return False
-        self._channels_done.add(channel.chanid)
-        return True
-
-    def check_channel_pty_request(self, channel: paramiko.Channel, term: bytes,
-                                  width: int, height: int, pixelwidth: int,
-                                  pixelheight: int, _: bytes) -> bool:
-        try:
-            term_string = term.decode("utf-8")
-            self._session.log_pty_request(term_string, width, height, pixelwidth, pixelheight)
-        except UnicodeError:
-            debug_log.error("Failed to decode the term to utf8")
-            return False
-
-        return self._proxy_handler.handle_pty_request(
-            channel, term_string, width, height, pixelwidth, pixelheight)
-
-    def check_channel_window_change_request(self, channel: Channel, width: int, height: int,
-                                            pixelwidth: int, pixelheight: int) -> bool:
-        return self._proxy_handler.handle_window_change_request(
-            channel, width, height, pixelwidth, pixelheight)
 
 
 # todo should be singleton if the class does what it says in the docstring
@@ -224,4 +140,4 @@ class ConnectionManager(threading.Thread):
                 session.end()
                 continue
 
-            transport_manager.add_transport((transport, proxy_handler))
+            transport_manager.add_transport((transport, proxy_handler, server))

@@ -2,7 +2,7 @@ import logging
 import socket
 import threading
 from time import sleep
-from typing import Callable, List,   Tuple
+from typing import Callable, List
 
 import paramiko
 from paramiko import SSHException
@@ -199,39 +199,6 @@ class ProxyHandler:
         return True
 
 
-class TransportManager:
-
-    def __init__(self) -> None:
-        self._transport_list: List[Tuple[paramiko.Transport, ProxyHandler]]
-        self._transport_list = []
-        self._lock = threading.Lock()
-
-        handle_thread = threading.Thread(
-            target=self.check_transports, args=())
-        handle_thread.start()
-
-    def get_transports(self) -> List[Tuple[paramiko.Transport, ProxyHandler]]:
-        with self._lock:
-            return self._transport_list
-
-    def add_transport(self, transport_tuple: Tuple[paramiko.Transport, ProxyHandler]) -> None:
-        with self._lock:
-            self._transport_list.append(transport_tuple)
-
-    def remove_transport(self, transport_tuple: Tuple[paramiko.Transport, ProxyHandler]) -> None:
-        with self._lock:
-            self._transport_list.remove(transport_tuple)
-
-    def check_transports(self):
-        while True:
-            for transport_tuple in self.get_transports():
-                # End the session if it isn't active anymore
-                if not transport_tuple[0].is_active():
-                    transport_tuple[1].close_connection()
-                    self.remove_transport(transport_tuple)
-            sleep(0.5)
-
-
 def try_send_data(
         data: bytes,
         send_method: Callable[[bytes], None]) -> bool:
@@ -286,8 +253,8 @@ def proxy_data(
 
     cmd_buffer: List[str]
     cmd_buffer = []
-    CR = "\r"
-    DEL = "\x7f"
+    carriage_return = "\r"
+    delete = "\x7f"
     while not (attacker_channel.eof_received or attacker_channel.closed):
         # If the backend channel is shut down
         if backend_channel.eof_received or backend_channel.closed:
@@ -306,10 +273,10 @@ def proxy_data(
                 debug_log.debug("Failed to send data to backend_channel")
             try:
                 for char in data.decode("utf"):
-                    if char == CR:
+                    if char == carriage_return:
                         debug_log.info("Command sent %s", ''.join(cmd_buffer))
                         cmd_buffer = []
-                    elif char == DEL:
+                    elif char == delete:
                         cmd_buffer.pop()
                     else:
                         cmd_buffer.append(char)
