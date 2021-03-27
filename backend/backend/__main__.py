@@ -26,7 +26,6 @@ def main():
     for container_id in range(5):
         port = acquire_port()
         config = container_handler.format_config(container_id, port, user, password)
-
         container_handler.create_container(config)
 
     # Close and destroy containers after a delay
@@ -46,16 +45,12 @@ def main():
 
 
 def acquire_port() -> int:
-    """Tries to acquire a free port from the list ports.
+    """Tries to acquire a free port from the list ports. May lock if there are no available ports.
 
-    :raises index_error: If there are no available ports
     :return: A free port
     """
     lock.acquire()
-    try:
-        port = ports.pop()
-    except IndexError as index_error:
-        raise index_error
+    port = ports.pop()
     lock.release()
     return port
 

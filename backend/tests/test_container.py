@@ -179,13 +179,12 @@ def test_acquire_multiple_ports():
     release_port(port2)
 
 
-@pytest.mark.skip(reason="Locks on lock.acquire")
+@pytest.mark.skip(reason="No way to test, locks on lock.acquire")
 def test_acquire_all_ports():
     port = []
     for i in range(HIGH_PORT - LOW_PORT):
         port.append(acquire_port())
-    with pytest.raises(Exception):
-        acquire_port()
+    acquire_port()
     for i in port:
         release_port(i)
 
