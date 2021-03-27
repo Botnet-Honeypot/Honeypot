@@ -6,6 +6,9 @@
 import os
 from enum import Enum
 import docker
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class Status(Enum):
@@ -47,10 +50,11 @@ class Containers:
             self.copy_init_to_volume(config["ID"])
 
             self._client.containers.get(config["ID"]).start()
+            logging.info("Started contianer %s", config["ID"])
         except Exception as exception:
             raise exception
         else:
-            print("Successfully started container ")
+            logger.info("Successfully started container %s", config["ID"])
 
     def get_container_port(self, container_id: str) -> int:
         """Returns the port bound to a container. Undefined if multiple ports are used.
@@ -68,10 +72,11 @@ class Containers:
         """
         try:
             self._client.containers.get(container_id).stop()
+            logging.info("Stopped container %s", container_id)
         except Exception as exception:
             raise exception
         else:
-            print("Stopped container " + str(container_id))
+            logger.info("Stopped container %s", container_id)
 
     def destroy_container(self, container_id: str):
         """Destroy a specified container
@@ -80,6 +85,7 @@ class Containers:
         """
         try:
             self._client.containers.get(container_id).remove()
+            logging.info("Destroyed container %s", container_id)
         except Exception as exception:
             raise exception
 
@@ -89,6 +95,7 @@ class Containers:
         :param container_id: ID (name) of which container's storage directory to remove
         """
         self._client.volumes.prune()
+        logging.info("Pruned all unused volumes")
 
     def get_volume(self, volume_id: str):
         """Returns the specified volume in form <Volume: short_id>,
@@ -98,7 +105,7 @@ class Containers:
         """
         try:
             return self._client.volumes.get(volume_id)
-        except IOError as exception:
+        except Exception as exception:
             raise exception
 
     def status_container(self, container_id: str) -> Status:

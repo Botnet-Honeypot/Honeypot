@@ -1,6 +1,9 @@
 import time
 from backend.container import Containers, Status
 import threading
+import logging
+
+logger = logging.getLogger(__name__)
 
 LOW_PORT = 2222  # Lowest port allowed
 HIGH_PORT = 2232  # Highest port allowed
@@ -37,7 +40,7 @@ def main():
             release_port(port)
 
         except Exception as exception:
-            print("Could not find or stop the specified container")
+            logging.error("Could not find or stop container %s", container_id)
             raise exception
 
 
