@@ -51,7 +51,7 @@ perl -wle '$0=shift;sleep shift' netspeed_apple 100000 &
 
 # Set up home directory
 mkdir /home/$USER_NAME/ 
-chown -R $USER_NAME /home/user
+chown -R $USER_NAME /home/$USER_NAME
 chmod -R 777 /home/$USER_NAME/
 
 # Update home directory path in passwd file 
