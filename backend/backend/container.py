@@ -40,7 +40,7 @@ class Containers:
         """
 
         try:
-            self._client.containers.create(
+            container = self._client.containers.create(
                 config["Image"],
                 environment=config["Environment"],
                 hostname=config["Hostname"],
@@ -49,8 +49,9 @@ class Containers:
                 volumes=config["Volumes"])
 
             self.copy_init_to_volume(config["ID"])
-
+            container.reload()
             self._client.containers.get(config["ID"]).start()
+            container.reload()
             logging.info("Started contianer %s", config["ID"])
         except Exception as exception:
             raise exception
@@ -63,8 +64,8 @@ class Containers:
         :param container_id: The container id
         :return: The port bound to container container_id
         """
-        return int(self._client.containers.get(container_id).
-                   attrs["HostConfig"]["PortBindings"]["2222/tcp"][0]["HostPort"])
+        return self._client.containers.get(container_id).attrs["NetworkSettings"]["Ports"][
+            "2222/tcp"][0]["HostPort"]
 
     def stop_container(self, container_id: str):
         """Stop a specified container
@@ -130,15 +131,14 @@ class Containers:
                 return Status.EXITED
         return Status.UNDEFINED
 
-    def format_config(self, container_id: int, port: int, user: str, password: str,
+    def format_config(self, container_id: int, user: str, password: str,
                       hostname='Dell-T140', user_id='1000', group_id='1000',
                       timezone='Europe/London', sudo_access='true',
-                      image='ghcr.io/linuxserver/openssh-server') -> dict:
+                      image='ghcr.io/linuxserver/openssh-server', port=None) -> dict:
         """Formats the given parameters as a dictionary that fits docker-py.
         Creates the volumes for the config and home dirs of the container
 
         :param container_id: Unique ID for container
-        :param port: Unique external port for container
         :param user: Username for container
         :param password: Password for container
         :param volumes: Volumes on host to mount to the container.
@@ -148,6 +148,7 @@ class Containers:
         :param timezone: Timezone for container, defaults to 'Europe/London'
         :param sudo_access: Sudo access for container, defaults to 'true'
         :param image: Image for container, defaults to 'ghcr.io/linuxserver/openssh-server'
+        :param port: Exposed port for container, defaults to None
         :return: Dictionary that can be easily used for docker-py
         """
 
@@ -159,7 +160,7 @@ class Containers:
         # Format the config dict of this container
         config = {'Image': image, 'ID': _container_id, 'Environment': self.format_environment(
             user, password, user_id, group_id, timezone, sudo_access),
-            'Port': {'2222/tcp': str(port)},
+            'Port': {'2222/tcp': port},
             'User': user, 'Password': password, 'Hostname': hostname, 'UID': user_id,
             'GID': group_id, 'Timezone': timezone, 'SUDO': sudo_access,
             'Volumes':

@@ -1,4 +1,3 @@
-from backend.__main__ import HIGH_PORT, LOW_PORT, acquire_port, release_port
 import os
 import pytest
 from backend.container import Containers, Status
@@ -12,9 +11,8 @@ def config() -> dict:
     container_id = 0
     user = "user"
     password = "password"
-    port = 2222
 
-    return container_handler.format_config(container_id, port, user, password)
+    return container_handler.format_config(container_id, user, password)
 
 
 @pytest.fixture(autouse=True)
@@ -71,25 +69,23 @@ def test_start_multiple_containers(config: dict):
     container_id = 0
     user = "user"
     password = "password"
-    port = 2222
     for i in range(MAX_CONTAINERS):
-        config = container_handler.format_config(container_id, port, user, password)
-        port += 1
+        config = container_handler.format_config(container_id, user, password)
         container_id += 1
         container_handler.create_container(config)
     for i in range(MAX_CONTAINERS):
         assert container_handler.status_container(Containers.ID_PREFIX + str(i)) == Status.RUNNING
 
 
+@pytest.mark.skip(reason="No way to test, random port assignment")
 def test_start_container_same_port(config: dict):
     container_handler = Containers()
     container_id = 0
     user = "user"
     password = "password"
-    port = 2222
     with pytest.raises(Exception):
         for i in range(MAX_CONTAINERS):
-            config = container_handler.format_config(container_id, port, user, password)
+            config = container_handler.format_config(container_id, user, password)
             container_id += 1
             container_handler.create_container(config)
 
@@ -99,11 +95,9 @@ def test_start_container_same_id(config: dict):
     container_id = 0
     user = "user"
     password = "password"
-    port = 2222
     with pytest.raises(Exception):
         for i in range(MAX_CONTAINERS):
-            config = container_handler.format_config(container_id, port, user, password)
-            port += 1
+            config = container_handler.format_config(container_id, user, password)
             container_handler.create_container(config)
 
 
@@ -121,11 +115,9 @@ def test_format_config():
     container_id = 0
     user = "user"
     password = "password"
-    port = 2222
-    config = container_handler.format_config(container_id, port, user, password, {})
+    config = container_handler.format_config(container_id, user, password, {})
     assert config["User"] == "user"
     assert config["Password"] == "password"
-    assert config["Port"] == {'2222/tcp': str(port)}
     assert config["ID"] == Containers.ID_PREFIX + str(container_id)
 
 
@@ -158,42 +150,8 @@ def test_get_volume(config: dict):
     assert str(container_handler.get_volume(config["ID"] + "config")) == "<Volume: openssh-se>"
 
 
+@pytest.mark.skip(reason="No way to test at the moment, would have to know port")
 def test_get_port(config: dict):
     container_handler = Containers()
     container_handler.create_container(config)
     assert container_handler.get_container_port(config["ID"]) == 2222
-
-
-def test_acquire_port():
-    port = acquire_port()
-    assert port in list(range(LOW_PORT, HIGH_PORT + 1))
-
-
-def test_acquire_multiple_ports():
-    port1 = acquire_port()
-    port2 = acquire_port()
-    assert port1 in list(range(LOW_PORT, HIGH_PORT + 1))
-    assert port2 in list(range(LOW_PORT, HIGH_PORT + 1))
-    assert port1 != port2
-    release_port(port1)
-    release_port(port2)
-
-
-@pytest.mark.skip(reason="No way to test, locks on lock.acquire")
-def test_acquire_all_ports():
-    port = []
-    for i in range(HIGH_PORT - LOW_PORT):
-        port.append(acquire_port())
-    acquire_port()
-    for i in port:
-        release_port(i)
-
-
-def test_release_port():
-    port = []
-    for i in range(HIGH_PORT - LOW_PORT):
-        port.append(acquire_port())
-    release_port(port.pop())
-    port.append(acquire_port())
-    for i in port:
-        release_port(i)
