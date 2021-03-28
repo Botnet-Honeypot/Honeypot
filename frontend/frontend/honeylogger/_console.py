@@ -19,15 +19,25 @@ class ConsoleLogSSHSession():
     """Implementation of honeylogger.SSHSession that merely logs actions to console"""
 
     source: str
+    src_address: str
+    src_port: int
+    dst_address: str
+    dst_port: int
 
     def __init__(self,
                  src_address: IPAddress, src_port: int,
                  dst_address: IPAddress, dst_port: int) -> None:
         self.source = f'{src_address}:{src_port}'
+        self.src_address = str(src_address)
+        self.src_port = src_port
+        self.dst_address = str(dst_address)
+        self.dst_port = dst_port
+
+    def begin_ssh_session(self) -> None:
         logger.info(
             "SSH session from %s:%i to %s:%i began",
-            src_address, src_port,
-            dst_address, dst_port)
+            self.src_address, self.src_port,
+            self.dst_address, self.dst_port)
 
     def log_pty_request(self, term: str,
                         term_width_cols: int, term_height_rows: int,

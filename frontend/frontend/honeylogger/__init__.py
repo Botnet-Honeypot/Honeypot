@@ -14,12 +14,11 @@ Example Usage (SSH):
 
 from typing import Optional, Protocol
 from abc import abstractmethod
-from ipaddress import ip_address
 from ._types import IPAddress
 from ._postgres import PostgresLogSSHSession
 
 
-__all__ = ['Session', 'SSHSession', 'begin_ssh_session']
+__all__ = ['Session', 'SSHSession', 'create_ssh_session']
 
 
 class Session(Protocol):
@@ -93,10 +92,16 @@ class SSHSession(Session, Protocol):
         """
         raise NotImplementedError
 
+    @abstractmethod
+    def begin_ssh_session(self) -> None:
+        """Begins an SSH session
+        """
+        raise NotImplementedError
 
-def begin_ssh_session(src_address: IPAddress, src_port: int,
-                      dst_address: IPAddress, dst_port: int) -> SSHSession:
-    """Begins to log a new SSH session.
+
+def create_ssh_session(src_address: IPAddress, src_port: int,
+                       dst_address: IPAddress, dst_port: int) -> SSHSession:
+    """Create a new SSH logging session.
 
     :param src_address: The IP address of the instigating origin of the session.
     :param src_port: The port number at the instigating origin.

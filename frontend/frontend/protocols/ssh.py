@@ -17,7 +17,7 @@ from frontend.protocols.transport_manager import TransportManager
 from frontend.protocols.ssh_server import Server
 
 debug_log = logging.getLogger("debuglogger")
-debug_log.setLevel(logging.INFO)
+debug_log.setLevel(logging.DEBUG)
 log_handler = logging.StreamHandler(sys.stdout)
 formatter = logging.Formatter(
     fmt='%(asctime)s %(levelname)-8s %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
@@ -126,7 +126,7 @@ class ConnectionManager(threading.Thread):
             transport = paramiko.Transport(client)
             transport.local_version = "SSH-2.0-dropbear_2019.78"
 
-            session = logger.begin_ssh_session(
+            session = logger.create_ssh_session(
                 src_address=ip_address(addr[0]),
                 src_port=addr[1],
                 dst_address=self._ip,
@@ -139,13 +139,16 @@ class ConnectionManager(threading.Thread):
                 transport.start_server(server=server)
             except SSHException:
                 debug_log.error("Failed to start the SSH server for %s", addr[0])
-                session.end()
+                continue
+            except EOFError:
                 continue
             except Exception as exc:
                 debug_log.exception("Failed to start the SSH server for %s", addr[0], exc_info=exc)
-                session.end()
                 continue
 
             debug_log.info("Remote SSH version %s", transport.remote_version)
+
+            # Here we are sure an SSH session has been established
+            session.begin_ssh_session()
 
             transport_manager.add_transport((transport, proxy_handler, server))

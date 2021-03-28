@@ -37,20 +37,32 @@ class PostgresLogSSHSession:
 
     session_id: int
 
+    source: str
+    src_address: IPAddress
+    src_port: int
+    dst_address: IPAddress
+    dst_port: int
+
     def __init__(self,
                  src_address: IPAddress, src_port: int,
                  dst_address: IPAddress, dst_port: int) -> None:
+        self.source = f'{src_address}:{src_port}'
+        self.src_address = src_address
+        self.src_port = src_port
+        self.dst_address = dst_address
+        self.dst_port = dst_port
 
+    def begin_ssh_session(self) -> None:
         conn = db.connect()
         try:
             with conn:
                 with conn.cursor() as cur:
-                    insert_network_source(cur, src_address)
+                    insert_network_source(cur, self.src_address)
                     cur.execute("""
                         INSERT INTO Session (attack_src, protocol, src_port, dst_ip, dst_port)
                             VALUES (%s, 'ssh', %s, %s, %s)
                             RETURNING id
-                        """, (str(src_address), src_port, str(dst_address), dst_port))
+                        """, (str(self.src_address), self.src_port, str(self.dst_address), self.dst_port))
 
                     self.session_id = cur.fetchone()[0]
         finally:
