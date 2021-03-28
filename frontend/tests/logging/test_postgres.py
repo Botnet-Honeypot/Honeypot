@@ -1,12 +1,13 @@
-from frontend.honeylogger import begin_ssh_session
+from frontend.honeylogger import create_ssh_session
 from ipaddress import ip_address
 
 
 def test_no_runtime_errors():
-    session = begin_ssh_session(src_address=ip_address('43.56.223.156'),
-                                src_port=3463,
-                                dst_address=ip_address('226.64.12.2'),
-                                dst_port=22)
+    session = create_ssh_session(src_address=ip_address('43.56.223.156'),
+                                 src_port=3463,
+                                 dst_address=ip_address('226.64.12.2'),
+                                 dst_port=22)
+    session.begin_ssh_session()
 
     session.log_login_attempt('a_username', 'some_password')
     session.log_command('sudo rm -rf /')

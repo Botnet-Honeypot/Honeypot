@@ -6,7 +6,7 @@ import logging
 import socket
 import threading
 from time import sleep
-from typing import Callable, List
+from typing import Callable, List, Union, Tuple
 
 import paramiko
 from paramiko import SSHException
@@ -211,29 +211,7 @@ class ProxyHandler:
         return True
 
 
-def try_send_data(
-        data: bytes,
-        send_method: Callable[[bytes], None]) -> bool:
-    """Tries to send data and catch exceptions
-
-    :param data: The data to send
-    :param send_method: The send method
-    :return: True if suceeded to send data
-    """
-    try:
-        send_method(data)
-    except socket.timeout:
-        debug_log.warning("Timed out while trying to send data")
-        return False
-    except socket.error:
-        debug_log.warning("Failed data")
-        return False
-    return True
-
-
-def try_send_int(
-        data: int,
-        send_method: Callable[[int], None]) -> bool:
+def try_send_data(data, send_method) -> bool:
     """Tries to send data and catch exceptions
 
     :param data: The data to send
@@ -278,7 +256,7 @@ def proxy_data(
                 # Send a final exit code if there is one
                 if backend_channel.exit_status_ready():
                     exit_code = backend_channel.recv_exit_status()
-                    try_send_int(exit_code, attacker_channel.send_exit_status)
+                    try_send_data(exit_code, attacker_channel.send_exit_status)
                 debug_log.debug("Backend channel is closed and no more data is available to read")
                 break
 
