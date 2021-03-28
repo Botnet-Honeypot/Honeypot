@@ -6,15 +6,16 @@ import logging
 import socket
 import threading
 from time import sleep
-from typing import Callable, List, Union, Tuple
 
 import paramiko
 from paramiko import SSHException
+from paramiko.ssh_exception import AuthenticationException
 from paramiko.transport import Transport
 from paramiko.channel import Channel
 from paramiko.common import (OPEN_FAILED_ADMINISTRATIVELY_PROHIBITED, OPEN_SUCCEEDED)
 
 from frontend.honeylogger import SSHSession
+from frontend.protocols.command_parser import CommandParser
 
 
 debug_log = logging.getLogger("debuglogger")
@@ -38,16 +39,36 @@ class ProxyHandler:
 
         self._backend_connection_active = False
 
-    def _open_proxy_transport(self, ip: str, port: int, username: str, password: str) -> None:
-        # Here we need to open a SSH connection to the backend
-        # This will be done with our backend API later
+    def _open_proxy_transport(
+            self, ip_address: str, port: int, username: str, password: str) -> None:
+        """Opens another SSH session to proxy data over
+
+        :param ip_address: The IP adress of the SSH proxy
+        :param port: The port of the SSH proxy
+        :param username: The usernames of the SSH proxy
+        :param password: The password of the SSH proxy
+        """
         client = paramiko.SSHClient()
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         try:
-            client.connect(ip, port=port, username=username, password=password)
+            client.connect(ip_address, port=port, username=username, password=password)
+        except AuthenticationException:
+            debug_log.error("Authentication failed on SSH proxy %s:%i with %s/%s",
+                            ip_address, port, username, password)
+            return
+        except SSHException as exc:
+            debug_log.exception("Failed to establish a SSH session to SSH proxy %s:%i with %s/%s",
+                                ip_address, port, username, password, exc_info=exc)
+            return
+        except socket.error as exc:
+            debug_log.exception(
+                "Got socket excepting while connecting to SSH proxy %s:%i with %s/%s", ip_address,
+                port, username, password, exc)
+            return
         except Exception as exc:
-            debug_log.exception("Failed to connect SSH proxy %s:%i with %s/%s",
-                                ip, port, username, password, exc_info=exc)
+            debug_log.exception(
+                "Got unknown excepting while connecting to SSH proxy %s:%i with %s/%s", ip_address,
+                port, username, password, exc)
             return
 
         transport = client.get_transport()
@@ -83,7 +104,7 @@ class ProxyHandler:
         try:
             self._backend_transport.close()
         except Exception as exc:
-            debug_log.exception("Failed to backend transport", exc_info=exc)
+            debug_log.exception("Failed to close backend transport", exc_info=exc)
         self._session_log.end()
 
     def create_backend_connection(self, username: str, password: str) -> bool:
@@ -242,74 +263,53 @@ def proxy_data(
     attacker_channel.settimeout(10)
     backend_channel.settimeout(10)
 
-    cmd_buffer: List[str]
-    cmd_buffer = []
-    carriage_return = "\r"
-    delete = "\x7f"
-    left_arrow = "\x1b[D"
-    right_arrow = "\x1b[C"
+    command_parser = CommandParser()
+    # While the attacker channel is not closed and has not send eof
     while not (attacker_channel.eof_received or attacker_channel.closed):
         # If the backend channel is shut down
         if backend_channel.eof_received or backend_channel.closed:
-            # If we don't have data buffered from the backend
+            # If we don't have data buffered from the backend we will break from the loop
             if not (backend_channel.recv_ready() or backend_channel.recv_stderr_ready()):
                 # Send a final exit code if there is one
                 if backend_channel.exit_status_ready():
                     exit_code = backend_channel.recv_exit_status()
-                    try_send_data(exit_code, attacker_channel.send_exit_status)
+                    if try_send_data(exit_code, attacker_channel.send_exit_status):
+                        debug_log.error("Failled to send exit code to the attacker")
                 debug_log.debug("Backend channel is closed and no more data is available to read")
                 break
 
         if attacker_channel.recv_ready():
             data = attacker_channel.recv(1024)
             if not try_send_data(data, backend_channel.sendall):
-                debug_log.debug("Failed to send data to backend_channel")
+                debug_log.error("Failed to send attacker data to the backend")
 
             try:
                 cmd = data.decode("utf-8")
-                for char in cmd:
-                    if char == carriage_return:  # Treat everything before \r as a command
-                        recieved_cmd = ''.join(cmd_buffer)
-                        # Log parsed command
-                        session_log.log_command(recieved_cmd)
-                        cmd_buffer = []
-                    elif char == delete:  # Pop from the cmd_buffer if we recieved delete
-                        if len(cmd_buffer) > 0:
-                            cmd_buffer.pop()
-                    elif char == "D" or char == "C":  # Left or right arrow ending
-                        cmd_buffer.append(char)
-                        if ''.join(cmd_buffer).endswith(left_arrow):
-                            print("Got left arrow")
-                            cmd_buffer.pop()
-                            cmd_buffer.pop()
-                            cmd_buffer.pop()
-                        if ''.join(cmd_buffer).endswith(right_arrow):
-                            print("Got right arrow")
-                            cmd_buffer.pop()
-                            cmd_buffer.pop()
-                            cmd_buffer.pop()
-                    else:
-                        cmd_buffer.append(char)
+                debug_log.debug(data)
+                command_parser.add_to_cmd_buffer(cmd)
             except UnicodeDecodeError:
-                debug_log.debug("Failed to decode command data")
+                debug_log.debug("Failed to decode attacker command data %s", data)
+
+            if command_parser.can_read_command():
+                session_log.log_command(command_parser.read_command())
 
         if backend_channel.recv_ready():
             data = backend_channel.recv(1024)
             session_log.log_ssh_channel_output(memoryview(data), attacker_channel.chanid)
             if not try_send_data(data, attacker_channel.sendall):
-                debug_log.debug("Failed to send data to attacker_channel")
+                debug_log.error("Failed to send backend stdout data to attacker")
         if backend_channel.recv_stderr_ready():
             data = backend_channel.recv_stderr(1024)
             session_log.log_ssh_channel_output(memoryview(data), attacker_channel.chanid)
             if not try_send_data(data, attacker_channel.sendall_stderr):
-                debug_log.debug("Failed to send data to attacker_channel stderr")
+                debug_log.error("Failed to send backend stderr data to attacker")
 
         sleep(0.1)
 
     # If one is channel has recieeved eof make sure to send it to the other
     if attacker_channel.eof_received:
-        debug_log.info("Closing the backend channel since the attacker channel has sent eof")
+        debug_log.debug("Closing the backend channel since the attacker channel has sent eof")
         backend_channel.close()
     if backend_channel.eof_received:
-        debug_log.info("Closing the attacker channel since the backend channel has sent eof")
+        debug_log.debug("Closing the attacker channel since the backend channel has sent eof")
         attacker_channel.close()
