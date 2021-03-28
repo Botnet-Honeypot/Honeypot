@@ -36,24 +36,23 @@ class ProxyHandler:
         self._session_log: SSHSession
         self._session_log = session_log
 
-        self._backend_connection_success = False
-        # todo will use the backend
-        self._open_proxy_transport()  # Open the backend transport
+        self._backend_connection_active = False
 
-    def _open_proxy_transport(self) -> None:
+    def _open_proxy_transport(self, ip: str, port: int, username: str, password: str) -> None:
         # Here we need to open a SSH connection to the backend
         # This will be done with our backend API later
         client = paramiko.SSHClient()
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         try:
-            client.connect("40.69.80.66", port=22, username="john", password="Superman1234")
+            client.connect(ip, port=port, username=username, password=password)
         except Exception as exc:
-            debug_log.exception("Failed to connect to the backend", exc_info=exc)
+            debug_log.exception("Failed to connect SSH proxy %s:%i with %s/%s",
+                                ip, port, username, password, exc_info=exc)
             return
 
         transport = client.get_transport()
         if transport is not None:
-            self._backend_connection_success = True
+            self._backend_connection_active = True
             self._backend_transport = transport
         else:
             debug_log.error("Failed to obtain transport for dozy")
@@ -75,21 +74,30 @@ class ProxyHandler:
             raise ValueError
         return chan
 
-    def close_connection(self):
+    def close_connection(self) -> None:
         """This closes the backend connection and ends the session
         """
+        if not self._backend_connection_active:
+            return
         # Close the backend connection
-        self._backend_transport.close()
+        try:
+            self._backend_transport.close()
+        except Exception as exc:
+            debug_log.exception("Failed to backend transport", exc_info=exc)
         self._session_log.end()
 
-    def create_backend_connection(self, username: str) -> bool:
+    def create_backend_connection(self, username: str, password: str) -> bool:
         """Sets up the a SSH connection to the backend with the given username
 
         :param username: The username to use in the container
         :return: True if the connection was successful
         """
         # todo we don't use the api currently
-        return True
+        if not self._backend_connection_active:
+            # Open the backend transport
+            self._open_proxy_transport("40.127.101.181", port=22,
+                                       username="john", password="Superman1234")
+        return self._backend_connection_active
 
     def open_channel(self, kind: str, chanid: int) -> int:
         """Tries to open a channel to the backend
@@ -152,7 +160,7 @@ class ProxyHandler:
             debug_log.error("Failed to execute the command %s on the backend", cmd)
             return False
 
-        debug_log.info("Attacker executing %s via an exec request", cmd)
+        self._session_log.log_command(cmd)
 
         handle_thread = threading.Thread(
             target=proxy_data, args=(attacker_channel, backend_channel, self._session_log))
@@ -285,7 +293,6 @@ def proxy_data(
                     if char == carriage_return:  # Treat everything before \r as a command
                         recieved_cmd = ''.join(cmd_buffer)
                         # Log parsed command
-                        debug_log.info("Command sent %s", recieved_cmd)
                         session_log.log_command(recieved_cmd)
                         cmd_buffer = []
                     elif char == delete:  # Pop from the cmd_buffer if we recieved delete
