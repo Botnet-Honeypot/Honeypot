@@ -65,9 +65,11 @@ class Server(paramiko.ServerInterface):
 
     def check_channel_request(self, kind: str, chanid: int) -> int:
         self._update_last_activity()
-        debug_log.info("Attacker requested a channel of id %s and kind %s", chanid, kind)
+        debug_log.info("Attacker requested a channel with the id %s and kind %s", chanid, kind)
         if kind == "session":
-            return self._proxy_handler.open_channel(kind, chanid)
+            return self._proxy_handler.create_backend_connection(
+                "", "") and self._proxy_handler.open_channel(
+                kind, chanid)
         else:
             return OPEN_SUCCEEDED
 
@@ -75,7 +77,7 @@ class Server(paramiko.ServerInterface):
 
     def check_channel_shell_request(self, channel: paramiko.Channel) -> bool:
         self._update_last_activity()
-        debug_log.info("Wow this is rare, we got a shell request")
+        debug_log.info("Got a shell request on channel %s", channel.chanid)
         if channel.chanid in self._channels_done or not self._proxy_handler.handle_shell_request(
                 channel):
             return False
@@ -111,31 +113,36 @@ class Server(paramiko.ServerInterface):
             channel, width, height, pixelwidth, pixelheight)
 
     def check_channel_env_request(self, channel: Channel, name: str, value: str) -> bool:
+        self._update_last_activity()
         debug_log.info(
-            "Got channel env request for channel %s. name: %s value:%s", channel.chanid,
+            "Got env request for channel %s. name: %s value:%s", channel.chanid,
             name, value)
         return False
 
     def check_channel_direct_tcpip_request(
             self, chanid: int, origin: Tuple[str, int],
             destination: Tuple[str, int]) -> int:
+        self._update_last_activity()
         debug_log.info(
-            "Got channel direct tcpip request for channel %s. origin: %s destination:%s", chanid,
+            "Got direct tcpip request for channel %s. origin: %s destination:%s", chanid,
             origin, destination)
         return False
 
     def check_channel_x11_request(
             self, channel: Channel, single_connection: bool, auth_protocol: str, auth_cookie: bytes,
             screen_number: int) -> bool:
+        self._update_last_activity()
         debug_log.info(
-            "Got channel x11 request on channel %s. single_connection: %s auth_protocol: %s auth_cookie: %s screen_number: %s",
+            "Got x11 request on channel %s. single_connection: %s auth_protocol: %s auth_cookie: %s screen_number: %s",
             channel.chanid, single_connection, auth_protocol, auth_cookie, screen_number)
         return False
 
     def check_channel_forward_agent_request(self, channel: Channel) -> bool:
-        debug_log.info("Got channel forward agent request for channel %s", channel.chanid)
+        self._update_last_activity()
+        debug_log.info("Got forward agent request on channel %s", channel.chanid)
         return False
 
     def check_port_forward_request(self, address: str, port: int) -> int:
+        self._update_last_activity()
         debug_log.info("Got port forward request. Address: %s, Port: %s", address, port)
         return False

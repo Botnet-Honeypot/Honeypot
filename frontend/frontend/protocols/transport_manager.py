@@ -54,7 +54,12 @@ class TransportManager:
         """Methods that loops indefinitely and checks if there are SSH sessions
         that have ended
         """
+        i = 0
         while True:
+            i += 1
+            if i == 2000:
+                i = 0
+                debug_log.debug("There are %s active transports", len(self.get_transports()))
             for transport_tuple in self.get_transports():
                 # End the session if the attacker transport isn't active anymore
                 if not transport_tuple[0].is_active():
@@ -67,9 +72,11 @@ class TransportManager:
                     last_activity_time = transport_tuple[2].get_last_activity()
                     difference = curr_time - last_activity_time
                     if difference.seconds > 300:
-                        debug_log.info("Killing inactive session")
-                        transport_tuple[0].close()
+                        debug_log.debug("Killing inactive session")
+                        try:
+                            transport_tuple[0].close()
+                        except Exception as exc:
+                            debug_log.exception("Failed to kill attacker transport", exc_info=exc)
                         transport_tuple[1].close_connection()
                         self._remove_transport(transport_tuple)
-
             sleep(0.5)
