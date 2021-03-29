@@ -21,7 +21,7 @@ SSH_SERVER_PORT = int(os.getenv('SSH_SERVER_PORT', '22'))
 SSH_LOCAL_VERSION = os.getenv('SSH_LOCAL_VERSION ', 'SSH-2.0-dropbear_2019.78')
 
 # The timeout in seconds for which to drop an SSH session if no interaction is observed
-SSH_SESSION_TIMEOUT = int(os.getenv('SSH_SERVER_PORT', '600'))
+SSH_SESSION_TIMEOUT = int(os.getenv('SSH_SESSION_TIMEOUT', '600'))
 
 # The timeout to wait for a connectiion before throwing a timeout error
 # This will cause the ConnectionManager to do another loop to make sure nobody
