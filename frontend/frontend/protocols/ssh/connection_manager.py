@@ -37,7 +37,6 @@ class ConnectionManager(threading.Thread):
         :param host_key: The public key used by the server
         :param usernames: Allowed usernames, if it is None everything is allowed, defaults to None
         :param passwords: Allowed passwords, if it is None everything is allowed, defaults to None
-        :param auth_timeout: Timeout in seconds for clients to authenticate, defaults to 60
         :param socket_timeout: The timeout of the socket, defaults to 5
         :param max_unaccepted_connetions: Max unaccepted connections, defaults to 100
         :param port: The port to listen on, defaults to 22
