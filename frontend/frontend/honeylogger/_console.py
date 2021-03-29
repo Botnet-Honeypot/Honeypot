@@ -5,6 +5,7 @@ from ipaddress import IPv4Address, IPv6Address
 from typing import Optional, Union
 
 from ._types import IPAddress
+from frontend.config import config
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -13,6 +14,12 @@ formatter = logging.Formatter(
     fmt='%(asctime)s %(levelname)-8s %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
 handler.setFormatter(formatter)
 logger.addHandler(handler)
+
+# Enable more logging to file
+if config.SSH_ENABLE_DEBUG_LOGGING:
+    fh = logging.FileHandler(config.SSH_LOG_FILE, encoding="UTF-8")
+    fh.setFormatter(formatter)
+    logger.addHandler(fh)
 
 
 class ConsoleLogSSHSession():
@@ -56,6 +63,7 @@ class ConsoleLogSSHSession():
                     self.source, input)
 
     def log_ssh_channel_output(self, data: memoryview, channel: int) -> None:
+        return
         logger.info("[%s] Output recieved on channel %d",
                     self.source, channel)
 

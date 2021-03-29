@@ -9,10 +9,11 @@ import paramiko
 from paramiko.channel import Channel
 
 import frontend.honeylogger as logger
-from frontend.protocols.proxy_handler import ProxyHandler
+from frontend.config import config
+from ._proxy_handler import ProxyHandler
 
 
-debug_log = logging.getLogger("debuglogger")
+debug_log = logging.getLogger(config.SSH_DEBUG_LOG)
 
 
 class Server(paramiko.ServerInterface):

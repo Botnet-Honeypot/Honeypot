@@ -12,30 +12,14 @@ import paramiko
 from paramiko.ssh_exception import SSHException
 
 import frontend.honeylogger as logger
-from frontend.protocols.proxy_handler import ProxyHandler
-from frontend.protocols.transport_manager import TransportManager, TransportPair
-from frontend.protocols.ssh_server import Server
+from frontend.config import config
+from ._proxy_handler import ProxyHandler
+from ._transport_manager import TransportManager, TransportPair
+from ._ssh_server import Server
 
-debug_log = logging.getLogger("debuglogger")
-debug_log.setLevel(logging.DEBUG)
-log_handler = logging.StreamHandler(sys.stdout)
-formatter = logging.Formatter(
-    fmt='%(asctime)s %(levelname)-8s %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
-fh = logging.FileHandler("./honeypot.log", encoding="UTF-8")
-log_handler.setFormatter(formatter)
-fh.setFormatter(formatter)
-debug_log.addHandler(log_handler)
-debug_log.addHandler(fh)
+debug_log = logging.getLogger(config.SSH_DEBUG_LOG)
 
 
-def check_alive(transport: paramiko.Transport):
-    if transport.is_authenticated():
-        transport.global_request("keepalive@lag.net", wait=False)
-        transport.global_request("keepalive@lag.net", wait=False)
-        transport.global_request("keepalive@lag.net", wait=True)
-
-
-# todo should be singleton if the class does what it says in the docstring
 class ConnectionManager(threading.Thread):
     """ConnectionManager contains logic for listening for TCP connections
     and creating new threads of :class:`frontend.protocols.ssh.ConnectionManager`"""
@@ -43,16 +27,18 @@ class ConnectionManager(threading.Thread):
     def __init__(self, host_key: paramiko.PKey,
                  usernames: Optional[List[str]] = None,
                  passwords: Optional[List[str]] = None,
-                 auth_timeout: float = 60,
                  socket_timeout: float = 5,
                  max_unaccepted_connetions: int = 100,
                  port: int = 22) -> None:
-        """Creates an instance of the ConnectionManager class
+        """Creates an instance of the ConnectionManager class which will start listening
+        on the given port once the `start` method is called.
+
 
         :param host_key: The public key used by the server
         :param usernames: Allowed usernames, if it is None everything is allowed, defaults to None
         :param passwords: Allowed passwords, if it is None everything is allowed, defaults to None
         :param auth_timeout: Timeout in seconds for clients to authenticate, defaults to 60
+        :param socket_timeout: The timeout of the socket, defaults to 5
         :param max_unaccepted_connetions: Max unaccepted connections, defaults to 100
         :param port: The port to listen on, defaults to 22
         """
@@ -62,7 +48,6 @@ class ConnectionManager(threading.Thread):
         self._port = port
         self._usernames = usernames
         self._passwords = passwords
-        self._auth_timeout = auth_timeout
         self._max_unaccepted_connections = max_unaccepted_connetions
         self._lock = threading.Lock()
 
@@ -70,8 +55,7 @@ class ConnectionManager(threading.Thread):
         self._ip = ip_address(urllib.request.urlopen('https://ident.me').read().decode('utf8'))
 
     def stop(self) -> None:
-        """Stops the `listen` method listening for TCP connections and returns when
-        all threads that has been created has shut down.
+        """Stops the `listen` method listening for TCP connections
         """
         with self._lock:
             self._terminate = True
@@ -121,7 +105,7 @@ class ConnectionManager(threading.Thread):
                 continue
 
             transport = paramiko.Transport(client)
-            transport.local_version = "SSH-2.0-dropbear_2019.78"
+            transport.local_version = config.SSH_LOCAL_VERSION
 
             session = logger.create_ssh_session(
                 src_address=ip_address(addr[0]),

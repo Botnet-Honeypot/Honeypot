@@ -15,10 +15,11 @@ from paramiko.channel import Channel
 from paramiko.common import (OPEN_FAILED_ADMINISTRATIVELY_PROHIBITED, OPEN_SUCCEEDED)
 
 from frontend.honeylogger import SSHSession
-from frontend.protocols.command_parser import CommandParser
+from frontend.config import config
+from ._command_parser import CommandParser
 
 
-debug_log = logging.getLogger("debuglogger")
+debug_log = logging.getLogger(config.SSH_DEBUG_LOG)
 
 
 class ProxyHandler:

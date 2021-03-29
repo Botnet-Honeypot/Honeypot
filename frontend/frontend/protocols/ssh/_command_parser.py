@@ -3,7 +3,9 @@
 import queue
 import logging
 
-debug_log = logging.getLogger("debuglogger")
+from frontend.config import config
+
+debug_log = logging.getLogger(config.SSH_DEBUG_LOG)
 
 
 class CommandParser:

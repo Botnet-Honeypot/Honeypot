@@ -2,14 +2,15 @@ import datetime
 import logging
 import threading
 from time import sleep
-from typing import List, NamedTuple, Tuple
+from typing import List, NamedTuple
 
 import paramiko
-from frontend.protocols.proxy_handler import ProxyHandler
-from frontend.protocols.ssh_server import Server
+from frontend.config import config
+from ._proxy_handler import ProxyHandler
+from ._ssh_server import Server
 
 
-debug_log = logging.getLogger("debuglogger")
+debug_log = logging.getLogger(config.SSH_DEBUG_LOG)
 
 
 class TransportPair(
@@ -24,7 +25,9 @@ class TransportPair(
 class TransportManager:
 
     def __init__(self) -> None:
-        # todo rewrite to named  tuple
+        """Create a new Transpormanager instance that starts
+        managing connections in a new thread
+        """
         self._transport_list: List[TransportPair]
         self._transport_list = []
         self._lock = threading.Lock()
@@ -67,7 +70,7 @@ class TransportManager:
         while True:
             sleep(0.3)
             i += 1
-            if i == 2000:
+            if i == 3000:
                 i = 0
                 debug_log.debug("There are %s active transports", len(self.get_transports()))
             for transport_tuple in self.get_transports():
@@ -82,10 +85,10 @@ class TransportManager:
                     curr_time = datetime.datetime.now()
                     last_activity_time = transport_tuple.server.get_last_activity()
                     difference = curr_time - last_activity_time
-                    if difference.seconds > 600:  # If no actvity in 10 minutes
+                    if difference.seconds > config.SSH_SESSION_TIMEOUT:  # If no actvity
                         debug_log.debug("Killing inactive session")
                         try:
-                            transport_tuple[0].close()
+                            transport_tuple.attacker_transport.close()
                         except Exception as exc:
                             debug_log.exception("Failed to kill attacker transport", exc_info=exc)
                         transport_tuple.proxy_handler.close_connection()

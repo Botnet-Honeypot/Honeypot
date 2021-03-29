@@ -4,7 +4,7 @@ import pytest
 import pytest
 
 
-from frontend.protocols.command_parser import CommandParser
+from frontend.protocols.ssh._command_parser import CommandParser
 
 
 @pytest.fixture()
