@@ -65,13 +65,14 @@ class TransportManager:
                 if not transport_tuple[0].is_active():
                     transport_tuple[1].close_connection()
                     self._remove_transport(transport_tuple)
-                # If we don't see any activity after x seconds
-                # assume that the SSH session has ended
-                else:
+
+                # If there are no channels open
+                # pyright: reportGeneralTypeIssues=false
+                elif len(transport_tuple[0]._channels.values()) == 0:  # pylint: disable=protected-access
                     curr_time = datetime.datetime.now()
                     last_activity_time = transport_tuple[2].get_last_activity()
                     difference = curr_time - last_activity_time
-                    if difference.seconds > 300:
+                    if difference.seconds > 600:  # If no actvity in 10 minutes
                         debug_log.debug("Killing inactive session")
                         try:
                             transport_tuple[0].close()
@@ -79,4 +80,4 @@ class TransportManager:
                             debug_log.exception("Failed to kill attacker transport", exc_info=exc)
                         transport_tuple[1].close_connection()
                         self._remove_transport(transport_tuple)
-            sleep(0.5)
+            sleep(0.3)

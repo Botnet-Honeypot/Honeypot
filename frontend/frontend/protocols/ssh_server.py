@@ -126,7 +126,7 @@ class Server(paramiko.ServerInterface):
         debug_log.info(
             "Got direct tcpip request for channel %s. origin: %s destination:%s", chanid,
             origin, destination)
-        return False
+        return OPEN_FAILED_ADMINISTRATIVELY_PROHIBITED
 
     def check_channel_x11_request(
             self, channel: Channel, single_connection: bool, auth_protocol: str, auth_cookie: bytes,

@@ -63,12 +63,12 @@ class ProxyHandler:
         except socket.error as exc:
             debug_log.exception(
                 "Got socket excepting while connecting to SSH proxy %s:%i with %s/%s", ip_address,
-                port, username, password, exc)
+                port, username, password, exc_info=exc)
             return
         except Exception as exc:
             debug_log.exception(
                 "Got unknown excepting while connecting to SSH proxy %s:%i with %s/%s", ip_address,
-                port, username, password, exc)
+                port, username, password, exc_info=exc)
             return
 
         transport = client.get_transport()
@@ -274,7 +274,7 @@ def proxy_data(
                 if backend_channel.exit_status_ready():
                     exit_code = backend_channel.recv_exit_status()
                     if try_send_data(exit_code, attacker_channel.send_exit_status):
-                        debug_log.error("Failled to send exit code to the attacker")
+                        pass  # debug_log.error("Failled to send exit code to the attacker")
                 debug_log.debug("Backend channel is closed and no more data is available to read")
                 break
 
@@ -285,7 +285,6 @@ def proxy_data(
 
             try:
                 cmd = data.decode("utf-8")
-                debug_log.debug(data)
                 command_parser.add_to_cmd_buffer(cmd)
             except UnicodeDecodeError:
                 debug_log.debug("Failed to decode attacker command data %s", data)
