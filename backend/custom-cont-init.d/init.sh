@@ -57,7 +57,6 @@ chmod -R 777 /home/$USER_NAME/
 # Update home directory path in passwd file 
 sed -i "s/\/config/\/home\/$USER_NAME/" "/etc/passwd" 
 # Remove setup files
-rm -rf /config/logs/
 rm -rf /docker-mods
 
 # Remove setup files
