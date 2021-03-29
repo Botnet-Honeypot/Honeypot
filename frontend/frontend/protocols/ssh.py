@@ -13,7 +13,7 @@ from paramiko.ssh_exception import SSHException
 
 import frontend.honeylogger as logger
 from frontend.protocols.proxy_handler import ProxyHandler
-from frontend.protocols.transport_manager import TransportManager
+from frontend.protocols.transport_manager import TransportManager, TransportPair
 from frontend.protocols.ssh_server import Server
 
 debug_log = logging.getLogger("debuglogger")
@@ -73,9 +73,8 @@ class ConnectionManager(threading.Thread):
         """Stops the `listen` method listening for TCP connections and returns when
         all threads that has been created has shut down.
         """
-        self._lock.acquire()
-        self._terminate = True
-        self._lock.release()
+        with self._lock:
+            self._terminate = True
 
     def listen(self, socket_timeout: float = 5) -> None:
         """Starts listening for TCP connections on the given ports.
@@ -107,11 +106,9 @@ class ConnectionManager(threading.Thread):
 
         sock.settimeout(socket_timeout)
         while True:
-            self._lock.acquire()
-            if self._terminate:
-                self._lock.release()
-                break
-            self._lock.release()
+            with self._lock:
+                if self._terminate:
+                    break
 
             # Try accepting connections
             try:
@@ -151,4 +148,4 @@ class ConnectionManager(threading.Thread):
             # Here we are sure an SSH session has been established
             session.begin_ssh_session()
 
-            transport_manager.add_transport((transport, proxy_handler, server))
+            transport_manager.add_transport(TransportPair(transport, proxy_handler, server))

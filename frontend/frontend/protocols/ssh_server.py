@@ -70,10 +70,8 @@ class Server(paramiko.ServerInterface):
             return self._proxy_handler.create_backend_connection(
                 "", "") and self._proxy_handler.open_channel(
                 kind, chanid)
-        else:
-            return OPEN_SUCCEEDED
 
-        return OPEN_FAILED_ADMINISTRATIVELY_PROHIBITED
+        return OPEN_SUCCEEDED
 
     def check_channel_shell_request(self, channel: paramiko.Channel) -> bool:
         self._update_last_activity()

@@ -98,6 +98,7 @@ class ProxyHandler:
     def close_connection(self) -> None:
         """This closes the backend connection and ends the session
         """
+        self._session_log.end()
         if not self._backend_connection_active:
             return
         # Close the backend connection
@@ -105,7 +106,6 @@ class ProxyHandler:
             self._backend_transport.close()
         except Exception as exc:
             debug_log.exception("Failed to close backend transport", exc_info=exc)
-        self._session_log.end()
 
     def create_backend_connection(self, username: str, password: str) -> bool:
         """Sets up the a SSH connection to the backend with the given username
