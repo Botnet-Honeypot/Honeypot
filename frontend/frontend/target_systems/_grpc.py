@@ -1,3 +1,5 @@
+"""Implementations of target system module interfaces for gRPC remote service"""
+
 import logging
 from typing import Optional, cast
 import grpc
@@ -14,6 +16,7 @@ class _GrpcTargetSystem(TargetSystem):
     target_id: str
 
     def __init__(self, target_id: str, address: str, port: int) -> None:
+        super().__init__()
         self.target_id = target_id
         self.address = address
         self.port = port
@@ -33,7 +36,12 @@ class _GrpcTargetSystemProvider(TargetSystemProvider):
         self.channel = grpc.insecure_channel(server_address)  # TODO: TLS
 
     def close_channel(self):
-        """Closes the underlying gRPC channel"""
+        """Closes the underlying gRPC channel.
+
+        :raises RuntimeError: If called more than once.
+        """
+        if self.channel is None:
+            raise RuntimeError('gRPC channel was already closed')
         self.channel.close()
         self.channel = None
 

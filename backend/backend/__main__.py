@@ -15,7 +15,7 @@ def main():
 
     # Find public server IP
     # TODO: Is there any better way to get the public facing ip?
-    public_address = urllib.request.urlopen('https://ident.me').read().decode('utf8')
+    public_address = urllib.request.urlopen('https://ident.me').read().decode('utf-8')
 
     # Setup container management
     container_handler = container.Containers()

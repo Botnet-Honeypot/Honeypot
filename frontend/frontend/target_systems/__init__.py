@@ -1,3 +1,5 @@
+"""Module for acquiring target systems that attacker commands can be sent to
+and execution information can be collected from."""
 
 from contextlib import contextmanager
 from typing import Iterator
@@ -17,8 +19,8 @@ def create_grpc_target_system_provider(server_address: str) -> Iterator[TargetSy
     :return: The constructed TargetSystemProvider.
     """
 
-    resource = _GrpcTargetSystemProvider(server_address)
+    provider = _GrpcTargetSystemProvider(server_address)
     try:
-        yield resource
+        yield provider
     finally:
-        resource.close_channel()
+        provider.close_channel()

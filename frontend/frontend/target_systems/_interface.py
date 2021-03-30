@@ -1,3 +1,5 @@
+"""Public interface classes for target systems module"""
+
 from typing import Protocol, Optional
 from abc import abstractmethod
 
@@ -10,6 +12,8 @@ class TargetSystem(Protocol):
 
 
 class TargetSystemProvider(Protocol):
+    """A service that manages and provides target systems."""
+
     @abstractmethod
     def acquire_target_system(self, user: str, password: str) -> Optional[TargetSystem]:
         """Request to be given a target system.
