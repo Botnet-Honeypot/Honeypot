@@ -1,8 +1,7 @@
 #!/bin/bash
 # Install packages
 apk add htop perl
-# Variable for the ssh user name, this is set by backend python
-USERNAME="user"
+
 # Start decoy processes
 # These are just processes that are named after common services
 perl -wle '$0=shift;sleep shift' usr/bin/pihole-FTL 100000 &
@@ -49,16 +48,17 @@ perl -wle '$0=shift;sleep shift' /usr/bin/perl 100000 &
 perl -wle '$0=shift;sleep shift' npviewer.bin 100000 &
 perl -wle '$0=shift;sleep shift' dbus-daemon 100000 &
 perl -wle '$0=shift;sleep shift' netspeed_apple 100000 &
+
 # Set up home directory
-mkdir /home/$USERNAME/ 
-chmod 777 /home/$USERNAME/
+mkdir /home/$USER_NAME/ 
+chown -R $USER_NAME /home/$USER_NAME
+chmod -R 777 /home/$USER_NAME/
+
 # Update home directory path in passwd file 
-sed -i "s/\/config/\/home\/$USERNAME/" "/etc/passwd" 
+sed -i "s/\/config/\/home\/$USER_NAME/" "/etc/passwd" 
 # Remove setup files
-rm -rf /config/logs/
 rm -rf /docker-mods
-# Copy template/decoy files
-cp -r /home/templatefiles/. /home/$USERNAME/
+
 # Remove setup files
 rm -rf /home/templatefiles
 rm -rf /config/custom-cont-init.d

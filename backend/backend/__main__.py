@@ -1,41 +1,41 @@
-import backend.container as container
 import time
+import logging
+from backend.container import Containers, Status
 
-containerHandler = container.Containers()
+
+logger = logging.getLogger(__name__)
+
+
+container_handler = Containers()
 
 # Example code for showing multiple containers started and stopped
-# These are the environment variables that needs to be provided to
-# the container to start an instance.
-# Some of these should be given by the frontend of the honeypot.
-id = 0
-port = 2222
-user = "testuser"
-password = "password"
-hostname = "Dell-T140"
-uid = 1000
-gid = 1000
-timezone = "Europe/London"
-sudo = "true"
+# Some of the parameters should be given by the frontend of the honeypot via HTTP API.
 
 
 def main():
-    for i in range(5):
-        containerHandler.create_container(
-            id, port, user, password, hostname, uid, gid, timezone, sudo)
-        id += 1
-        port += 1
 
-    time.sleep(60)
+    container_id = 0
+    user = "user"
+    password = "password"
 
-    # Close and destroy containers after 60 seconds
-    ID = 0
-    for i in range(5):
+    for container_id in range(5):
+        config = container_handler.format_config(container_id, user, password)
+        container_handler.create_container(config)
+        # get the port, for returning to frontend
+        port = container_handler.get_container_port(Containers.ID_PREFIX + str(container_id))
+
+    # Close and destroy containers after a delay
+    time.sleep(30)
+
+    for container_id in range(5):
         try:
-            containerHandler.stop_container(ID)
-            containerHandler.destroy_container(ID)
-        except:
-            print("Could not find or stop the specified container, continuing anyways")
-        ID += 1
+            container_handler.stop_container(Containers.ID_PREFIX + str(container_id))
+            container_handler.destroy_container(Containers.ID_PREFIX + str(container_id))
+            container_handler.prune_volumes()
+
+        except Exception as exception:
+            logging.error("Could not find or stop container %s", container_id)
+            raise exception
 
 
 if __name__ == '__main__':
