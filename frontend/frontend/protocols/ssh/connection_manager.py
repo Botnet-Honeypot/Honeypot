@@ -126,9 +126,8 @@ class ConnectionManager(threading.Thread):
                 debug_log.exception("Failed to start the SSH server for %s", addr[0], exc_info=exc)
                 continue
 
-            debug_log.info("Remote SSH version %s", transport.remote_version)
-
             # Here we are sure an SSH session has been established
             session.begin_ssh_session()
+            debug_log.info("Remote SSH version %s", transport.remote_version)
 
             transport_manager.add_transport(TransportPair(transport, proxy_handler, server))
