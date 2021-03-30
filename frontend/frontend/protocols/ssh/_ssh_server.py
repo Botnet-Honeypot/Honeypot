@@ -38,6 +38,7 @@ class Server(paramiko.ServerInterface):
         self._channels_done = set()
 
         self._last_activity = datetime.datetime.now()
+        self._logging_session_started = False
 
     def get_last_activity(self) -> datetime.datetime:
         """Get the datetime of the last activity
@@ -49,6 +50,13 @@ class Server(paramiko.ServerInterface):
     def _update_last_activity(self) -> None:
         """Updates the last activity seen
         """
+        # Make sure to start the logging session if it isn't started
+        if not self._logging_session_started:
+            try:
+                self._session.begin_ssh_session()
+                self._logging_session_started = True
+            except Exception as exc:
+                debug_log.exception("Failed to start the SSH logging session", exc_info=exc)
         self._last_activity = datetime.datetime.now()
 
     def check_auth_password(self, username: str, password: str) -> int:
@@ -125,7 +133,7 @@ class Server(paramiko.ServerInterface):
         debug_log.info(
             "Got direct tcpip request for channel %s. origin: %s destination:%s", chanid,
             origin, destination)
-        return OPEN_FAILED_ADMINISTRATIVELY_PROHIBITED
+        return OPEN_SUCCEEDED
 
     def check_channel_x11_request(
             self, channel: Channel, single_connection: bool, auth_protocol: str, auth_cookie: bytes,

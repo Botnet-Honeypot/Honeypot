@@ -50,8 +50,7 @@ class ConnectionManager(threading.Thread):
         self._max_unaccepted_connections = max_unaccepted_connetions
         self._lock = threading.Lock()
 
-        # todo is there any better way to get the public facing ip?
-        self._ip = ip_address(urllib.request.urlopen('https://ident.me').read().decode('utf8'))
+        self._ip = ip_address(urllib.request.urlopen('https://ident.me').read().decode('utf-8'))
 
     def stop(self) -> None:
         """Stops the `listen` method listening for TCP connections
@@ -125,9 +124,6 @@ class ConnectionManager(threading.Thread):
             except Exception as exc:
                 debug_log.exception("Failed to start the SSH server for %s", addr[0], exc_info=exc)
                 continue
-
-            # Here we are sure an SSH session has been established
-            session.begin_ssh_session()
             debug_log.info("Remote SSH version %s", transport.remote_version)
 
             transport_manager.add_transport(TransportPair(transport, proxy_handler, server))

@@ -65,6 +65,9 @@ class CommandParser:
             self._buffer = []  # If you press up or down in (seemingly) something visual
             self._buffer_index = 0  # we just reset the buffer and try to parse it
             # We could try and parse this if we wanted to
+        else:
+            debug_log.debug("Unsupported escape sequence recieved from attacker %s",
+                            sequence.encode("utf-8"))
 
     def _add_to_cmd_queue(self, string: str) -> None:
         """Adds a command to the comand queue
