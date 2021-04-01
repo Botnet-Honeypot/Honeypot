@@ -22,6 +22,13 @@ class TransportPair(
 
 
 class TransportManager:
+    """TransportManager manages all the SSH transports and will end a session
+    when it finds that the attacker transport has either closed or there has 
+    been no activity for x minutes and they don't have any channels open.
+    When the stop method is called, all transports managed my TransportManager
+    are shut down.
+    """
+
     _transport_list: List[TransportPair]
 
     def __init__(self) -> None:
@@ -31,9 +38,12 @@ class TransportManager:
         self._transport_list = []
         self._lock = threading.Lock()
 
-        handle_thread = threading.Thread(
+        self._terminate_lock = threading.Lock()
+        self._terminate = False
+
+        self._handle_thread = threading.Thread(
             target=self.check_transports, args=())
-        handle_thread.start()
+        self._handle_thread.start()
 
     def get_transports(self) -> List[TransportPair]:
         """Return the list of active SSH sessions (transports)
@@ -61,34 +71,67 @@ class TransportManager:
         with self._lock:
             self._transport_list.remove(transport_pair)
 
+    def stop(self):
+        """Stop the TransportManager
+        """
+        with self._terminate_lock:
+            self._terminate = True
+
+    def _end_attacker_transport(self, transport_pair: TransportPair):
+        """Tries to end the attackers transport
+
+        :param transport_pair: The transport pair
+        """
+        try:
+            transport_pair.attacker_transport.close()
+        except Exception:
+            logger.exception("Failed to kill attacker transport")
+
+    def _end_proxy_handler(self, transport_pair: TransportPair):
+        """Ends the proxy_handler which in turn will end the transport to
+        the backend and and the SSH logging session
+
+        :param transport_pair: The transport pair
+        """
+
+        transport_pair.proxy_handler.close_connection()
+        self._remove_transport(transport_pair)
+
     def check_transports(self):
         """Methods that loops indefinitely and checks if there are SSH sessions
         that have ended
         """
         i = 0
         while True:
+            with self._terminate_lock:
+                if self._terminate:
+                    break
             sleep(0.3)
             i += 1
             if i == 3000:
                 i = 0
                 logger.debug("There are %s active transports", len(self.get_transports()))
-            for transport_tuple in self.get_transports():
+            for transport_pair in self.get_transports():
                 # End the session if the attacker transport isn't active anymore
-                if not transport_tuple.attacker_transport.is_active():
-                    transport_tuple.proxy_handler.close_connection()
-                    self._remove_transport(transport_tuple)
+                if not transport_pair.attacker_transport.is_active():
+                    self._end_proxy_handler(transport_pair)
 
                 # If there are no channels open
                 # pyright: reportGeneralTypeIssues=false
-                elif len(transport_tuple.attacker_transport._channels.values()) == 0:  # pylint: disable=protected-access
+                elif len(transport_pair.attacker_transport._channels.values()) == 0:  # pylint: disable=protected-access
                     curr_time = datetime.datetime.now()
-                    last_activity_time = transport_tuple.server.get_last_activity()
+                    last_activity_time = transport_pair.server.get_last_activity()
                     difference = curr_time - last_activity_time
-                    if difference.seconds > config.SSH_SESSION_TIMEOUT:  # If no actvity
+
+                    # If no activity end both sides
+                    if difference.seconds > config.SSH_SESSION_TIMEOUT:
                         logger.debug("Killing inactive session")
-                        try:
-                            transport_tuple.attacker_transport.close()
-                        except Exception:
-                            logger.exception("Failed to kill attacker transport")
-                        transport_tuple.proxy_handler.close_connection()
-                        self._remove_transport(transport_tuple)
+                        self._end_attacker_transport(transport_pair)
+                        self._end_proxy_handler(transport_pair)
+
+        # End all transports since we broke out of the while loop
+        # and the thread is shutting down
+        for transport_pair in self.get_transports():
+            if transport_pair.attacker_transport.is_active():
+                self._end_attacker_transport(transport_pair)
+            self._end_proxy_handler(transport_pair)

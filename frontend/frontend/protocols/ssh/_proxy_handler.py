@@ -84,12 +84,12 @@ class ProxyHandler:
         """Retrieves the corresponding backend channel that is related to the attacker channel
 
         :param attacker_chan_id: The attacker channel id
-        :raises ValueError: If the corresponding backend channel does not exist
+        :raises KeyError: If the corresponding backend channel does not exist
         :return: The corresponding backend channel
         """
         chan = self._backend_chan_proxies.get(attacker_chan_id)
         if chan is None:
-            raise ValueError(
+            raise KeyError(
                 ("Failed to obtain a backend channel correspoding"
                  f"to the attacker channel {attacker_chan_id}\n"
                  "This should never happen since a attacker channel id should always"
@@ -147,12 +147,14 @@ class ProxyHandler:
         :param attacker_channel: The attacker channel
         :return: True if we managed to send a shell request to the backend channel
         """
-        backend_channel = self._get_corresponding_backend_channel(attacker_channel.chanid)
         try:
+            backend_channel = self._get_corresponding_backend_channel(attacker_channel.chanid)
             backend_channel.invoke_shell()
+        except KeyError:
+            return False
         except SSHException:
             logger.error("Failed to invoke shell on the backend channel with id %s",
-                         backend_channel.chanid)
+                         attacker_channel.chanid)
             return False
 
         logger.info("Attacker opening a shell on the backend")
@@ -170,9 +172,11 @@ class ProxyHandler:
         :param command: The command to execute
         :return: True if we managed to send an exec request to the backend channel
         """
-        backend_channel = self._get_corresponding_backend_channel(attacker_channel.chanid)
         try:
+            backend_channel = self._get_corresponding_backend_channel(attacker_channel.chanid)
             cmd = command.decode("utf-8")
+        except KeyError:
+            return False
         except UnicodeDecodeError:
             logger.error("Failed to decode the command to utf8")
             return False
@@ -204,9 +208,11 @@ class ProxyHandler:
         :param pixelheight: The height of the screen in pixels, if known (may be 0 if unknown)
         :return: True if the pty request succeeded
         """
-        backend_channel = self._get_corresponding_backend_channel(attacker_channel.chanid)
         try:
+            backend_channel = self._get_corresponding_backend_channel(attacker_channel.chanid)
             backend_channel.get_pty(term_string, width, height, pixelwidth, pixelheight)
+        except KeyError:
+            return False
         except SSHException:
             logger.error("Failed to get pty on the backend")
             return False
@@ -225,9 +231,11 @@ class ProxyHandler:
         :param pixelheight: The height of the screen in pixels, if known (may be 0 if unknown)
         :return: True if the window change request succeeded
         """
-        backend_channel = self._get_corresponding_backend_channel(attacker_channel.chanid)
         try:
+            backend_channel = self._get_corresponding_backend_channel(attacker_channel.chanid)
             backend_channel.resize_pty(width, height, pixelwidth, pixelheight)
+        except KeyError:
+            return False
         except SSHException:
             logger.error("Failed to resize pty on the backend")
             return False
@@ -276,7 +284,7 @@ def proxy_data(
                 if backend_channel.exit_status_ready():
                     exit_code = backend_channel.recv_exit_status()
                     if try_send_data(exit_code, attacker_channel.send_exit_status):
-                        pass  # debug_log.error("Failled to send exit code to the attacker")
+                        pass  # logger.error("Failled to send exit code to the attacker")
                 logger.debug("Backend channel is closed and no more data is available to read")
                 break
 
