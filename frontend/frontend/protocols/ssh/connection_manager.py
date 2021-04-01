@@ -1,7 +1,6 @@
 """This module contains logic related to SSH"""
 import logging
 import socket
-import sys
 import threading
 import urllib.request
 from ipaddress import ip_address

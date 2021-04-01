@@ -4,7 +4,7 @@ from typing import List, Optional, Set, Tuple
 
 
 from paramiko.common import (AUTH_FAILED, AUTH_SUCCESSFUL,
-                             OPEN_FAILED_ADMINISTRATIVELY_PROHIBITED, OPEN_SUCCEEDED, )
+                             OPEN_SUCCEEDED)
 import paramiko
 from paramiko.channel import Channel
 
@@ -62,7 +62,11 @@ class Server(paramiko.ServerInterface):
     def check_auth_password(self, username: str, password: str) -> int:
         self._update_last_activity()
         self._session.log_login_attempt(username, password)
-        return AUTH_SUCCESSFUL
+        if self._usernames is not None and not username in self._usernames:
+            return AUTH_FAILED
+        if self._passwords is None or password in self._passwords:
+            return AUTH_SUCCESSFUL
+        return AUTH_FAILED
 
     def check_auth_publickey(self, username: str, key: paramiko.PKey) -> int:
         self._update_last_activity()
