@@ -118,8 +118,8 @@ class ProxyHandler:
         # todo we don't use the api currently
         if not self._backend_connection_active:
             # Open the backend transport
-            self._open_proxy_transport("40.127.101.181", port=22,
-                                       username="john", password="Superman1234")
+            self._open_proxy_transport("", port=22,
+                                       username="", password="")
         return self._backend_connection_active
 
     def open_channel(self, kind: str, chanid: int) -> int:

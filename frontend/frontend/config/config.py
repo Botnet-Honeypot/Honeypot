@@ -6,8 +6,10 @@ load_dotenv(find_dotenv())
 
 # To provide multiple usernames or passwords, seperate them with a ":"
 # If theses are left empty, then every user and password combination is allowed
-SSH_ALLOWED_USERNAMES = os.getenv('SSH_ALLOWED_USERNAMES', '').split(":")
-SSH_ALLOWED_PASSWORDS = os.getenv('SSH_ALLOWED_PASSWORDS', '').split(":")
+SSH_ALLOWED_USERNAMES = None if os.getenv(
+    'SSH_ALLOWED_USERNAMES') is None else os.getenv('SSH_ALLOWED_USERNAMES').split(":")
+SSH_ALLOWED_PASSWORDS = None if os.getenv(
+    'SSH_ALLOWED_PASSWORDS') is None else os.getenv('SSH_ALLOWED_PASSWORDS').split(":")
 
 # The port to lisen on
 SSH_SERVER_PORT = int(os.getenv('SSH_SERVER_PORT', '22'))
