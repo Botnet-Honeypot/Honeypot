@@ -1,7 +1,9 @@
 version: "3"
 services:
   python-hp:
-    build: .
+    build:
+      context: ..
+      dockerfile: frontend/Dockerfile
     ports:
       - "22:2222"
     volumes:

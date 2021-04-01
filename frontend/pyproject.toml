@@ -7,7 +7,7 @@ authors = ["Your Name <you@example.com>"]
 [tool.poetry.dependencies]
 python = "^3.9"
 paramiko = "^2.7.2"
-psycopg2 = "^2.8.6"
+psycopg2-binary = "^2.8.6"
 protocols = { path = "../protocols", develop = false }
 
 [tool.poetry.dev-dependencies]
