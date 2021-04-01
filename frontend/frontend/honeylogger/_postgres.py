@@ -1,7 +1,7 @@
 from typing import Optional
-from ._types import IPAddress
-import frontend.database as db
 import hashlib
+import frontend.database as db
+from ._types import IPAddress
 
 
 def insert_network_source(cur, ip_address: IPAddress):
@@ -12,32 +12,32 @@ def insert_network_source(cur, ip_address: IPAddress):
                 """, (str(ip_address),))
 
 
-def insert_new_event(cur, session_id: int, type: str) -> int:
+def insert_new_event(cur, session_id: int, event_type: str) -> int:
     cur.execute("""
                 INSERT INTO Event (session_id, session_protocol, type)
                     VALUES (%s, 'ssh', %s)
                     RETURNING id
-                """, (session_id, type))
+                """, (session_id, event_type))
     return cur.fetchone()[0]
 
 
-def insert_file(cur, data: memoryview, type: str, save_data: bool) -> memoryview:
+def insert_file(cur, data: memoryview, file_type: str, save_data: bool) -> memoryview:
     data_value = '%(data)s' if save_data else 'NULL'
     conflict_action = 'UPDATE SET data = %(data)s' if save_data else 'DO NOTHING'
     cur.execute("""
                 INSERT INTO File (hash, data, type)
                     VALUES (sha256(%(data)s), """ + data_value + """, %(type)s)
                     ON CONFLICT (hash) DO """ + conflict_action,
-                {'data': data, 'type': type})
+                {'data': data, 'type': file_type})
     return memoryview(hashlib.sha256(data).digest())
 
 
 class PostgresLogSSHSession:
-    """Implementation of logging.SSHSession that logs session and actions to a Postgres database"""
+    """Implementation of honeylogger.SSHSession that
+    logs session and actions to a Postgres database"""
 
-    session_id: int
+    session_id: Optional[int]
 
-    source: str
     src_address: IPAddress
     src_port: int
     dst_address: IPAddress
@@ -46,13 +46,16 @@ class PostgresLogSSHSession:
     def __init__(self,
                  src_address: IPAddress, src_port: int,
                  dst_address: IPAddress, dst_port: int) -> None:
-        self.source = f'{src_address}:{src_port}'
+        self.session_id = None
         self.src_address = src_address
         self.src_port = src_port
         self.dst_address = dst_address
         self.dst_port = dst_port
 
-    def begin_ssh_session(self) -> None:
+    def begin(self) -> None:
+        if self.session_id is not None:
+            raise ValueError('Logging session was already started')
+
         conn = db.connect()
         try:
             with conn:
@@ -71,6 +74,9 @@ class PostgresLogSSHSession:
     def log_pty_request(self, term: str,
                         term_width_cols: int, term_height_rows: int,
                         term_width_pixels: int, term_height_pixels: int) -> None:
+        if self.session_id is None:
+            raise ValueError('Logging session has not been started')
+
         conn = db.connect()
         try:
             with conn:
@@ -87,6 +93,9 @@ class PostgresLogSSHSession:
             conn.close()
 
     def log_login_attempt(self, username: str, password: str) -> None:
+        if self.session_id is None:
+            raise ValueError('Logging session has not been started')
+
         conn = db.connect()
         try:
             with conn:
@@ -101,6 +110,9 @@ class PostgresLogSSHSession:
             conn.close()
 
     def log_command(self, input: str) -> None:
+        if self.session_id is None:
+            raise ValueError('Logging session has not been started')
+
         conn = db.connect()
         try:
             with conn:
@@ -115,6 +127,9 @@ class PostgresLogSSHSession:
             conn.close()
 
     def log_ssh_channel_output(self, data: memoryview, channel: int) -> None:
+        if self.session_id is None:
+            raise ValueError('Logging session has not been started')
+
         conn = db.connect()
         try:
             with conn:
@@ -134,6 +149,9 @@ class PostgresLogSSHSession:
                      source_address: IPAddress,
                      source_url: Optional[str] = None,
                      save_data: bool = True) -> None:
+        if self.session_id is None:
+            raise ValueError('Logging session has not been started')
+
         conn = db.connect()
         try:
             with conn:
@@ -150,6 +168,9 @@ class PostgresLogSSHSession:
             conn.close()
 
     def end(self) -> None:
+        if self.session_id is None:
+            raise ValueError('Logging session has not been started')
+
         conn = db.connect()
         try:
             with conn:

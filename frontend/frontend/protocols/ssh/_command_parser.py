@@ -3,9 +3,7 @@
 import queue
 import logging
 
-from frontend.config import config
-
-debug_log = logging.getLogger(config.SSH_DEBUG_LOG)
+logger = logging.getLogger(__name__)
 
 
 class CommandParser:
@@ -66,8 +64,8 @@ class CommandParser:
             self._buffer_index = 0  # we just reset the buffer and try to parse it
             # We could try and parse this if we wanted to
         else:
-            debug_log.debug("Unsupported escape sequence recieved from attacker %s",
-                            sequence.encode("utf-8"))
+            logger.warning("Unsupported escape sequence recieved from attacker %s",
+                           sequence.encode("utf-8"))
 
     def _add_to_cmd_queue(self, string: str) -> None:
         """Adds a command to the comand queue
@@ -111,8 +109,8 @@ class CommandParser:
                 if ((sequence == "\x1b" and char not in ("[", "O"))
                     or (sequence == "\x1b[" and not (char == "[" or char.isalpha() or char.isdigit()))
                         or not (char.isdigit() or char.isalpha() or char != ";")):
-                    debug_log.debug("The attacker sent a weird escape sequence %s",
-                                    (sequence + char).encode("utf-8"))
+                    logger.debug("The attacker sent a weird escape sequence %s",
+                                 (sequence + char).encode("utf-8"))
                     self._escape_sequence_buffer = []
                     self._is_in_escape_mode = False
 

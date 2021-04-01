@@ -7,7 +7,7 @@ def test_no_runtime_errors():
                                  src_port=3463,
                                  dst_address=ip_address('226.64.12.2'),
                                  dst_port=22)
-    session.begin_ssh_session()
+    session.begin()
 
     session.log_login_attempt('a_username', 'some_password')
     session.log_command('sudo rm -rf /')

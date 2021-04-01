@@ -10,7 +10,7 @@ from ._proxy_handler import ProxyHandler
 from ._ssh_server import Server
 
 
-debug_log = logging.getLogger(config.SSH_DEBUG_LOG)
+logger = logging.getLogger(__name__)
 
 
 class TransportPair(
@@ -18,17 +18,16 @@ class TransportPair(
                [("attacker_transport", paramiko.Transport),
                 ("proxy_handler", ProxyHandler),
                 ("server", Server)])):
-    """Class for holding the attacker transport and the ProxyHandler as a tuple
-    """
+    """Class for holding the attacker transport and the ProxyHandler as a tuple"""
 
 
 class TransportManager:
+    _transport_list: List[TransportPair]
 
     def __init__(self) -> None:
         """Create a new Transpormanager instance that starts
         managing connections in a new thread
         """
-        self._transport_list: List[TransportPair]
         self._transport_list = []
         self._lock = threading.Lock()
 
@@ -72,7 +71,7 @@ class TransportManager:
             i += 1
             if i == 3000:
                 i = 0
-                debug_log.debug("There are %s active transports", len(self.get_transports()))
+                logger.debug("There are %s active transports", len(self.get_transports()))
             for transport_tuple in self.get_transports():
                 # End the session if the attacker transport isn't active anymore
                 if not transport_tuple.attacker_transport.is_active():
@@ -86,10 +85,10 @@ class TransportManager:
                     last_activity_time = transport_tuple.server.get_last_activity()
                     difference = curr_time - last_activity_time
                     if difference.seconds > config.SSH_SESSION_TIMEOUT:  # If no actvity
-                        debug_log.debug("Killing inactive session")
+                        logger.debug("Killing inactive session")
                         try:
                             transport_tuple.attacker_transport.close()
-                        except Exception as exc:
-                            debug_log.exception("Failed to kill attacker transport", exc_info=exc)
+                        except Exception:
+                            logger.exception("Failed to kill attacker transport")
                         transport_tuple.proxy_handler.close_connection()
                         self._remove_transport(transport_tuple)

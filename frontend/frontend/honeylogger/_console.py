@@ -1,25 +1,10 @@
-import hashlib
 import logging
-import sys
-from ipaddress import IPv4Address, IPv6Address
-from typing import Optional, Union
+from typing import Optional
+import hashlib
 
 from ._types import IPAddress
-from frontend.config import config
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-handler = logging.StreamHandler(sys.stdout)
-formatter = logging.Formatter(
-    fmt='%(asctime)s %(levelname)-8s %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
-handler.setFormatter(formatter)
-logger.addHandler(handler)
-
-# Enable more logging to file
-if config.SSH_ENABLE_DEBUG_LOGGING:
-    fh = logging.FileHandler(config.SSH_LOG_FILE, encoding="UTF-8")
-    fh.setFormatter(formatter)
-    logger.addHandler(fh)
 
 
 class ConsoleLogSSHSession():
@@ -40,7 +25,7 @@ class ConsoleLogSSHSession():
         self.dst_address = str(dst_address)
         self.dst_port = dst_port
 
-    def begin_ssh_session(self) -> None:
+    def begin(self) -> None:
         logger.info(
             "SSH session from %s:%i to %s:%i began",
             self.src_address, self.src_port,

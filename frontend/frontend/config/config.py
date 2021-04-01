@@ -1,13 +1,8 @@
 """Module wrapping environment variables for configuration."""
 
-import logging
 import os
-import sys
 from dotenv import load_dotenv, find_dotenv
 load_dotenv(find_dotenv())
-
-SSH_DEBUG_LOG = "ssh_debug_log"
-
 
 # To provide multiple usernames or passwords, seperate them with a ":"
 # If theses are left empty, then every user and password combination is allowed
@@ -38,16 +33,3 @@ SSH_ENABLE_DEBUG_LOGGING = bool(os.getenv('ENABLE_DEBUG_LOGGING', 'False'))
 SSH_LOG_FILE = os.getenv('SSH_LOG_FILE', './honeypot.log')
 
 BACKEND_IP = os.getenv('BACKEND_IP')
-
-# Set up logging
-if SSH_ENABLE_DEBUG_LOGGING:
-    debug_log = logging.getLogger(SSH_DEBUG_LOG)
-    debug_log.setLevel(logging.DEBUG)
-    log_handler = logging.StreamHandler(sys.stdout)
-    formatter = logging.Formatter(
-        fmt='%(asctime)s %(levelname)-8s %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
-    fh = logging.FileHandler(SSH_LOG_FILE, encoding="UTF-8")
-    log_handler.setFormatter(formatter)
-    fh.setFormatter(formatter)
-    debug_log.addHandler(log_handler)
-    debug_log.addHandler(fh)

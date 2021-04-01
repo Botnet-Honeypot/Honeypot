@@ -1,7 +1,6 @@
 """This module contains logic related to SSH"""
 import logging
 import socket
-import sys
 import threading
 import urllib.request
 from ipaddress import ip_address
@@ -11,13 +10,13 @@ from typing import List, Optional
 import paramiko
 from paramiko.ssh_exception import SSHException
 
-import frontend.honeylogger as logger
+import frontend.honeylogger as honeylogger
 from frontend.config import config
 from ._proxy_handler import ProxyHandler
 from ._transport_manager import TransportManager, TransportPair
 from ._ssh_server import Server
 
-debug_log = logging.getLogger(config.SSH_DEBUG_LOG)
+logger = logging.getLogger(__name__)
 
 
 class ConnectionManager(threading.Thread):
@@ -74,14 +73,14 @@ class ConnectionManager(threading.Thread):
             # https://www.gnu.org/software/libc/manual/html_node/Socket_002dLevel-Options.html
             sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             sock.bind(("", self._port))
-        except Exception as exc:
-            debug_log.exception("Failed to bind the port %s", self._port, exc_info=exc)
+        except Exception:
+            logger.exception("Failed to bind the port %s", self._port)
             raise
 
         try:
             sock.listen(self._max_unaccepted_connections)
-        except Exception as exc:
-            debug_log.exception("Failed to listen to the socket", exc_info=exc)
+        except Exception:
+            logger.exception("Failed to listen to the socket")
             raise
 
         transport_manager = TransportManager()
@@ -97,15 +96,15 @@ class ConnectionManager(threading.Thread):
                 client, addr = sock.accept()
             except socket.timeout:
                 continue
-            except Exception as exc:
-                debug_log.exception(
-                    "Failed to accept a connection from somewhere",  exc_info=exc)
+            except Exception:
+                logger.exception(
+                    "Failed to accept a connection from somewhere")
                 continue
 
             transport = paramiko.Transport(client)
             transport.local_version = config.SSH_LOCAL_VERSION
 
-            session = logger.create_ssh_session(
+            session = honeylogger.create_ssh_session(
                 src_address=ip_address(addr[0]),
                 src_port=addr[1],
                 dst_address=self._ip,
@@ -117,13 +116,13 @@ class ConnectionManager(threading.Thread):
             try:
                 transport.start_server(server=server)
             except SSHException:
-                debug_log.error("Failed to start the SSH server for %s", addr[0])
+                logger.exception("Failed to start the SSH server for %s", addr[0])
                 continue
             except EOFError:
                 continue
-            except Exception as exc:
-                debug_log.exception("Failed to start the SSH server for %s", addr[0], exc_info=exc)
+            except Exception:
+                logger.exception("Failed to start the SSH server for %s", addr[0])
                 continue
-            debug_log.info("Remote SSH version %s", transport.remote_version)
+            logger.info("Remote SSH version %s", transport.remote_version)
 
             transport_manager.add_transport(TransportPair(transport, proxy_handler, server))

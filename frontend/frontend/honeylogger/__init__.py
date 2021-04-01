@@ -25,6 +25,11 @@ class Session(Protocol):
     """Representation of an attacker's session while being connected to the honeypot."""
 
     @abstractmethod
+    def begin(self) -> None:
+        """Begins the logging session"""
+        raise NotImplementedError
+
+    @abstractmethod
     def log_login_attempt(self, username: str, password: str) -> None:
         """Logs a new login attempt associated with the current session.
 
@@ -38,15 +43,6 @@ class Session(Protocol):
         """Logs a new command associated with the current session.
 
         :param input: The raw string that was input to run the command.
-        """
-        raise NotImplementedError
-
-    @abstractmethod
-    def log_ssh_channel_output(self, data: memoryview, channel: int) -> None:
-        """Logs a new block of output associated with the current session and SSH channel.
-
-        :param data: The raw bytes that were output.
-        :param channel: The SSH channel the data was output on. 
         """
         raise NotImplementedError
 
@@ -93,8 +89,11 @@ class SSHSession(Session, Protocol):
         raise NotImplementedError
 
     @abstractmethod
-    def begin_ssh_session(self) -> None:
-        """Begins an SSH session
+    def log_ssh_channel_output(self, data: memoryview, channel: int) -> None:
+        """Logs a new block of output associated with the current session and SSH channel.
+
+        :param data: The raw bytes that were output.
+        :param channel: The SSH channel the data was output on.
         """
         raise NotImplementedError
 

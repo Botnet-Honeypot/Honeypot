@@ -2,18 +2,15 @@ import logging
 import datetime
 from typing import List, Optional, Set, Tuple
 
-
-from paramiko.common import (AUTH_FAILED, AUTH_SUCCESSFUL,
-                             OPEN_FAILED_ADMINISTRATIVELY_PROHIBITED, OPEN_SUCCEEDED, )
+from paramiko.common import (AUTH_FAILED, AUTH_SUCCESSFUL, OPEN_SUCCEEDED, )
 import paramiko
 from paramiko.channel import Channel
 
-import frontend.honeylogger as logger
-from frontend.config import config
+from frontend.honeylogger import SSHSession
 from ._proxy_handler import ProxyHandler
 
 
-debug_log = logging.getLogger(config.SSH_DEBUG_LOG)
+logger = logging.getLogger(__name__)
 
 
 class Server(paramiko.ServerInterface):
@@ -22,8 +19,11 @@ class Server(paramiko.ServerInterface):
     :param paramiko: The SSH server interface
     """
 
+    # The set of channels that have successfully issued a shell or exec request
+    _channels_done: Set[int]
+
     def __init__(
-            self, session: logger.SSHSession,
+            self, session: SSHSession,
             proxy_handler: ProxyHandler,
             usernames: Optional[List[str]],
             passwords: Optional[List[str]]) -> None:
@@ -33,8 +33,6 @@ class Server(paramiko.ServerInterface):
         self._session = session
         self._proxy_handler = proxy_handler
 
-        # The set of channels that have successfully issued a shell or exec request
-        self._channels_done: Set[int]
         self._channels_done = set()
 
         self._last_activity = datetime.datetime.now()
@@ -53,10 +51,10 @@ class Server(paramiko.ServerInterface):
         # Make sure to start the logging session if it isn't started
         if not self._logging_session_started:
             try:
-                self._session.begin_ssh_session()
+                self._session.begin()
                 self._logging_session_started = True
-            except Exception as exc:
-                debug_log.exception("Failed to start the SSH logging session", exc_info=exc)
+            except Exception:
+                logger.exception("Failed to start the SSH logging session")
         self._last_activity = datetime.datetime.now()
 
     def check_auth_password(self, username: str, password: str) -> int:
@@ -74,7 +72,7 @@ class Server(paramiko.ServerInterface):
 
     def check_channel_request(self, kind: str, chanid: int) -> int:
         self._update_last_activity()
-        debug_log.info("Attacker requested a channel with the id %s and kind %s", chanid, kind)
+        logger.info("Attacker requested a channel with the id %s and kind %s", chanid, kind)
         if kind == "session":
             return self._proxy_handler.create_backend_connection(
                 "", "") and self._proxy_handler.open_channel(
@@ -84,7 +82,7 @@ class Server(paramiko.ServerInterface):
 
     def check_channel_shell_request(self, channel: paramiko.Channel) -> bool:
         self._update_last_activity()
-        debug_log.info("Got a shell request on channel %s", channel.chanid)
+        logger.info("Got a shell request on channel %s", channel.chanid)
         if channel.chanid in self._channels_done or not self._proxy_handler.handle_shell_request(
                 channel):
             return False
@@ -107,7 +105,7 @@ class Server(paramiko.ServerInterface):
             term_string = term.decode("utf-8")
             self._session.log_pty_request(term_string, width, height, pixelwidth, pixelheight)
         except UnicodeError:
-            debug_log.error("Failed to decode the term to utf8")
+            logger.exception("Failed to decode the term to utf8")
             return False
 
         return self._proxy_handler.handle_pty_request(
@@ -121,7 +119,7 @@ class Server(paramiko.ServerInterface):
 
     def check_channel_env_request(self, channel: Channel, name: str, value: str) -> bool:
         self._update_last_activity()
-        debug_log.info(
+        logger.info(
             "Got env request for channel %s. name: %s value:%s", channel.chanid,
             name, value)
         return False
@@ -130,7 +128,7 @@ class Server(paramiko.ServerInterface):
             self, chanid: int, origin: Tuple[str, int],
             destination: Tuple[str, int]) -> int:
         self._update_last_activity()
-        debug_log.info(
+        logger.info(
             "Got direct tcpip request for channel %s. origin: %s destination:%s", chanid,
             origin, destination)
         return OPEN_SUCCEEDED
@@ -139,17 +137,17 @@ class Server(paramiko.ServerInterface):
             self, channel: Channel, single_connection: bool, auth_protocol: str, auth_cookie: bytes,
             screen_number: int) -> bool:
         self._update_last_activity()
-        debug_log.info(
+        logger.info(
             "Got x11 request on channel %s. single_connection: %s auth_protocol: %s auth_cookie: %s screen_number: %s",
             channel.chanid, single_connection, auth_protocol, auth_cookie, screen_number)
         return False
 
     def check_channel_forward_agent_request(self, channel: Channel) -> bool:
         self._update_last_activity()
-        debug_log.info("Got forward agent request on channel %s", channel.chanid)
+        logger.info("Got forward agent request on channel %s", channel.chanid)
         return False
 
     def check_port_forward_request(self, address: str, port: int) -> int:
         self._update_last_activity()
-        debug_log.info("Got port forward request. Address: %s, Port: %s", address, port)
+        logger.info("Got port forward request. Address: %s, Port: %s", address, port)
         return False
