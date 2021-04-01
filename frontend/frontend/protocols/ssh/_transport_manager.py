@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 class TransportPair(
-    NamedTuple("Connection",
+    NamedTuple("TransportPair",
                [("attacker_transport", paramiko.Transport),
                 ("proxy_handler", ProxyHandler),
                 ("server", Server)])):
@@ -54,7 +54,10 @@ class TransportManager:
             return self._transport_list
 
     def add_transport(
-            self, transport_pair: TransportPair) -> None:
+            self, transport_pair: NamedTuple("TransportPair",
+                                             [("attacker_transport", paramiko.Transport),
+                                              ("proxy_handler", ProxyHandler),
+                                              ("server", Server)])) -> None:
         """Add a new SSH session to the active list
 
         :param transport_tuple: The SSH session ot add
