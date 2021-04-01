@@ -34,7 +34,6 @@ RUN curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-
 # Copy project requirement files here to ensure they will be cached
 WORKDIR $PYSETUP_PATH
 COPY ${PROJECT_DIR}/poetry.lock ${PROJECT_DIR}/pyproject.toml ./
-COPY protocols /opt/protocols
 
 # Install runtime deps - uses $POETRY_VIRTUALENVS_IN_PROJECT internally
 RUN poetry install --no-dev --no-root
