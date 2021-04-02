@@ -15,6 +15,7 @@ from frontend.config import config
 from ._proxy_handler import ProxyHandler
 from ._transport_manager import TransportManager, TransportPair
 from ._ssh_server import Server
+from frontend.target_systems import TargetSystemProvider
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +24,12 @@ class ConnectionManager(threading.Thread):
     """ConnectionManager contains logic for listening for TCP connections
     and creating new threads of :class:`frontend.protocols.ssh.ConnectionManager`"""
 
-    def __init__(self, host_key: paramiko.PKey,
+    # The provider used to acquire target systems for each attacker connection
+    _target_system_provider: TargetSystemProvider
+
+    def __init__(self,
+                 target_system_provider: TargetSystemProvider,
+                 host_key: paramiko.PKey,
                  usernames: Optional[List[str]] = None,
                  passwords: Optional[List[str]] = None,
                  socket_timeout: float = 5,
@@ -41,12 +47,14 @@ class ConnectionManager(threading.Thread):
         :param port: The port to listen on, defaults to 22
         """
         super().__init__(target=self.listen, args=(socket_timeout,), daemon=False)
-        self._terminate = False
+        self._target_system_provider = target_system_provider
         self._host_key = host_key
-        self._port = port
         self._usernames = usernames
         self._passwords = passwords
         self._max_unaccepted_connections = max_unaccepted_connetions
+        self._port = port
+
+        self._terminate = False
         self._lock = threading.Lock()
 
         self._ip = ip_address(urllib.request.urlopen('https://ident.me').read().decode('utf-8'))
@@ -103,6 +111,7 @@ class ConnectionManager(threading.Thread):
 
             transport = paramiko.Transport(client)
             transport.local_version = config.SSH_LOCAL_VERSION
+            transport.add_server_key(self._host_key)
 
             session = honeylogger.create_ssh_session(
                 src_address=ip_address(addr[0]),
@@ -110,9 +119,14 @@ class ConnectionManager(threading.Thread):
                 dst_address=self._ip,
                 dst_port=self._port)
 
-            proxy_handler = ProxyHandler(session)
-            transport.add_server_key(self._host_key)
-            server = Server(session, proxy_handler, self._usernames, self._passwords)
+            proxy_handler = ProxyHandler(session, self._target_system_provider)
+            server = Server(
+                session,
+                proxy_handler,
+                self._usernames,
+                self._passwords
+            )
+
             try:
                 transport.start_server(server=server)
             except SSHException:

@@ -5,18 +5,20 @@ all the data recieved from the backend during the sesison.
 import logging
 import socket
 import threading
-from time import sleep
+from time import sleep, time
+from typing import Optional
+import itertools
 
 import paramiko
 from paramiko import SSHException
-from paramiko.ssh_exception import AuthenticationException
+from paramiko.ssh_exception import AuthenticationException, BadHostKeyException
 from paramiko.transport import Transport
 from paramiko.channel import Channel
 from paramiko.common import (OPEN_FAILED_ADMINISTRATIVELY_PROHIBITED, OPEN_SUCCEEDED)
 
 from frontend.honeylogger import SSHSession
 from ._command_parser import CommandParser
-
+from frontend.target_systems import TargetSystemProvider
 
 logger = logging.getLogger(__name__)
 
@@ -26,59 +28,82 @@ class ProxyHandler:
     to corresponding backend channels
     """
 
-    # SSH transport to the backend
-    _backend_transport: Transport
+    # SSH transport to the backend, None if not open
+    _backend_transport: Optional[Transport]
     # Dict mapping the attacker channel IDs to a proxy channel to the backend
     _backend_chan_proxies: dict[int, Channel]
-    # Indicates if the backend transport is open
-    _backend_connection_active: bool
 
     # A session log we can log events to
     _session_log: SSHSession
 
-    def __init__(self, session_log: SSHSession) -> None:
+    # The provider used to acquire a target system for this attacker connection
+    _target_system_provider: TargetSystemProvider
+
+    def __init__(self,
+                 session_log: SSHSession,
+                 target_system_provider: TargetSystemProvider) -> None:
+        self._backend_transport = None
         self._backend_chan_proxies = dict()
         self._session_log = session_log
-        self._backend_connection_active = False
+        self._target_system_provider = target_system_provider
 
-    def _open_proxy_transport(
-            self, ip_address: str, port: int, username: str, password: str) -> None:
+    @staticmethod
+    def _open_proxy_transport(ip_address: str, port: int,
+                              username: str, password: str,
+                              max_retries: int = 10,
+                              backoff_time_ms=10) -> Optional[Transport]:
         """Opens another SSH session to proxy data over
 
         :param ip_address: The IP adress of the SSH proxy
         :param port: The port of the SSH proxy
         :param username: The usernames of the SSH proxy
         :param password: The password of the SSH proxy
+        :return: If successful, the SSH transport for the connection, otherwise None
         """
         client = paramiko.SSHClient()
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+
         try:
-            client.connect(ip_address, port=port, username=username, password=password)
+            for num_retries in itertools.count():
+                try:
+                    client.connect(ip_address, port=port, username=username, password=password)
+                    transport = client.get_transport()
+
+                    if transport is None:
+                        raise SSHException(
+                            f"Failed to obtain SSH transport for {ip_address}:{port}")
+                    return transport
+
+                except (SSHException, socket.error):
+                    if num_retries == max_retries:
+                        raise  # If we ran out of retries, propagate exception
+
+                    logger.debug('Connection to target system failed, retrying (#%d)...',
+                                 num_retries+1)
+
+                    # Exponential backoff
+                    backoff = (2 ** num_retries * backoff_time_ms) / 1000
+                    sleep(backoff)
+                    continue
+
         except AuthenticationException:
             logger.error("Authentication failed on SSH proxy %s:%i with %s/%s",
                          ip_address, port, username, password)
-            return
+            return None
         except SSHException:
             logger.exception("Failed to establish a SSH session to SSH proxy %s:%i with %s/%s",
                              ip_address, port, username, password)
-            return
+            return None
         except socket.error:
             logger.exception(
                 "Got socket excepting while connecting to SSH proxy %s:%i with %s/%s", ip_address,
                 port, username, password)
-            return
+            return None
         except Exception:
             logger.exception(
                 "Got unknown excepting while connecting to SSH proxy %s:%i with %s/%s", ip_address,
                 port, username, password)
-            return
-
-        transport = client.get_transport()
-        if transport is not None:
-            self._backend_connection_active = True
-            self._backend_transport = transport
-        else:
-            logger.error("Failed to obtain transport for dozy")
+            return None
 
     def _get_corresponding_backend_channel(self, attacker_chan_id: int) -> paramiko.Channel:
         """Retrieves the corresponding backend channel that is related to the attacker channel
@@ -101,26 +126,56 @@ class ProxyHandler:
         """This closes the backend connection and ends the session
         """
         self._session_log.end()
-        if not self._backend_connection_active:
+        if self._backend_transport is None:
             return
         # Close the backend connection
         try:
             self._backend_transport.close()
         except Exception:
             logger.exception("Failed to close backend transport")
+        finally:
+            self._backend_transport = None
 
-    def create_backend_connection(self, username: str, password: str) -> bool:
-        """Sets up the a SSH connection to the backend with the given username
+    def create_backend_connection(self) -> bool:
+        """Sets up the a SSH connection to the backend
 
-        :param username: The username to use in the container
         :return: True if the connection was successful
         """
-        # todo we don't use the api currently
-        if not self._backend_connection_active:
+
+        username = 'aaa'
+        password = 'bbb'
+
+        if self._backend_transport is not None:
+            # Connction already opened
+            return True
+
+        t0 = time()
+        # Acquire target system
+        logger.debug('Acquiring target system from provider...')
+        target_system = self._target_system_provider.acquire_target_system(username, password)
+        if target_system is None:
+            logger.warning('No target system was available to be acquired')
+            return False
+        t1 = time()
+        try:
             # Open the backend transport
-            self._open_proxy_transport("", port=22,
-                                       username="", password="")
-        return self._backend_connection_active
+            logger.debug('Connecting to target system %s:%d...',
+                         target_system.address, target_system.port)
+            self._backend_transport = self._open_proxy_transport(target_system.address,
+                                                                 target_system.port,
+                                                                 username, password)
+            t2 = time()
+            print(f'Acquire: {t1-t0}')
+            print(f'Connect: {t2-t1}')
+            print(f'Total: {t2-t0}')
+        finally:
+            if self._backend_transport is None:
+                # If connection to target system failed, yield it back to provider
+                logger.debug('Failed to connect to %s:%d, yielding target system...',
+                             target_system.address, target_system.port)
+                self._target_system_provider.yield_target_system(target_system)
+
+        return self._backend_transport is not None
 
     def open_channel(self, kind: str, chanid: int) -> int:
         """Tries to open a channel to the backend

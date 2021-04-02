@@ -23,7 +23,8 @@ class Server(paramiko.ServerInterface):
     _channels_done: Set[int]
 
     def __init__(
-            self, session: SSHSession,
+            self,
+            session: SSHSession,
             proxy_handler: ProxyHandler,
             usernames: Optional[List[str]],
             passwords: Optional[List[str]]) -> None:
@@ -78,9 +79,8 @@ class Server(paramiko.ServerInterface):
         self._update_last_activity()
         logger.info("Attacker requested a channel with the id %s and kind %s", chanid, kind)
         if kind == "session":
-            return self._proxy_handler.create_backend_connection(
-                "", "") and self._proxy_handler.open_channel(
-                kind, chanid)
+            return (self._proxy_handler.create_backend_connection()
+                    and self._proxy_handler.open_channel(kind, chanid))
 
         return OPEN_SUCCEEDED
 

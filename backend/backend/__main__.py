@@ -1,7 +1,6 @@
 """Main entrypoint for backend."""
 
 import logging
-import urllib.request
 import backend.container as container
 import backend.http_server as server
 import backend.config as config
@@ -13,17 +12,16 @@ def main():
     # Configure logging
     logging.basicConfig(level=logging.INFO)
 
-    # Find public server IP
-    # TODO: Is there any better way to get the public facing ip?
-    public_address = urllib.request.urlopen('https://ident.me').read().decode('utf-8')
-
     # Setup container management
     container_handler = container.Containers()
+
+    if config.TARGET_SYSTEM_ADDRESS is None:
+        raise TypeError('Environment variable TARGET_SYSTEM_ADDRESS must be set')
 
     # Run HTTP server
     http_server = server.start_http_server(
         container_handler,
-        public_address,
+        target_system_address=config.TARGET_SYSTEM_ADDRESS,
         bind_address=config.HTTP_API_BIND_ADDRESS)
     http_server.wait_for_termination()
 
