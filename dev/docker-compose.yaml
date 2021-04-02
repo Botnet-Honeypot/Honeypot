@@ -1,14 +1,14 @@
 version: "3"
 
-# docker-compose for starting a database and a frontend ssh server
-# starts the containers from ../database and ../frontend
+# docker-compose for starting a database, a frontend SSH server and a backend server
+# starts the containers from ../database, ../frontend and ../backend
 
-# database, to which other containers can connect via "database" alias (instead of IP)
 services:
+  # Database, to which other containers can connect via "database" alias (instead of IP)
   postgres:
     image: "postgres:latest"
     container_name: "postgres"
-    environment: 
+    environment:
       POSTGRES_DB: "honeypot_db"
       POSTGRES_USER: "user"
       POSTGRES_PASSWORD: "password"
@@ -19,24 +19,40 @@ services:
       - "../database/config:/docker-entrypoint-initdb.d"
     networks:
       dev:
-        aliases: 
+        aliases:
           - database
     restart: always
 
-# frontend
-  python-hp:
-    build: ../frontend
+  # Frontend
+  frontend:
+    build:
+      context: ..
+      dockerfile: frontend/Dockerfile
     ports:
       - "22:2222"
     volumes:
       - "../frontend/frontend:/usr/src/frontend/frontend"
     networks:
       dev:
-        aliases: 
+        aliases:
           - frontend
+    restart: always
+
+  # Backend
+  backend:
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile
+    ports:
+      - "80:80"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock"
+    networks:
+      dev:
+        aliases:
+          - backend
     restart: always
 
 # dev network
 networks:
   dev:
-

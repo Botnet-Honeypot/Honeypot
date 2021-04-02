@@ -3,7 +3,9 @@
     :raises exception: May raise exceptions on IOError (when appropriate) and Docker api failure
     :return: Returns a container handler that can start, stop, destroy containers as well as manage storage
     """
+import io
 import os
+import tarfile
 import logging
 from enum import Enum
 import docker
@@ -193,6 +195,10 @@ class Containers:
         :param container_id: container id to copy files to
         """
 
-        # Call docker cp from system
-        # Copies local dir ./custom-cont-init.d into volume of container copy at path /config
-        os.system(f"docker cp ./custom-cont-init.d/ {container_id}:/config")
+        # Creates tar archive of local directory ./custom-cont-init.d and
+        # transfers it into target container at path /config
+        tar_data = io.BytesIO()
+        with tarfile.open(fileobj=tar_data, mode='w') as tar:
+            tar.add('custom-cont-init.d/')
+        tar_data.seek(0)
+        self._client.containers.get(container_id).put_archive('/config', tar_data)

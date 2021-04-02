@@ -1,0 +1,11 @@
+# Ignore everything
+**
+
+# Besides some projects
+!frontend/
+!backend/
+
+# ------------ But ignore certain files inside projects ------------
+
+# Python compiled files
+**/__pycache__/
