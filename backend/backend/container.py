@@ -56,7 +56,7 @@ class Containers:
 
             # reload to get the correct port in config
             container.reload()
-            logging.info("Started contianer %s", config["ID"])
+            logging.info("Started container %s", config["ID"])
         except Exception as exception:
             raise exception
         else:
@@ -68,8 +68,8 @@ class Containers:
         :param container_id: The container id
         :return: The port bound to container container_id
         """
-        return self._client.containers.get(container_id).attrs["NetworkSettings"]["Ports"][
-            "2222/tcp"][0]["HostPort"]
+        return int(self._client.containers.get(container_id).attrs["NetworkSettings"]["Ports"][
+            "2222/tcp"][0]["HostPort"])
 
     def stop_container(self, container_id: str):
         """Stop a specified container

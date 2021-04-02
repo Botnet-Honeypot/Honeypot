@@ -1,0 +1,32 @@
+syntax = "proto3";
+
+package target_system_provider;
+
+// Service for providing target systems which can safely be connected to for execution of attacker commands.
+service TargetSystemProvider {
+    // Request to be provided a target system
+    // Returns error code UNAVAILABLE if no target system can currently be aqcuired. May be retried.
+    rpc AcquireTargetSystem (AcquisitionRequest) returns (AcquisitionResult) {}
+
+    // Request to give back an acquired target system
+    rpc YieldTargetSystem (YieldRequest) returns (YieldResult) {}
+}
+
+message AcquisitionRequest {
+    string user = 1;
+    string password = 2;
+}
+
+message AcquisitionResult {
+    string id = 1;
+    string address = 2;
+    uint32 port = 3;
+}
+
+message YieldRequest {
+    string id = 1;
+}
+
+message YieldResult {
+    // Collected data about system
+}

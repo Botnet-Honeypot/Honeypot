@@ -1,41 +1,31 @@
-import time
+"""Main entrypoint for backend."""
+
 import logging
-from backend.container import Containers, Status
-
-
-logger = logging.getLogger(__name__)
-
-
-container_handler = Containers()
-
-# Example code for showing multiple containers started and stopped
-# Some of the parameters should be given by the frontend of the honeypot via HTTP API.
+import urllib.request
+import backend.container as container
+import backend.http_server as server
+import backend.config as config
 
 
 def main():
+    """Main entrypoint for backend."""
 
-    container_id = 0
-    user = "user"
-    password = "password"
+    # Configure logging
+    logging.basicConfig(level=logging.INFO)
 
-    for container_id in range(5):
-        config = container_handler.format_config(container_id, user, password)
-        container_handler.create_container(config)
-        # get the port, for returning to frontend
-        port = container_handler.get_container_port(Containers.ID_PREFIX + str(container_id))
+    # Find public server IP
+    # TODO: Is there any better way to get the public facing ip?
+    public_address = urllib.request.urlopen('https://ident.me').read().decode('utf-8')
 
-    # Close and destroy containers after a delay
-    time.sleep(30)
+    # Setup container management
+    container_handler = container.Containers()
 
-    for container_id in range(5):
-        try:
-            container_handler.stop_container(Containers.ID_PREFIX + str(container_id))
-            container_handler.destroy_container(Containers.ID_PREFIX + str(container_id))
-            container_handler.prune_volumes()
-
-        except Exception as exception:
-            logging.error("Could not find or stop container %s", container_id)
-            raise exception
+    # Run HTTP server
+    http_server = server.start_http_server(
+        container_handler,
+        public_address,
+        bind_address=config.HTTP_API_BIND_ADDRESS)
+    http_server.wait_for_termination()
 
 
 if __name__ == '__main__':

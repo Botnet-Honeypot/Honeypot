@@ -7,6 +7,8 @@ authors = ["Your Name <you@example.com>"]
 [tool.poetry.dependencies]
 python = "^3.9"
 docker = "^4.4.4"
+protocols = { path = "../protocols", develop = false }
+python-dotenv = "^0.15.0"
 
 [tool.poetry.dev-dependencies]
 pylint = "^2.6.2"
@@ -17,6 +19,7 @@ pytest-cov = "^2.11.1"
 Sphinx = "^3.5.3"
 sphinx-rtd-theme = "^0.5.1"
 coverage = {extras = ["toml"], version = "^5.4"}
+hypothesis = "^6.8.1"
 
 # Pytest
 [tool.pytest.ini_options]
