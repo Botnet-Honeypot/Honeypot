@@ -126,3 +126,5 @@ class ConnectionManager(threading.Thread):
             logger.info("Remote SSH version %s", transport.remote_version)
 
             transport_manager.add_transport(TransportPair(transport, proxy_handler, server))
+
+        transport_manager.stop()
