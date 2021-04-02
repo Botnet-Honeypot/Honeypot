@@ -30,6 +30,21 @@ services:
       dockerfile: frontend/Dockerfile
     ports:
       - "22:22"
+    environment:
+      # Allowed usernames and passwords, multiple usernamse and passwords can be supplied
+      # by seperating them with ":". If they are left empty then everything is allowed
+      - SSH_ALLOWED_USERNAMES
+      - SSH_ALLOWED_PASSWORDS
+      - SSH_SERVER_PORT=22
+      - SSH_LOCAL_VERSION=SSH-2.0-dropbear_2019.78 # SSH version reported by the honeypot
+      - SSH_SESSION_TIMEOUT=600 # Timeout in seconds for when to treat an SSH connection inactive and end it
+      # Timeout in seconds for when waiting for a TCP connection to appear
+      # (5 seconds means it will check every five seconds if we want to shut it down)
+      - SSH_SOCKET_TIMEOUT=5
+      - SSH_MAX_UNACCEPTED_CONNECTIONS=100 # Max number of unacceped connections for the SSH socket
+      - ENABLE_DEBUG_LOGGING=False
+      - SSH_LOG_FILE=./honeypot.log # Log file to log to if debug logging is enable
+      - BACKEND_ADDRESS # Address to backend
     volumes:
       - "../frontend/frontend:/usr/src/frontend/frontend"
     networks:
