@@ -132,9 +132,8 @@ class Server(paramiko.ServerInterface):
             self, chanid: int, origin: Tuple[str, int],
             destination: Tuple[str, int]) -> int:
         self._update_last_activity()
-        logger.info(
-            "Got direct tcpip request for channel %s. origin: %s destination:%s", chanid,
-            origin, destination)
+        logger.info("Got direct tcpip request for channel %s. origin: %s destination:%s", chanid,
+                    origin, destination)
         return OPEN_SUCCEEDED
 
     def check_channel_x11_request(

@@ -34,4 +34,4 @@ SSH_ENABLE_DEBUG_LOGGING = bool(os.getenv('ENABLE_DEBUG_LOGGING', 'False'))
 # Log file for SSH if debug logging is enabled
 SSH_LOG_FILE = os.getenv('SSH_LOG_FILE', './honeypot.log')
 
-BACKEND_IP = os.getenv('BACKEND_IP')
+BACKEND_ADDRESS = os.getenv('BACKEND_ADDRESS')

@@ -100,14 +100,17 @@ class ProxyHandler:
     def close_connection(self) -> None:
         """This closes the backend connection and ends the session
         """
-        self._session_log.end()
+        try:
+            self._session_log.end()
+        except Exception as exc:
+            logger.exception("Failed to end a SSHLoggingSession", exc_info=exc)
         if not self._backend_connection_active:
             return
         # Close the backend connection
         try:
             self._backend_transport.close()
-        except Exception:
-            logger.exception("Failed to close backend transport")
+        except Exception as exc:
+            logger.exception("Failed to close backend transport", exc_info=exc)
 
     def create_backend_connection(self, username: str, password: str) -> bool:
         """Sets up the a SSH connection to the backend with the given username
@@ -252,11 +255,15 @@ def try_send_data(data, send_method) -> bool:
     try:
         send_method(data)
     except socket.timeout:
-        logger.warning("Timed out while trying to send data")
+        logger.error("Timed out while trying to send data")
         return False
     except socket.error:
-        logger.warning("Failed data")
+        logger.error("Failed data")
         return False
+    except Exception as exc:
+        logger.exception("Got exception while sending data", exc_info=exc)
+        return False
+
     return True
 
 
