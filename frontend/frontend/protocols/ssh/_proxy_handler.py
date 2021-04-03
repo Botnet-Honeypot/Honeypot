@@ -8,17 +8,19 @@ import threading
 from time import sleep, time
 from typing import Optional
 import itertools
+from dataclasses import dataclass
+
 
 import paramiko
 from paramiko import SSHException
-from paramiko.ssh_exception import AuthenticationException, BadHostKeyException
+from paramiko.ssh_exception import AuthenticationException
 from paramiko.transport import Transport
 from paramiko.channel import Channel
 from paramiko.common import (OPEN_FAILED_ADMINISTRATIVELY_PROHIBITED, OPEN_SUCCEEDED)
 
 from frontend.honeylogger import SSHSession
+from frontend.target_systems import TargetSystemProvider, TargetSystem
 from ._command_parser import CommandParser
-from frontend.target_systems import TargetSystemProvider
 
 logger = logging.getLogger(__name__)
 
@@ -28,8 +30,23 @@ class ProxyHandler:
     to corresponding backend channels
     """
 
-    # SSH transport to the backend, None if not open
-    _backend_transport: Optional[Transport]
+    @dataclass
+    class TargetSystemConnection:
+        """Info about an active connection to a target system"""
+        # The target system the connection points to
+        target_system: TargetSystem
+        # SSH transport to target system
+        transport: Transport
+
+    @dataclass
+    class AttackerCredentials:
+        """The credentials the attacker used to login to the SSH server"""
+        username: str
+        password: str
+
+    # Connection to target system, None if not connected
+    _connection: Optional[TargetSystemConnection]
+
     # Dict mapping the attacker channel IDs to a proxy channel to the backend
     _backend_chan_proxies: dict[int, Channel]
 
@@ -39,13 +56,28 @@ class ProxyHandler:
     # The provider used to acquire a target system for this attacker connection
     _target_system_provider: TargetSystemProvider
 
+    # The credentials the attacker used to login to the SSH server
+    _attacker_credentials: Optional[AttackerCredentials]
+
     def __init__(self,
                  session_log: SSHSession,
                  target_system_provider: TargetSystemProvider) -> None:
-        self._backend_transport = None
+        self._connection = None
         self._backend_chan_proxies = dict()
         self._session_log = session_log
         self._target_system_provider = target_system_provider
+        self._attacker_credentials = None
+
+    def set_attacker_credentials(self, username: str, password: str):
+        """Sets the credentials used by the attacker
+        which should be forwarded to the target system.
+
+        :param username: The attacker username
+        :param password: The attacker password
+        """
+        self._attacker_credentials = ProxyHandler.AttackerCredentials(
+            username, password
+        )
 
     @staticmethod
     def _open_proxy_transport(ip_address: str, port: int,
@@ -66,9 +98,21 @@ class ProxyHandler:
         try:
             for num_retries in itertools.count():
                 try:
-                    client.connect(ip_address, port=port, username=username, password=password)
-                    transport = client.get_transport()
+                    # try:
+                    client.connect(ip_address, port=port,
+                                   username=username, password=password,
+                                   allow_agent=False, look_for_keys=False)
+                    # except AuthenticationException:
+                    #    # Workaround since Paramiko does not seem to handle
+                    #    # empty passwords at all
+                    #    # https://github.com/paramiko/paramiko/issues/890
+                    #
+                    #    if len(password) == 0:
+                    #        client.get_transport().auth_none(username)
+                    #    else:
+                    #        raise
 
+                    transport = client.get_transport()
                     if transport is None:
                         raise SSHException(
                             f"Failed to obtain SSH transport for {ip_address}:{port}")
@@ -123,18 +167,19 @@ class ProxyHandler:
         return chan
 
     def close_connection(self) -> None:
-        """This closes the backend connection and ends the session
-        """
+        """This closes the backend connection and ends the session"""
+
         self._session_log.end()
-        if self._backend_transport is None:
+        if self._connection is None:
             return
         # Close the backend connection
         try:
-            self._backend_transport.close()
+            self._connection.transport.close()
         except Exception:
             logger.exception("Failed to close backend transport")
         finally:
-            self._backend_transport = None
+            self._target_system_provider.yield_target_system(self._connection.target_system)
+            self._connection = None
 
     def create_backend_connection(self) -> bool:
         """Sets up the a SSH connection to the backend
@@ -142,10 +187,12 @@ class ProxyHandler:
         :return: True if the connection was successful
         """
 
-        username = 'aaa'
-        password = 'bbb'
+        if self._attacker_credentials is None:
+            raise ValueError('Attacker credentials must be set before connecting to target system')
+        username = self._attacker_credentials.username
+        password = self._attacker_credentials.password
 
-        if self._backend_transport is not None:
+        if self._connection is not None:
             # Connction already opened
             return True
 
@@ -156,26 +203,30 @@ class ProxyHandler:
         if target_system is None:
             logger.warning('No target system was available to be acquired')
             return False
-        t1 = time()
-        try:
-            # Open the backend transport
-            logger.debug('Connecting to target system %s:%d...',
-                         target_system.address, target_system.port)
-            self._backend_transport = self._open_proxy_transport(target_system.address,
-                                                                 target_system.port,
-                                                                 username, password)
-            t2 = time()
-            print(f'Acquire: {t1-t0}')
-            print(f'Connect: {t2-t1}')
-            print(f'Total: {t2-t0}')
-        finally:
-            if self._backend_transport is None:
-                # If connection to target system failed, yield it back to provider
-                logger.debug('Failed to connect to %s:%d, yielding target system...',
-                             target_system.address, target_system.port)
-                self._target_system_provider.yield_target_system(target_system)
 
-        return self._backend_transport is not None
+        t1 = time()
+        # Open the backend transport
+        logger.debug('Connecting to target system %s:%d...',
+                     target_system.address, target_system.port)
+        transport = self._open_proxy_transport(target_system.address,
+                                               target_system.port,
+                                               username, password)
+        t2 = time()
+        logger.debug('Acquire duration: %f', t1-t0)
+        logger.debug('Connect duration: %d', t2-t1)
+        logger.debug('Total duration: %f', t2-t0)
+
+        if transport is None:
+            # If connection to target system failed, yield it back to provider
+            logger.debug('Failed to connect to %s:%d, yielding target system...',
+                         target_system.address, target_system.port)
+            self._target_system_provider.yield_target_system(target_system)
+            return False
+
+        self._connection = ProxyHandler.TargetSystemConnection(
+            target_system, transport
+        )
+        return True
 
     def open_channel(self, kind: str, chanid: int) -> int:
         """Tries to open a channel to the backend
@@ -184,8 +235,11 @@ class ProxyHandler:
         :param chanid: The channel id of the channel that the attacker requested
         :return: An int given by paramiko
         """
+        if self._connection is None:
+            raise ValueError('Backend connection is not open')
+
         try:
-            chan = self._backend_transport.open_channel(kind)
+            chan = self._connection.transport.open_channel(kind)
         except SSHException:
             logger.error("Failed to open a new channel with kind %s on the backend", kind)
             return OPEN_FAILED_ADMINISTRATIVELY_PROHIBITED

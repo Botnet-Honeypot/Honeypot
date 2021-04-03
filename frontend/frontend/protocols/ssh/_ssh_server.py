@@ -64,6 +64,7 @@ class Server(paramiko.ServerInterface):
         if self._usernames is not None and not username in self._usernames:
             return AUTH_FAILED
         if self._passwords is None or password in self._passwords:
+            self._proxy_handler.set_attacker_credentials(username, password)
             return AUTH_SUCCESSFUL
         return AUTH_FAILED
 
