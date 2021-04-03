@@ -9,16 +9,16 @@ import frontend.protocols.ssh
 logger = logging.getLogger(__name__)
 
 
-def main() -> None:
-    """Entrypoint for the honeypot frontend"""
-
-    # Set up logging
+def setup_logging():
     root_logger = logging.getLogger()
+
+    # Console handler
     coloredlogs.install(
-        logging.INFO, logger=root_logger,
+        logging.NOTSET, logger=root_logger,
         fmt='%(asctime)s %(levelname)-8s %(message)s (%(threadName)s, %(name)s)',
         datefmt='%Y-%m-%d %H:%M:%S')
 
+    # File handler
     file_formatter = logging.Formatter(
         fmt='%(asctime)s %(levelname)-8s %(message)s (%(threadName)s, %(name)s)',
         datefmt='%Y-%m-%d %H:%M:%S')
@@ -26,9 +26,20 @@ def main() -> None:
     file_handler.setFormatter(file_formatter)
     root_logger.addHandler(file_handler)
 
+    # Log levels
+    root_logger = logging.getLogger()
+    root_logger.setLevel(logging.INFO)
+
     if config.SSH_ENABLE_DEBUG_LOGGING:
         ssh_logger = logging.getLogger(frontend.protocols.ssh.__name__)
         ssh_logger.setLevel(logging.DEBUG)
+
+
+def main() -> None:
+    """Entrypoint for the honeypot frontend"""
+
+    # Set up logging
+    setup_logging()
 
     # Start SSH server
     logger.info('Starting SSH server...')
