@@ -19,7 +19,7 @@ services:
       - SSH_SOCKET_TIMEOUT=5
       - SSH_MAX_UNACCEPTED_CONNECTIONS=100 # Max number of unacceped connections for the SSH socket
       - ENABLE_DEBUG_LOGGING=False
-      - SSH_LOG_FILE=./honeypot.log # Log file to log to if debug logging is enable
+      - SSH_LOG_FILE=./frontend/honeypot.log # Log file to log to
       - BACKEND_ADDRESS # Address to backend
     volumes:
       - "./frontend:/usr/src/frontend/frontend"
