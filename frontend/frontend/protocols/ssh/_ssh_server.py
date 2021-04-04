@@ -24,11 +24,12 @@ class Server(paramiko.ServerInterface):
     _channels_done: Set[int]
 
     def __init__(
-            self, session: SSHSession,
+            self, transport: paramiko.Transport, session: SSHSession,
             proxy_handler: ProxyHandler,
             usernames: Optional[List[str]],
             passwords: Optional[List[str]]) -> None:
         super().__init__()
+        self._transport = transport
         self._usernames = usernames
         self._passwords = passwords
         self._session = session
@@ -52,10 +53,10 @@ class Server(paramiko.ServerInterface):
         # Make sure to start the logging session if it isn't started
         if not self._logging_session_started:
             try:
-                self._session.begin()
+                self._session.begin(self._transport.remote_version)
                 self._logging_session_started = True
-            except Exception:
-                logger.exception("Failed to start the SSH logging session")
+            except Exception as exc:
+                logger.exception("Failed to start the SSH logging session", exc_info=exc)
         self._last_activity = datetime.datetime.now()
 
     def check_auth_password(self, username: str, password: str) -> int:

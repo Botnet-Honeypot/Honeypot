@@ -25,10 +25,10 @@ class ConsoleLogSSHSession():
         self.dst_address = str(dst_address)
         self.dst_port = dst_port
 
-    def begin(self) -> None:
+    def begin(self, ssh_version: str) -> None:
         logger.info(
-            "SSH session from %s:%i to %s:%i began",
-            self.src_address, self.src_port,
+            "SSH session (Version: %s) from %s:%i to %s:%i began",
+            ssh_version, self.src_address, self.src_port,
             self.dst_address, self.dst_port)
 
     def log_pty_request(self, term: str,

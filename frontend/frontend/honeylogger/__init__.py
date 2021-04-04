@@ -25,8 +25,11 @@ class Session(Protocol):
     """Representation of an attacker's session while being connected to the honeypot."""
 
     @abstractmethod
-    def begin(self) -> None:
-        """Begins the logging session"""
+    def begin(self, ssh_version: str) -> None:
+        """Begins the logging session
+
+        :param ssh_version: The SSH version of the client connecting
+        """
         raise NotImplementedError
 
     @abstractmethod

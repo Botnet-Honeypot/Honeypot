@@ -52,7 +52,7 @@ class PostgresLogSSHSession:
         self.dst_address = dst_address
         self.dst_port = dst_port
 
-    def begin(self) -> None:
+    def begin(self, ssh_version: str) -> None:
         if self.session_id is not None:
             raise ValueError('Logging session was already started')
 
@@ -62,10 +62,10 @@ class PostgresLogSSHSession:
                 with conn.cursor() as cur:
                     insert_network_source(cur, self.src_address)
                     cur.execute("""
-                        INSERT INTO Session (attack_src, protocol, src_port, dst_ip, dst_port)
-                            VALUES (%s, 'ssh', %s, %s, %s)
+                        INSERT INTO Session (ssh_version, attack_src, protocol, src_port, dst_ip, dst_port)
+                            VALUES (%s, %s, 'ssh', %s, %s, %s)
                             RETURNING id
-                        """, (str(self.src_address), self.src_port, str(self.dst_address), self.dst_port))
+                        """,  (ssh_version, str(self.src_address), self.src_port, str(self.dst_address), self.dst_port))
 
                     self.session_id = cur.fetchone()[0]
         finally:

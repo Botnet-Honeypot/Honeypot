@@ -19,6 +19,7 @@ CREATE TABLE NetworkSource
 CREATE TABLE Session
 (
   id              serial    NOT NULL,
+  ssh_version     text      NOT NULL,
   attack_src      inet      NOT NULL,
   protocol        text      NOT NULL,
   src_port        int       NOT NULL,

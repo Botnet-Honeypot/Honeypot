@@ -112,7 +112,7 @@ class ConnectionManager(threading.Thread):
 
             proxy_handler = ProxyHandler(session)
             transport.add_server_key(self._host_key)
-            server = Server(session, proxy_handler, self._usernames, self._passwords)
+            server = Server(transport, session,  proxy_handler, self._usernames, self._passwords)
             try:
                 transport.start_server(server=server)
             except SSHException:
@@ -123,7 +123,6 @@ class ConnectionManager(threading.Thread):
             except Exception:
                 logger.exception("Failed to start the SSH server for %s", addr[0])
                 continue
-            logger.info("Remote SSH version %s", transport.remote_version)
 
             transport_manager.add_transport(TransportPair(transport, proxy_handler, server))
 

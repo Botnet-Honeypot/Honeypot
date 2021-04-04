@@ -35,7 +35,9 @@ def proxy_handler(logger) -> ProxyHandler:
 
 @pytest.fixture()
 def ssh_server(logger, proxy_handler) -> Server:
-    return Server(logger, proxy_handler, [""], [""])
+    transport_mock = MagicMock()
+    transport_mock.remote_version = "ExampleVersion"
+    return Server(transport_mock, logger, proxy_handler, [""], [""])
 
 
 def test_update_last_activity_without_started_session(ssh_server: Server, logger: SSHSession):
