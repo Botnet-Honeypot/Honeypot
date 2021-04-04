@@ -1,3 +1,4 @@
+from ipaddress import AddressValueError, IPv4Address
 import logging
 import datetime
 from typing import List, Optional, Set, Tuple
@@ -123,27 +124,29 @@ class Server(paramiko.ServerInterface):
 
     def check_channel_env_request(self, channel: Channel, name: str, value: str) -> bool:
         self._update_last_activity()
-        logger.info(
-            "Got env request for channel %s. name: %s value:%s", channel.chanid,
-            name, value)
+        self._session.log_env_request(channel.chanid, name, value)
         return False
 
     def check_channel_direct_tcpip_request(
             self, chanid: int, origin: Tuple[str, int],
             destination: Tuple[str, int]) -> int:
         self._update_last_activity()
-        logger.info(
-            "Got direct tcpip request for channel %s. origin: %s destination:%s", chanid,
-            origin, destination)
+        try:
+            ip = IPv4Address(origin[0])
+            self._session.log_direct_tcpip_request(
+                chanid, ip, origin[1],
+                destination[0],
+                destination[1])
+        except AddressValueError:
+            pass
         return OPEN_SUCCEEDED
 
     def check_channel_x11_request(
             self, channel: Channel, single_connection: bool, auth_protocol: str, auth_cookie: bytes,
             screen_number: int) -> bool:
         self._update_last_activity()
-        logger.info(
-            "Got x11 request on channel %s. single_connection: %s auth_protocol: %s auth_cookie: %s screen_number: %s",
-            channel.chanid, single_connection, auth_protocol, auth_cookie, screen_number)
+        self._session.log_x11_request(channel.chanid, single_connection,
+                                      auth_protocol, memoryview(auth_cookie), screen_number)
         return False
 
     def check_channel_forward_agent_request(self, channel: Channel) -> bool:
@@ -153,5 +156,5 @@ class Server(paramiko.ServerInterface):
 
     def check_port_forward_request(self, address: str, port: int) -> int:
         self._update_last_activity()
-        logger.info("Got port forward request. Address: %s, Port: %s", address, port)
+        self._session.log_port_forward_request(address, port)
         return False

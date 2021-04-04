@@ -49,6 +49,10 @@ CREATE TABLE EventType
 
 INSERT INTO EventType VALUES
   ('pty_request'),
+  ('env_request'),
+  ('direct_tcpip_request'),
+  ('x_eleven_request'),
+  ('port_forward_request'),
   ('command'),
   ('ssh_channel_output'),
   ('download'),
@@ -88,6 +92,81 @@ CREATE TABLE PTYRequest
     REFERENCES Event (id, type, session_protocol),
   CONSTRAINT Check_Correct_Type
     CHECK (event_type = 'pty_request'),
+  CONSTRAINT Check_Correct_Protocol
+    CHECK (session_protocol = 'ssh')
+);
+
+CREATE TABLE EnvRequest
+(
+  event_id            int   NOT NULL,
+  event_type          text  NOT NULL DEFAULT 'env_request',
+  session_protocol    text  NOT NULL DEFAULT 'ssh',
+  channel_id          int   NOT NULL,
+  name                text  NOT NULL,
+  value               text  NOT NULL,
+  PRIMARY KEY (event_id, event_type),
+  CONSTRAINT FK_EnvRequest_TO_Event
+    FOREIGN KEY (event_id, event_type, session_protocol)
+    REFERENCES Event (id, type, session_protocol),
+  CONSTRAINT Check_Correct_Type
+    CHECK (event_type = 'env_request'),
+  CONSTRAINT Check_Correct_Protocol
+    CHECK (session_protocol = 'ssh')
+);
+
+CREATE TABLE DirectTCPIPRequest
+(
+  event_id            int   NOT NULL,
+  event_type          text  NOT NULL DEFAULT 'direct_tcpip_request',
+  session_protocol    text  NOT NULL DEFAULT 'ssh',
+  channel_id          int   NOT NULL,
+  origin_ip           inet  NOT NULL,
+  origin_port         int   NOT NULL,
+  destination         text  NOT NULL,
+  destination_port    int   NOT NULL,
+  PRIMARY KEY (event_id, event_type),
+  CONSTRAINT FK_DirectTCPIPRequest_TO_Event
+    FOREIGN KEY (event_id, event_type, session_protocol)
+    REFERENCES Event (id, type, session_protocol),
+  CONSTRAINT Check_Correct_Type
+    CHECK (event_type = 'direct_tcpip_request'),
+  CONSTRAINT Check_Correct_Protocol
+    CHECK (session_protocol = 'ssh')
+);
+
+CREATE TABLE XElevenRequest
+(
+  event_id            int     NOT NULL,
+  event_type          text    NOT NULL DEFAULT 'x_eleven_request',
+  session_protocol    text    NOT NULL DEFAULT 'ssh',
+  channel_id          int     NOT NULL,
+  single_connection   boolean NOT NULL,
+  auth_protocol       text    NOT NULL,
+  auth_cookie         bytea   NOT NULL,
+  screen_number       int     NOT NULL,
+  PRIMARY KEY (event_id, event_type),
+  CONSTRAINT FK_XElevenRequest_TO_Event
+    FOREIGN KEY (event_id, event_type, session_protocol)
+    REFERENCES Event (id, type, session_protocol),
+  CONSTRAINT Check_Correct_Type
+    CHECK (event_type = 'x_eleven_request'),
+  CONSTRAINT Check_Correct_Protocol
+    CHECK (session_protocol = 'ssh')
+);
+
+CREATE TABLE PortForwardRequest
+(
+  event_id            int     NOT NULL,
+  event_type          text    NOT NULL DEFAULT 'port_forward_request',
+  session_protocol    text    NOT NULL DEFAULT 'ssh',
+  address             text    NOT NULL,
+  port                int     NOT NULL,
+  PRIMARY KEY (event_id, event_type),
+  CONSTRAINT FK_PortForwardRequest_TO_Event
+    FOREIGN KEY (event_id, event_type, session_protocol)
+    REFERENCES Event (id, type, session_protocol),
+  CONSTRAINT Check_Correct_Type
+    CHECK (event_type = 'port_forward_request'),
   CONSTRAINT Check_Correct_Protocol
     CHECK (session_protocol = 'ssh')
 );
