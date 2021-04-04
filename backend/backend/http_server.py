@@ -51,6 +51,7 @@ class TargetSystemProvider(tsp.TargetSystemProviderServicer):
     def YieldTargetSystem(self, request, context):
         try:
             self.container_handler.stop_container(request.id)
+            # Collect info
             self.container_handler.destroy_container(request.id)
             # TODO: Properly cleanup after information is preserved and sent back to client
             # self.container_handler.prune_volumes()
