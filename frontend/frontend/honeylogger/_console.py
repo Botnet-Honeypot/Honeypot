@@ -48,7 +48,6 @@ class ConsoleLogSSHSession():
                     self.source, input)
 
     def log_ssh_channel_output(self, data: memoryview, channel: int) -> None:
-        return
         logger.info("[%s] Output recieved on channel %d",
                     self.source, channel)
 

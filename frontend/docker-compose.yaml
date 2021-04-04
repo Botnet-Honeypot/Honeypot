@@ -5,7 +5,7 @@ services:
       context: ..
       dockerfile: frontend/Dockerfile
     ports:
-      - "2222:22"
+      - "22:22"
     environment:
       # Allowed usernames and passwords, multiple usernamse and passwords can be supplied
       # by seperating them with ":". If they are left empty then everything is allowed

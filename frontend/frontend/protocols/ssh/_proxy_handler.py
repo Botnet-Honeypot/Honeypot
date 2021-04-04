@@ -191,6 +191,11 @@ class ProxyHandler:
             return False
 
         self._session_log.log_command(cmd)
+        # Not sure if it will be included in the channel output since only data from
+        # the backend connection is logged. Therefore we log the attacker command here aswell
+        self._session_log.log_ssh_channel_output(
+            memoryview(f"Attacker exec request command: {cmd}\r\n".encode("utf-8")),
+            attacker_channel.chanid)
 
         handle_thread = threading.Thread(
             target=proxy_data, args=(attacker_channel, backend_channel, self._session_log))
@@ -257,8 +262,8 @@ def try_send_data(data, send_method) -> bool:
     except socket.timeout:
         logger.error("Timed out while trying to send data")
         return False
-    except socket.error:
-        logger.error("Failed data")
+    except socket.error as exc:
+        logger.exception("Got socket error while sending data", exc_info=exc)
         return False
     except Exception as exc:
         logger.exception("Got exception while sending data", exc_info=exc)
