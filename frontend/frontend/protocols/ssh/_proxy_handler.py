@@ -179,9 +179,9 @@ class ProxyHandler:
             return
         # Close the backend connection
         try:
-            self._connection.close()
         except Exception as exc:
             logger.exception("Failed to close backend transport", exc_info=exc)
+            self._connection.transport.close()
         finally:
             self._target_system_provider.yield_target_system(self._connection.target_system)
             self._connection = None
