@@ -1,5 +1,5 @@
 from frontend.honeylogger import create_ssh_session
-from ipaddress import IPv4Address, ip_address
+from ipaddress import ip_address
 
 
 def test_no_runtime_errors():
