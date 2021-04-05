@@ -126,9 +126,17 @@ class Server(paramiko.ServerInterface):
         return self._proxy_handler.handle_window_change_request(
             channel, width, height, pixelwidth, pixelheight)
 
-    def check_channel_env_request(self, channel: Channel, name: str, value: str) -> bool:
+    def check_channel_env_request(self, channel: Channel, name: bytes, value: bytes) -> bool:
         self._update_last_activity()
-        self._session.log_env_request(channel.chanid, name, value)
+        try:
+            name_string = name.decode("utf-8")
+            value_string = value.decode("utf-8")
+        except UnicodeDecodeError:
+            logger.error("Failed to decode the env requset  with name: %s and value: %s",
+                         name, value)
+            return False
+
+        self._session.log_env_request(channel.chanid, name_string, value_string)
         return False
 
     def check_channel_direct_tcpip_request(
