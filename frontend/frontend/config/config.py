@@ -34,4 +34,6 @@ SSH_ENABLE_DEBUG_LOGGING = os.getenv('ENABLE_DEBUG_LOGGING', 'False') == 'True'
 # Log file for SSH if debug logging is enabled
 SSH_LOG_FILE = os.getenv('SSH_LOG_FILE', './honeypot.log')
 
+# The address to a host running a server supporting the target_system_provider gRCP protocol
+# Example: localhost:80
 BACKEND_ADDRESS = os.getenv('BACKEND_ADDRESS')

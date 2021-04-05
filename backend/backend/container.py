@@ -1,22 +1,19 @@
-"""Contains class and methods used for handling docker containers
+"""Contains class and methods used for handling docker containers"""
 
-    :raises exception: May raise exceptions on IOError (when appropriate) and Docker api failure
-    :return: Returns a container handler that can start, stop, destroy containers as well as manage storage
-    """
 import io
-import os
 import tarfile
 import logging
 from enum import Enum
+from typing import cast
 import docker
+from docker.models.containers import Container
 
 
 logger = logging.getLogger(__name__)
 
 
 class Status(Enum):
-    """Enum for the status of a container
-    """
+    """Enum for the status of a container"""
     UNDEFINED = "undefined"
     NOTFOUND = "not found"
     PAUSED = "paused"
@@ -26,13 +23,16 @@ class Status(Enum):
 
 
 class Containers:
-    """Class for handling docker containers, as well as format the parameters for them
-    """
+    """Class for handling docker containers, as well as format the parameters for them"""
+
     ID_PREFIX = "openssh-server"
 
     def __init__(self):
         self._client = docker.from_env()
         self._client.images.pull('ghcr.io/linuxserver/openssh-server:latest')
+
+    def _get_container(self, container_id: str) -> Container:
+        return cast(Container, self._client.containers.get(container_id))
 
     def create_container(self, config: dict):
         """Creates a docker container with the specified container_id, exposes the specified SSH port,
@@ -42,25 +42,31 @@ class Containers:
         containing all environment variables and config needed for setting up a container.
         """
 
-        try:
-            container = self._client.containers.create(
-                config["Image"],
-                environment=config["Environment"],
-                hostname=config["Hostname"],
-                name=config["ID"],
-                ports=config["Port"],
-                volumes=config["Volumes"])
+        container = cast(Container, self._client.containers.create(
+            config["Image"],
+            environment=config["Environment"],
+            hostname=config["Hostname"],
+            name=config["ID"],
+            ports=config["Port"],
+            volumes=config["Volumes"]))
 
-            self.copy_init_to_volume(config["ID"])
-            self._client.containers.get(config["ID"]).start()
+        self.copy_init_to_volume(config["ID"])
+        container.start()
 
-            # reload to get the correct port in config
-            container.reload()
-            logging.info("Started container %s", config["ID"])
-        except Exception as exception:
-            raise exception
-        else:
-            logger.info("Successfully started container %s", config["ID"])
+        # reload to get the correct port in config
+        container.reload()
+
+        logger.info("Started container %s, waiting for it to be ready...", config["ID"])
+
+        # Wait for container SSH-server to be ready
+        while True:
+            exit_code, _ = container.exec_run(
+                '/bin/bash -c "$(s6-svstat -u /run/s6/services/openssh-server) || exit 1"',
+                stdout=False, stderr=False)
+            if exit_code == 0:
+                break
+
+        logger.info("Container %s ready", config["ID"])
 
     def get_container_port(self, container_id: str) -> int:
         """Returns the port bound to a container. Undefined if multiple ports are used.
@@ -76,24 +82,16 @@ class Containers:
 
         :param container_id: ID (name) of container to be stopped
         """
-        try:
-            self._client.containers.get(container_id).stop()
-            logging.info("Stopped container %s", container_id)
-        except Exception as exception:
-            raise exception
-        else:
-            logger.info("Stopped container %s", container_id)
+        self._get_container(container_id).stop()
+        logger.info("Stopped container %s", container_id)
 
     def destroy_container(self, container_id: str):
         """Destroy a specified container
 
         :param container_id: ID (name) of container to be destroyed
         """
-        try:
-            self._client.containers.get(container_id).remove()
-            logging.info("Destroyed container %s", container_id)
-        except Exception as exception:
-            raise exception
+        self._get_container(container_id).remove()
+        logger.info("Destroyed container %s", container_id)
 
     def prune_volumes(self):
         """Removes storage volumes for all inactive (destroyed) containers
@@ -101,7 +99,7 @@ class Containers:
         :param container_id: ID (name) of which container's storage directory to remove
         """
         self._client.volumes.prune()
-        logging.info("Pruned all unused volumes")
+        logger.info("Pruned all unused volumes")
 
     def get_volume(self, volume_id: str):
         """Returns the specified volume in form <Volume: short_id>,
@@ -109,10 +107,7 @@ class Containers:
 
         :param volume_id: The name of the volume
         """
-        try:
-            return self._client.volumes.get(volume_id)
-        except Exception as exception:
-            raise exception
+        return self._client.volumes.get(volume_id)
 
     def status_container(self, container_id: str) -> Status:
         """Return the status of a specific container with the container_id argument
@@ -162,14 +157,24 @@ class Containers:
         _home_path = _container_id + "home"
 
         # Format the config dict of this container
-        config = {'Image': image, 'ID': _container_id, 'Environment': self.format_environment(
-            user, password, user_id, group_id, timezone, sudo_access),
+        config = {
+            'Image': image,
+            'ID': _container_id,
+            'Environment': self.format_environment(
+                user, password, user_id, group_id, timezone, sudo_access
+            ),
             'Port': {'2222/tcp': port},
-            'User': user, 'Password': password, 'Hostname': hostname, 'UID': user_id,
-            'GID': group_id, 'Timezone': timezone, 'SUDO': sudo_access,
-            'Volumes':
-            {_config_path: {'bind': '/config', 'mode': 'rw'},
-             _home_path: {'bind': '/home', 'mode': 'rw'}}}
+            'User': user, 'Password': password,
+            'Hostname': hostname,
+            'UID': user_id,
+            'GID': group_id,
+            'Timezone': timezone,
+            'SUDO': sudo_access,
+            'Volumes': {
+                _config_path: {'bind': '/config', 'mode': 'rw'},
+                _home_path: {'bind': '/home', 'mode': 'rw'}
+            },
+        }
         return config
 
     def format_environment(
@@ -201,4 +206,4 @@ class Containers:
         with tarfile.open(fileobj=tar_data, mode='w') as tar:
             tar.add('custom-cont-init.d/')
         tar_data.seek(0)
-        self._client.containers.get(container_id).put_archive('/config', tar_data)
+        self._get_container(container_id).put_archive('/config', tar_data)

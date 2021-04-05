@@ -4,7 +4,7 @@ import logging
 import threading
 import socket
 from ipaddress import ip_address
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, create_autospec, patch
 
 import pytest
 import paramiko
@@ -13,6 +13,7 @@ from frontend.protocols.ssh._proxy_handler import ProxyHandler, try_send_data, p
 from frontend.honeylogger import SSHSession
 from frontend.honeylogger._console import ConsoleLogSSHSession
 import frontend.protocols.ssh._proxy_handler
+from frontend.target_systems import TargetSystemProvider
 
 debug_log = frontend.protocols.ssh._proxy_handler.logger
 
@@ -20,6 +21,11 @@ debug_log = frontend.protocols.ssh._proxy_handler.logger
 @pytest.fixture()
 def logger() -> SSHSession:
     return ConsoleLogSSHSession(ip_address("1.1.1.1"), 1, ip_address("2.2.2.2"), 2)
+
+
+@pytest.fixture()
+def target_system_provider(logger) -> ProxyHandler:
+    return create_autospec(TargetSystemProvider)
 
 
 def test_try_send_data():
@@ -36,68 +42,72 @@ def test_try_send_data():
 
 
 @patch.object(paramiko.SSHClient, 'connect', return_value=None)
-def test_error_transport_none_connect(connect_mock, logger):
+def test_error_transport_none_connect(connect_mock, logger, target_system_provider):
     debug_log.exception = MagicMock()
     debug_log.error = MagicMock()
 
-    p = ProxyHandler(logger)
-    p._open_proxy_transport("", 0, "", "")
+    p = ProxyHandler(logger, target_system_provider)
+    p._open_proxy_transport("", 0, "", "", max_retries=0)
 
-    connect_mock.assert_called_once_with("", port=0, username="", password="")
-    debug_log.error.assert_called_once()
-    debug_log.exception.assert_not_called()
+    connect_mock.assert_called_once_with("", port=0, username="", password="",
+                                         allow_agent=False, look_for_keys=False)
+    debug_log.error.assert_not_called()
+    debug_log.exception.assert_called_once()
 
 
 @patch.object(paramiko.SSHClient, 'get_transport', return_value=1)
 @patch.object(paramiko.SSHClient, 'connect', return_value=None)
-def test_connect(connect_mock, get_transport_mock, logger):
+def test_connect(connect_mock, get_transport_mock, logger, target_system_provider):
     debug_log.exception = MagicMock()
     debug_log.error = MagicMock()
 
-    p = ProxyHandler(logger)
-    p._open_proxy_transport("", 0, "", "")
+    p = ProxyHandler(logger, target_system_provider)
+    result = p._open_proxy_transport("", 0, "", "", max_retries=0)
 
-    connect_mock.assert_called_once_with("", port=0, username="", password="")
+    connect_mock.assert_called_once_with("", port=0, username="", password="",
+                                         allow_agent=False, look_for_keys=False)
     debug_log.error.assert_not_called()
     debug_log.exception.assert_not_called()
-    assert p._backend_connection_active
+    assert result is not None
 
 
 @patch.object(paramiko.SSHClient, 'connect', side_effect=paramiko.SSHException)
-def test_ssh_exception(connect_mock, logger):
+def test_ssh_exception(connect_mock, logger, target_system_provider):
     debug_log.exception = MagicMock()
 
-    p = ProxyHandler(logger)
-    p._open_proxy_transport("", 0, "", "")
+    p = ProxyHandler(logger, target_system_provider)
+    p._open_proxy_transport("", 0, "", "", max_retries=0)
 
-    connect_mock.assert_called_once_with("", port=0, username="", password="")
+    connect_mock.assert_called_once_with("", port=0, username="", password="",
+                                         allow_agent=False, look_for_keys=False)
     debug_log.exception.assert_called_once()
 
 
 @patch.object(paramiko.SSHClient, 'connect', side_effect=socket.error)
-def test_socket_error(connect_mock, logger):
+def test_socket_error(connect_mock, logger, target_system_provider):
     debug_log.exception = MagicMock()
 
-    p = ProxyHandler(logger)
-    p._open_proxy_transport("", 0, "", "")
+    p = ProxyHandler(logger, target_system_provider)
+    p._open_proxy_transport("", 0, "", "", max_retries=0)
 
-    connect_mock.assert_called_once_with("", port=0, username="", password="")
+    connect_mock.assert_called_once_with("", port=0, username="", password="",
+                                         allow_agent=False, look_for_keys=False)
     debug_log.exception.assert_called_once()
 
 
-def test_get_corresponding_backend_channel_error(logger):
-    p = ProxyHandler(logger)
+def test_get_corresponding_backend_channel_error(logger, target_system_provider):
+    p = ProxyHandler(logger, target_system_provider)
 
     # No such channel available
     with pytest.raises(KeyError):
         p._get_corresponding_backend_channel(1)
 
 
-def test_get_corresponding_backend_channel_ok(logger):
+def test_get_corresponding_backend_channel_ok(logger, target_system_provider):
     debug_log.error = MagicMock()
     debug_log.exception = MagicMock()
 
-    p = ProxyHandler(logger)
+    p = ProxyHandler(logger, target_system_provider)
     c = paramiko.Channel(0)
     p._backend_chan_proxies[1] = c
 
@@ -107,17 +117,17 @@ def test_get_corresponding_backend_channel_ok(logger):
     debug_log.error.assert_not_called()
 
 
-def test_handle_exec_keyerror(logger):
-    p = ProxyHandler(logger)
+def test_handle_exec_keyerror(logger, target_system_provider):
+    p = ProxyHandler(logger, target_system_provider)
     p._get_corresponding_backend_channel = MagicMock(side_effect=KeyError)
 
     assert p.handle_exec_request(paramiko.Channel(0), b"") == False
 
 
-def test_handle_exec_unicodeerror(logger):
+def test_handle_exec_unicodeerror(logger, target_system_provider):
     debug_log.error = MagicMock()
 
-    p = ProxyHandler(logger)
+    p = ProxyHandler(logger, target_system_provider)
     p._get_corresponding_backend_channel = MagicMock(
         side_effect=UnicodeDecodeError("", b"", 0, 0, ""))
 
@@ -125,10 +135,10 @@ def test_handle_exec_unicodeerror(logger):
     debug_log.error.assert_called_once()
 
 
-def test_handle_exec_error(logger):
+def test_handle_exec_error(logger, target_system_provider):
     debug_log.error = MagicMock()
 
-    p = ProxyHandler(logger)
+    p = ProxyHandler(logger, target_system_provider)
 
     channel_mock = MagicMock()
     channel_mock.exec_command.side_effect = paramiko.SSHException
@@ -139,11 +149,11 @@ def test_handle_exec_error(logger):
     debug_log.error.assert_called_once()
 
 
-def test_handle_exec_ok(logger):
+def test_handle_exec_ok(logger, target_system_provider):
     with patch("threading.Thread"):
         debug_log.error = MagicMock()
         logger.log_command = MagicMock()
-        p = ProxyHandler(logger)
+        p = ProxyHandler(logger, target_system_provider)
 
         channel_mock = MagicMock()
         channel_mock.exec_command = MagicMock()
@@ -156,29 +166,29 @@ def test_handle_exec_ok(logger):
         logger.log_command.assert_called_once()
 
 
-def test_shell_request_keyerror(logger):
-    p = ProxyHandler(logger)
+def test_shell_request_keyerror(logger, target_system_provider):
+    p = ProxyHandler(logger, target_system_provider)
     p._get_corresponding_backend_channel = MagicMock(side_effect=KeyError)
 
     assert p.handle_shell_request(paramiko.Channel(0)) == False
 
 
-def test_shell_request_sshexception(logger):
+def test_shell_request_sshexception(logger, target_system_provider):
     debug_log.error = MagicMock()
-    p = ProxyHandler(logger)
+    p = ProxyHandler(logger, target_system_provider)
     p._get_corresponding_backend_channel = MagicMock(side_effect=paramiko.SSHException)
 
     assert p.handle_shell_request(paramiko.Channel(0)) == False
     debug_log.error.assert_called_once()
 
 
-def test_shell_request_ok(logger):
+def test_shell_request_ok(logger, target_system_provider):
     with patch("threading.Thread"):
         debug_log.error = MagicMock()
 
         backend_mock = MagicMock()
         backend_mock.invoke_shell = MagicMock()
-        p = ProxyHandler(logger)
+        p = ProxyHandler(logger, target_system_provider)
         p._get_corresponding_backend_channel = MagicMock(return_value=backend_mock)
 
         assert p.handle_shell_request(paramiko.Channel(0))
@@ -186,10 +196,10 @@ def test_shell_request_ok(logger):
         backend_mock.invoke_shell.assert_called_once()
 
 
-def test_close_connection_not_active(logger):
+def test_close_connection_not_active(logger, target_system_provider):
     logger.end = MagicMock()
-    p = ProxyHandler(logger)
-    p._backend_connection_active = False
+    p = ProxyHandler(logger, target_system_provider)
+    p._connection = None
     p.close_connection()
 
     logger.end.assert_called_once()
