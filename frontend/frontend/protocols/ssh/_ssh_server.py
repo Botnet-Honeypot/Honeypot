@@ -1,4 +1,4 @@
-from ipaddress import AddressValueError, IPv4Address
+from ipaddress import AddressValueError,  ip_address
 import logging
 import datetime
 from typing import List, Optional, Set, Tuple
@@ -144,7 +144,7 @@ class Server(paramiko.ServerInterface):
             destination: Tuple[str, int]) -> int:
         self._update_last_activity()
         try:
-            ip = IPv4Address(origin[0])
+            ip = ip_address(origin[0])
         except AddressValueError:
             logger.error("Failed to decode the origin IP %s into an IPv4 address", origin[0])
             return OPEN_FAILED_CONNECT_FAILED
