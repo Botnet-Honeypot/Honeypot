@@ -38,6 +38,7 @@ class PostgresLogSSHSession:
 
     session_id: Optional[int]
 
+    ssh_version: Optional[str]
     src_address: IPAddress
     src_port: int
     dst_address: IPAddress
@@ -47,14 +48,20 @@ class PostgresLogSSHSession:
                  src_address: IPAddress, src_port: int,
                  dst_address: IPAddress, dst_port: int) -> None:
         self.session_id = None
+        self.ssh_version = None
         self.src_address = src_address
         self.src_port = src_port
         self.dst_address = dst_address
         self.dst_port = dst_port
 
+    def set_remote_version(self, ssh_version: str) -> None:
+        self.ssh_version = ssh_version
+
     def begin(self) -> None:
         if self.session_id is not None:
             raise ValueError('Logging session was already started')
+        if self.ssh_version is None:
+            raise ValueError('SSH version must be set before beginning session')
 
         conn = db.connect()
         try:
@@ -65,9 +72,89 @@ class PostgresLogSSHSession:
                         INSERT INTO Session (attack_src, protocol, src_port, dst_ip, dst_port)
                             VALUES (%s, 'ssh', %s, %s, %s)
                             RETURNING id
-                        """, (str(self.src_address), self.src_port, str(self.dst_address), self.dst_port))
+                        """,  (str(self.src_address), self.src_port,
+                               str(self.dst_address), self.dst_port))
 
                     self.session_id = cur.fetchone()[0]
+
+                    cur.execute("""
+                        INSERT INTO SSHSession (session_id, ssh_version)
+                            VALUES (%s, %s)
+                        """,  (self.session_id, self.ssh_version))
+        finally:
+            conn.close()
+
+    def log_env_request(self, chan_id: int, name: str, value: str) -> None:
+        if self.session_id is None:
+            raise ValueError('Logging session has not been started')
+
+        conn = db.connect()
+        try:
+            with conn:
+                with conn.cursor() as cur:
+                    event_id = insert_new_event(
+                        cur, self.session_id, 'env_request')
+                    cur.execute("""
+                        INSERT INTO EnvRequest (event_id, channel_id, name, value)
+                            VALUES (%s, %s, %s, %s)
+                        """, (event_id, chan_id, name, value))
+        finally:
+            conn.close()
+
+    def log_direct_tcpip_request(
+            self, chan_id: int, origin_ip: IPAddress, origin_port: int,
+            destination: str, destination_port: int) -> None:
+        if self.session_id is None:
+            raise ValueError('Logging session has not been started')
+
+        conn = db.connect()
+        try:
+            with conn:
+                with conn.cursor() as cur:
+                    event_id = insert_new_event(
+                        cur, self.session_id, 'direct_tcpip_request')
+                    cur.execute("""
+                        INSERT INTO DirectTCPIPRequest (event_id, channel_id,
+                            origin_ip, origin_port, destination, destination_port)
+                            VALUES (%s, %s, %s, %s, %s, %s)
+                        """, (event_id, chan_id, str(origin_ip), origin_port, destination, destination_port))
+        finally:
+            conn.close()
+
+    def log_x11_request(
+            self, chan_id: int, single_connection: bool, auth_protocol: str,
+            auth_cookie: memoryview, screen_number: int) -> None:
+        if self.session_id is None:
+            raise ValueError('Logging session has not been started')
+
+        conn = db.connect()
+        try:
+            with conn:
+                with conn.cursor() as cur:
+                    event_id = insert_new_event(
+                        cur, self.session_id, 'x_eleven_request')
+                    cur.execute("""
+                        INSERT INTO XElevenRequest (event_id, channel_id,
+                            single_connection, auth_protocol, auth_cookie, screen_number)
+                            VALUES (%s, %s, %s, %s, %s, %s)
+                        """, (event_id, chan_id, single_connection, auth_protocol, auth_cookie, screen_number))
+        finally:
+            conn.close()
+
+    def log_port_forward_request(self, address: str, port: int) -> None:
+        if self.session_id is None:
+            raise ValueError('Logging session has not been started')
+
+        conn = db.connect()
+        try:
+            with conn:
+                with conn.cursor() as cur:
+                    event_id = insert_new_event(
+                        cur, self.session_id, 'port_forward_request')
+                    cur.execute("""
+                        INSERT INTO PortForwardRequest (event_id, address, port)
+                            VALUES (%s, %s, %s)
+                        """, (event_id, address, port))
         finally:
             conn.close()
 
@@ -84,9 +171,9 @@ class PostgresLogSSHSession:
                     event_id = insert_new_event(
                         cur, self.session_id, 'pty_request')
                     cur.execute("""
-                        INSERT INTO PTYRequest (event_id, event_type, session_protocol, term, term_width_cols,
+                        INSERT INTO PTYRequest (event_id, term, term_width_cols,
                             term_height_rows, term_width_pixels, term_height_pixels)
-                            VALUES (%s, 'pty_request', 'ssh', %s, %s, %s, %s, %s)
+                            VALUES (%s, %s, %s, %s, %s, %s)
                         """, (event_id, term, term_width_cols,
                               term_height_rows, term_width_pixels, term_height_pixels))
         finally:
