@@ -23,7 +23,8 @@ class Server(paramiko.ServerInterface):
     _channels_done: Set[int]
 
     def __init__(
-            self, session: SSHSession,
+            self,
+            session: SSHSession,
             proxy_handler: ProxyHandler,
             usernames: Optional[List[str]],
             passwords: Optional[List[str]]) -> None:
@@ -63,6 +64,7 @@ class Server(paramiko.ServerInterface):
         if self._usernames is not None and not username in self._usernames:
             return AUTH_FAILED
         if self._passwords is None or password in self._passwords:
+            self._proxy_handler.set_attacker_credentials(username, password)
             return AUTH_SUCCESSFUL
         return AUTH_FAILED
 
@@ -78,9 +80,8 @@ class Server(paramiko.ServerInterface):
         self._update_last_activity()
         logger.info("Attacker requested a channel with the id %s and kind %s", chanid, kind)
         if kind == "session":
-            return self._proxy_handler.create_backend_connection(
-                "", "") and self._proxy_handler.open_channel(
-                kind, chanid)
+            return (self._proxy_handler.create_backend_connection()
+                    and self._proxy_handler.open_channel(kind, chanid))
 
         return OPEN_SUCCEEDED
 
@@ -132,9 +133,8 @@ class Server(paramiko.ServerInterface):
             self, chanid: int, origin: Tuple[str, int],
             destination: Tuple[str, int]) -> int:
         self._update_last_activity()
-        logger.info(
-            "Got direct tcpip request for channel %s. origin: %s destination:%s", chanid,
-            origin, destination)
+        logger.info("Got direct tcpip request for channel %s. origin: %s destination:%s", chanid,
+                    origin, destination)
         return OPEN_SUCCEEDED
 
     def check_channel_x11_request(
