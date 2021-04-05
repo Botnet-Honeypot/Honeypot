@@ -439,9 +439,9 @@ def proxy_data(
         sleep(0.1)
 
     # If one is channel has recieeved eof make sure to send it to the other
-    if attacker_channel.eof_received:
-        logger.debug("Closing the backend channel since the attacker channel has sent eof")
+    if attacker_channel.eof_received or attacker_channel.closed:
+        logger.debug("Closing the backend channel since the attacker channel has sent eof or is closed")
         backend_channel.close()
-    if backend_channel.eof_received:
-        logger.debug("Closing the attacker channel since the backend channel has sent eof")
+    if backend_channel.eof_received or backend_channel.closed:
+        logger.debug("Closing the attacker channel since the backend channel has sent eof or is closed")
         attacker_channel.close()
