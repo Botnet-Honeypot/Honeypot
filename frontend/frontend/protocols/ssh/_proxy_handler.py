@@ -167,16 +167,21 @@ class ProxyHandler:
         return chan
 
     def close_connection(self) -> None:
-        """This closes the backend connection and ends the session"""
+        """This closes the backend connection and ends the session
+        """
+        try:
+            self._session_log.end()
+        except Exception as exc:
+            logger.exception("Failed to end a SSHLoggingSession", exc_info=exc)
 
-        self._session_log.end()
+        # If there is no connection to the backend
         if self._connection is None:
             return
         # Close the backend connection
         try:
             self._connection.transport.close()
-        except Exception:
-            logger.exception("Failed to close backend transport")
+        except Exception as exc:
+            logger.exception("Failed to close backend transport", exc_info=exc)
         finally:
             self._target_system_provider.yield_target_system(self._connection.target_system)
             self._connection = None
@@ -297,6 +302,11 @@ class ProxyHandler:
             return False
 
         self._session_log.log_command(cmd)
+        # Not sure if it will be included in the channel output since only data from
+        # the backend connection is logged. Therefore we log the attacker command here aswell
+        self._session_log.log_ssh_channel_output(
+            memoryview(f"Attacker exec request command: {cmd}\r\n".encode("utf-8")),
+            attacker_channel.chanid)
 
         handle_thread = threading.Thread(
             target=proxy_data, args=(attacker_channel, backend_channel, self._session_log))
@@ -361,11 +371,15 @@ def try_send_data(data, send_method) -> bool:
     try:
         send_method(data)
     except socket.timeout:
-        logger.warning("Timed out while trying to send data")
+        logger.error("Timed out while trying to send data")
         return False
-    except socket.error:
-        logger.warning("Failed data")
+    except socket.error as exc:
+        logger.exception("Got socket error while sending data", exc_info=exc)
         return False
+    except Exception as exc:
+        logger.exception("Got exception while sending data", exc_info=exc)
+        return False
+
     return True
 
 
@@ -392,6 +406,8 @@ def proxy_data(
                 # Send a final exit code if there is one
                 if backend_channel.exit_status_ready():
                     exit_code = backend_channel.recv_exit_status()
+                    if exit_code == -1:
+                        continue
                     if try_send_data(exit_code, attacker_channel.send_exit_status):
                         pass  # logger.error("Failled to send exit code to the attacker")
                 logger.debug("Backend channel is closed and no more data is available to read")
@@ -425,9 +441,9 @@ def proxy_data(
         sleep(0.1)
 
     # If one is channel has recieeved eof make sure to send it to the other
-    if attacker_channel.eof_received:
-        logger.debug("Closing the backend channel since the attacker channel has sent eof")
+    if attacker_channel.eof_received or attacker_channel.closed:
+        logger.debug("Closing the backend channel since the attacker channel has sent eof or is closed")
         backend_channel.close()
-    if backend_channel.eof_received:
-        logger.debug("Closing the attacker channel since the backend channel has sent eof")
+    if backend_channel.eof_received or backend_channel.closed:
+        logger.debug("Closing the attacker channel since the backend channel has sent eof or is closed")
         attacker_channel.close()

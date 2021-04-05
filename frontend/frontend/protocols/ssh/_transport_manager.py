@@ -77,6 +77,7 @@ class TransportManager:
     def stop(self):
         """Stop the TransportManager
         """
+        logger.debug("Shutting down TransportManager")
         with self._terminate_lock:
             self._terminate = True
 
@@ -87,8 +88,8 @@ class TransportManager:
         """
         try:
             transport_pair.attacker_transport.close()
-        except Exception:
-            logger.exception("Failed to kill attacker transport")
+        except Exception as exc:
+            logger.exception("Failed to close attacker transport", exc_info=exc)
 
     def _end_proxy_handler(self, transport_pair: TransportPair):
         """Ends the proxy_handler which in turn will end the transport to
@@ -117,6 +118,7 @@ class TransportManager:
             for transport_pair in self.get_transports():
                 # End the session if the attacker transport isn't active anymore
                 if not transport_pair.attacker_transport.is_active():
+                    logger.debug("Shutting down a session due to attacker transport being inactive")
                     self._end_proxy_handler(transport_pair)
 
                 # If there are no channels open
@@ -128,13 +130,17 @@ class TransportManager:
 
                     # If no activity end both sides
                     if difference.seconds > config.SSH_SESSION_TIMEOUT:
-                        logger.debug("Killing inactive session")
+                        logger.debug(
+                            "Shutting down a session due to no channels open and a timeout")
                         self._end_attacker_transport(transport_pair)
                         self._end_proxy_handler(transport_pair)
 
         # End all transports since we broke out of the while loop
         # and the thread is shutting down
         for transport_pair in self.get_transports():
+            logger.debug("Shutting down a session due to TransportManager shutdown")
             if transport_pair.attacker_transport.is_active():
                 self._end_attacker_transport(transport_pair)
             self._end_proxy_handler(transport_pair)
+
+        logger.debug("TransportManager has shut down")
