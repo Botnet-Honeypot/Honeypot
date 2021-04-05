@@ -173,11 +173,13 @@ class ProxyHandler:
             self._session_log.end()
         except Exception as exc:
             logger.exception("Failed to end a SSHLoggingSession", exc_info=exc)
-        if not self._backend_connection_active:
+
+        # If there is no connection to the backend
+        if self._connection is None:
             return
         # Close the backend connection
         try:
-            self._backend_transport.close()
+            self._connection.close()
         except Exception as exc:
             logger.exception("Failed to close backend transport", exc_info=exc)
         finally:
