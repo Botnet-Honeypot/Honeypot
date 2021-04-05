@@ -25,11 +25,8 @@ class Session(Protocol):
     """Representation of an attacker's session while being connected to the honeypot."""
 
     @abstractmethod
-    def begin(self, ssh_version: str) -> None:
-        """Begins the logging session
-
-        :param ssh_version: The SSH version of the client connecting
-        """
+    def begin(self) -> None:
+        """Begins the logging session"""
         raise NotImplementedError
 
     @abstractmethod
@@ -76,6 +73,14 @@ class Session(Protocol):
 
 class SSHSession(Session, Protocol):
     """Representation of an attacker's SSH session while being connected to the honeypot."""
+
+    @abstractmethod
+    def set_remote_version(self, ssh_version: str) -> None:
+        """Set the remote SSH version
+
+        :param ssh_version: The SSH version of the client connecting
+        """
+        raise NotImplementedError
 
     @abstractmethod
     def log_pty_request(self, term: str,

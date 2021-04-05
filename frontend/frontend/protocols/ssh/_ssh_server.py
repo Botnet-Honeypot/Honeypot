@@ -56,7 +56,8 @@ class Server(paramiko.ServerInterface):
         # Make sure to start the logging session if it isn't started
         if not self._logging_session_started:
             try:
-                self._session.begin(self._transport.remote_version)
+                self._session.set_remote_version(self._transport.remote_version)
+                self._session.begin()
                 self._logging_session_started = True
             except Exception as exc:
                 logger.exception("Failed to start the SSH logging session", exc_info=exc)

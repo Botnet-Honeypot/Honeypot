@@ -19,7 +19,6 @@ CREATE TABLE NetworkSource
 CREATE TABLE Session
 (
   id              serial    NOT NULL,
-  ssh_version     text      NOT NULL,
   attack_src      inet      NOT NULL,
   protocol        text      NOT NULL,
   src_port        int       NOT NULL,
@@ -38,6 +37,19 @@ CREATE TABLE Session
     CHECK (src_port BETWEEN 0 AND 65535 AND dst_port BETWEEN 0 AND 65535),
   CONSTRAINT Check_End_Timestamp_Is_After_Start
     CHECK (CASE WHEN end_timestamp IS NOT NULL THEN start_timestamp <= end_timestamp else TRUE END)
+);
+
+CREATE TABLE SSHSession
+(
+  session_id          int    NOT NULL,
+  session_protocol    text   NOT NULL DEFAULT 'ssh',
+  ssh_version         text   NOT NULL,
+  PRIMARY KEY (session_id),
+  CONSTRAINT FK_SSHSession_TO_Session
+    FOREIGN KEY (session_id, session_protocol)
+    REFERENCES Session (id, protocol),
+  CONSTRAINT Check_Correct_Protocol
+    CHECK (session_protocol = 'ssh')
 );
 
 CREATE TABLE EventType
