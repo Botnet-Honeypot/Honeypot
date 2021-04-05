@@ -145,7 +145,7 @@ class Server(paramiko.ServerInterface):
         self._update_last_activity()
         try:
             ip = ip_address(origin[0])
-        except AddressValueError:
+        except ValueError:
             logger.error("Failed to decode the origin IP %s into an IPv4 address", origin[0])
             return OPEN_FAILED_CONNECT_FAILED
         self._session.log_direct_tcpip_request(
