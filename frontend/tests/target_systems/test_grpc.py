@@ -6,7 +6,7 @@ import grpc
 import target_system_provider.target_system_provider_pb2_grpc as tsp
 import target_system_provider.target_system_provider_pb2 as messages
 from frontend.target_systems import create_grpc_target_system_provider, TargetSystemProvider
-from frontend.target_systems._grpc import _GrpcTargetSystem
+from frontend.target_systems._grpc import _GrpcTargetSystem, _GrpcTargetSystemProvider
 
 
 @pytest.fixture
@@ -36,8 +36,9 @@ def grpc_server(server_target_system_provider: tsp.TargetSystemProviderServicer)
 
 @pytest.fixture
 def client_target_system_provider():
-    with create_grpc_target_system_provider('localhost:50051') as provider:
-        yield provider
+    provider = create_grpc_target_system_provider('localhost:50051')
+    yield provider
+    cast(_GrpcTargetSystemProvider, provider).close_channel()
 
 
 def test_create_grpc_not_None():

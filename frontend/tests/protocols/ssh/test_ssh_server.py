@@ -2,7 +2,7 @@ import datetime
 import logging
 import pytest
 from ipaddress import ip_address
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, create_autospec
 
 import paramiko
 from paramiko.common import (AUTH_FAILED, AUTH_SUCCESSFUL, )
@@ -12,6 +12,7 @@ from frontend.honeylogger import SSHSession
 from frontend.honeylogger._console import ConsoleLogSSHSession
 from frontend.protocols.ssh._ssh_server import Server
 import frontend.protocols.ssh._ssh_server
+from frontend.target_systems import TargetSystemProvider
 
 debug_log = logging.getLogger(frontend.protocols.ssh._ssh_server.__name__)
 
@@ -29,8 +30,13 @@ def logger() -> SSHSession:
 
 
 @pytest.fixture()
-def proxy_handler(logger) -> ProxyHandler:
-    return ProxyHandler(logger)
+def target_system_provider(logger) -> ProxyHandler:
+    return create_autospec(TargetSystemProvider)
+
+
+@pytest.fixture()
+def proxy_handler(logger, target_system_provider) -> ProxyHandler:
+    return ProxyHandler(logger, target_system_provider)
 
 
 @pytest.fixture()

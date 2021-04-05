@@ -18,3 +18,4 @@ def connect():
         return conn
     except (Exception, psycopg2.DatabaseError):
         logger.exception('Failed to connect to Postgres database')
+        raise
