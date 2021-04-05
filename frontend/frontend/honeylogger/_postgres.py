@@ -43,13 +43,12 @@ class PostgresLogSSHSession:
     """Implementation of honeylogger.SSHSession that
     logs session and actions to a Postgres database"""
 
-    _lock: threading.Lock
+    begin_called: bool
 
+    _lock: threading.Lock
     _scheduled_inserts: list[InsertFunc]
 
     session_id: Optional[int]
-    begin_called: bool
-
     src_address: IPAddress
     src_port: int
     dst_address: IPAddress
@@ -58,9 +57,9 @@ class PostgresLogSSHSession:
     def __init__(self,
                  src_address: IPAddress, src_port: int,
                  dst_address: IPAddress, dst_port: int) -> None:
+        self.begin_called = False
         self._lock = threading.Lock()
         self._scheduled_inserts = []
-        self.begin_called = False
         self.session_id = None
         self.src_address = src_address
         self.src_port = src_port
@@ -77,11 +76,11 @@ class PostgresLogSSHSession:
     def begin(self, ssh_version: str) -> None:
         if self.begin_called:
             raise ValueError('Logging session was already started')
+        self.begin_called = True
 
         timestamp = self._get_timestamp()
 
         def insert(cur, session):
-
             insert_network_source(cur, session.src_address)
             cur.execute("""
                 INSERT INTO Session (ssh_version, attack_src, protocol, src_port, dst_ip, dst_port, start_timestamp)
@@ -89,7 +88,6 @@ class PostgresLogSSHSession:
                     RETURNING id
                 """, (ssh_version, str(session.src_address), session.src_port,
                       str(session.dst_address), session.dst_port, timestamp))
-
             session.session_id = cur.fetchone()[0]
 
         self._schedule_insert(insert)
@@ -99,6 +97,7 @@ class PostgresLogSSHSession:
                         term_width_pixels: int, term_height_pixels: int) -> None:
         if not self.begin_called:
             raise ValueError('Logging session was not started')
+
         timestamp = self._get_timestamp()
 
         def insert(cur, session):
@@ -116,6 +115,7 @@ class PostgresLogSSHSession:
     def log_env_request(self, chan_id: int, name: str, value: str) -> None:
         if not self.begin_called:
             raise ValueError('Logging session was not started')
+
         timestamp = self._get_timestamp()
 
         def insert(cur, session):
@@ -133,6 +133,7 @@ class PostgresLogSSHSession:
                                  destination: str, destination_port: int) -> None:
         if not self.begin_called:
             raise ValueError('Logging session was not started')
+
         timestamp = self._get_timestamp()
 
         def insert(cur, session):
@@ -151,6 +152,7 @@ class PostgresLogSSHSession:
             auth_cookie: memoryview, screen_number: int) -> None:
         if not self.begin_called:
             raise ValueError('Logging session was not started')
+
         timestamp = self._get_timestamp()
 
         def insert(cur, session):
@@ -167,6 +169,7 @@ class PostgresLogSSHSession:
     def log_port_forward_request(self, address: str, port: int) -> None:
         if not self.begin_called:
             raise ValueError('Logging session was not started')
+
         timestamp = self._get_timestamp()
 
         def insert(cur, session):
@@ -183,6 +186,7 @@ class PostgresLogSSHSession:
     def log_login_attempt(self, username: str, password: str) -> None:
         if not self.begin_called:
             raise ValueError('Logging session was not started')
+
         timestamp = self._get_timestamp()
 
         def insert(cur, session):
@@ -198,6 +202,7 @@ class PostgresLogSSHSession:
     def log_command(self, input: str) -> None:
         if not self.begin_called:
             raise ValueError('Logging session was not started')
+
         timestamp = self._get_timestamp()
 
         def insert(cur, session):
@@ -213,6 +218,7 @@ class PostgresLogSSHSession:
     def log_ssh_channel_output(self, data: memoryview, channel: int) -> None:
         if not self.begin_called:
             raise ValueError('Logging session was not started')
+
         timestamp = self._get_timestamp()
 
         def insert(cur, session):
@@ -233,6 +239,7 @@ class PostgresLogSSHSession:
                      save_data: bool = True) -> None:
         if not self.begin_called:
             raise ValueError('Logging session was not started')
+
         timestamp = self._get_timestamp()
 
         def insert(cur, session):
@@ -250,6 +257,7 @@ class PostgresLogSSHSession:
     def end(self) -> None:
         if not self.begin_called:
             raise ValueError('Logging session was not started')
+
         timestamp = self._get_timestamp()
 
         def insert(cur, session):
@@ -261,15 +269,14 @@ class PostgresLogSSHSession:
 
         self._schedule_insert(insert)
 
-        logger.debug('Inserting logging session into database...')
+        logger.debug('Inserting logging session %s into database...', self.session_id)
         with self._lock:
             conn = db.connect()
             with conn:  # Start transaction
                 with conn.cursor() as cur:
                     for func in self._scheduled_inserts:
                         func(cur, self)
-
-        logger.debug('Logging session inserted')
+        logger.debug('Logging session %s inserted', self.session_id)
 
 
 InsertFunc = Callable[[Any, PostgresLogSSHSession], None]
