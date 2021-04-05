@@ -48,6 +48,7 @@ class PostgresLogSSHSession:
     _scheduled_inserts: list[InsertFunc]
 
     session_id: Optional[int]
+    begin_called: bool
 
     src_address: IPAddress
     src_port: int
@@ -59,6 +60,7 @@ class PostgresLogSSHSession:
                  dst_address: IPAddress, dst_port: int) -> None:
         self._lock = threading.Lock()
         self._scheduled_inserts = []
+        self.begin_called = False
         self.session_id = None
         self.src_address = src_address
         self.src_port = src_port
@@ -73,11 +75,12 @@ class PostgresLogSSHSession:
         return datetime.now(timezone.utc)
 
     def begin(self, ssh_version: str) -> None:
+        if self.begin_called:
+            raise ValueError('Logging session was already started')
+
         timestamp = self._get_timestamp()
 
         def insert(cur, session):
-            if session.session_id is not None:
-                raise ValueError('Logging session was already started')
 
             insert_network_source(cur, session.src_address)
             cur.execute("""
@@ -94,6 +97,8 @@ class PostgresLogSSHSession:
     def log_pty_request(self, term: str,
                         term_width_cols: int, term_height_rows: int,
                         term_width_pixels: int, term_height_pixels: int) -> None:
+        if not self.begin_called:
+            raise ValueError('Logging session was not started')
         timestamp = self._get_timestamp()
 
         def insert(cur, session):
@@ -109,6 +114,8 @@ class PostgresLogSSHSession:
         self._schedule_insert(insert)
 
     def log_env_request(self, chan_id: int, name: str, value: str) -> None:
+        if not self.begin_called:
+            raise ValueError('Logging session was not started')
         timestamp = self._get_timestamp()
 
         def insert(cur, session):
@@ -124,6 +131,8 @@ class PostgresLogSSHSession:
 
     def log_direct_tcpip_request(self, chan_id: int, origin_ip: IPAddress, origin_port: int,
                                  destination: str, destination_port: int) -> None:
+        if not self.begin_called:
+            raise ValueError('Logging session was not started')
         timestamp = self._get_timestamp()
 
         def insert(cur, session):
@@ -140,6 +149,8 @@ class PostgresLogSSHSession:
     def log_x11_request(
             self, chan_id: int, single_connection: bool, auth_protocol: str,
             auth_cookie: memoryview, screen_number: int) -> None:
+        if not self.begin_called:
+            raise ValueError('Logging session was not started')
         timestamp = self._get_timestamp()
 
         def insert(cur, session):
@@ -154,6 +165,8 @@ class PostgresLogSSHSession:
         self._schedule_insert(insert)
 
     def log_port_forward_request(self, address: str, port: int) -> None:
+        if not self.begin_called:
+            raise ValueError('Logging session was not started')
         timestamp = self._get_timestamp()
 
         def insert(cur, session):
@@ -168,6 +181,8 @@ class PostgresLogSSHSession:
         self._schedule_insert(insert)
 
     def log_login_attempt(self, username: str, password: str) -> None:
+        if not self.begin_called:
+            raise ValueError('Logging session was not started')
         timestamp = self._get_timestamp()
 
         def insert(cur, session):
@@ -181,6 +196,8 @@ class PostgresLogSSHSession:
         self._schedule_insert(insert)
 
     def log_command(self, input: str) -> None:
+        if not self.begin_called:
+            raise ValueError('Logging session was not started')
         timestamp = self._get_timestamp()
 
         def insert(cur, session):
@@ -194,6 +211,8 @@ class PostgresLogSSHSession:
         self._schedule_insert(insert)
 
     def log_ssh_channel_output(self, data: memoryview, channel: int) -> None:
+        if not self.begin_called:
+            raise ValueError('Logging session was not started')
         timestamp = self._get_timestamp()
 
         def insert(cur, session):
@@ -212,6 +231,8 @@ class PostgresLogSSHSession:
                      source_address: IPAddress,
                      source_url: Optional[str] = None,
                      save_data: bool = True) -> None:
+        if not self.begin_called:
+            raise ValueError('Logging session was not started')
         timestamp = self._get_timestamp()
 
         def insert(cur, session):
@@ -227,6 +248,8 @@ class PostgresLogSSHSession:
         self._schedule_insert(insert)
 
     def end(self) -> None:
+        if not self.begin_called:
+            raise ValueError('Logging session was not started')
         timestamp = self._get_timestamp()
 
         def insert(cur, session):
