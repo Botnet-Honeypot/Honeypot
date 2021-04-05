@@ -1,18 +1,25 @@
 import socket
 import time
-from unittest.mock import MagicMock, PropertyMock, patch
+from unittest.mock import MagicMock, PropertyMock, patch, create_autospec
 
 import pytest
 
 import paramiko
 from frontend.protocols.ssh.connection_manager import ConnectionManager
 from frontend.protocols.ssh._transport_manager import TransportManager
+from frontend.target_systems import TargetSystemProvider
 
 
 @pytest.fixture()
 def connection_manager() -> ConnectionManager:
     key = paramiko.RSAKey(filename="./host.key")
-    return ConnectionManager(key, [""], [""], port=2222, socket_timeout=0.2)
+    return ConnectionManager(
+        create_autospec(TargetSystemProvider),
+        key,
+        [""],
+        [""],
+        port=2222,
+        socket_timeout=0.2)
 
 
 def test_shutdown(connection_manager: ConnectionManager):

@@ -29,9 +29,11 @@ SSH_SOCKET_TIMEOUT = float(os.getenv('SSH_SOCKET_TIMEOUT', '5'))
 SSH_MAX_UNACCEPTED_CONNECTIONS = int(os.getenv('SSH_MAX_UNACCEPTED_CONNECTIONS', '100'))
 
 # Debug logging
-SSH_ENABLE_DEBUG_LOGGING = bool(os.getenv('ENABLE_DEBUG_LOGGING', 'False'))
+SSH_ENABLE_DEBUG_LOGGING = os.getenv('ENABLE_DEBUG_LOGGING', 'False') == 'True'
 
 # Log file for SSH if debug logging is enabled
 SSH_LOG_FILE = os.getenv('SSH_LOG_FILE', './honeypot.log')
 
-BACKEND_IP = os.getenv('BACKEND_IP')
+# The address to a host running a server supporting the target_system_provider gRCP protocol
+# Example: localhost:80
+BACKEND_ADDRESS = os.getenv('BACKEND_ADDRESS')

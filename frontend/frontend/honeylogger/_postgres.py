@@ -49,6 +49,7 @@ class PostgresLogSSHSession:
     _scheduled_inserts: list[InsertFunc]
 
     session_id: Optional[int]
+    ssh_version: Optional[str]
     src_address: IPAddress
     src_port: int
     dst_address: IPAddress
@@ -61,6 +62,7 @@ class PostgresLogSSHSession:
         self._lock = threading.Lock()
         self._scheduled_inserts = []
         self.session_id = None
+        self.ssh_version = None
         self.src_address = src_address
         self.src_port = src_port
         self.dst_address = dst_address
@@ -73,9 +75,16 @@ class PostgresLogSSHSession:
     def _get_timestamp(self) -> datetime:
         return datetime.now(timezone.utc)
 
-    def begin(self, ssh_version: str) -> None:
+    def set_remote_version(self, ssh_version: str) -> None:
+        if ssh_version is None:
+            raise ValueError('ssh_version may not be None')
+        self.ssh_version = ssh_version
+
+    def begin(self) -> None:
         if self.begin_called:
             raise ValueError('Logging session was already started')
+        if self.ssh_version is None:
+            raise ValueError('SSH version must be set before beginning session')
         self.begin_called = True
 
         timestamp = self._get_timestamp()
@@ -83,12 +92,16 @@ class PostgresLogSSHSession:
         def insert(cur, session):
             insert_network_source(cur, session.src_address)
             cur.execute("""
-                INSERT INTO Session (ssh_version, attack_src, protocol, src_port, dst_ip, dst_port, start_timestamp)
-                    VALUES (%s, %s, 'ssh', %s, %s, %s, %s)
+                INSERT INTO Session (attack_src, protocol, src_port, dst_ip, dst_port, start_timestamp)
+                    VALUES (%s, 'ssh', %s, %s, %s, %s)
                     RETURNING id
-                """, (ssh_version, str(session.src_address), session.src_port,
-                      str(session.dst_address), session.dst_port, timestamp))
+                """,  (str(session.src_address), session.src_port,
+                        str(session.dst_address), session.dst_port, timestamp))
             session.session_id = cur.fetchone()[0]
+            cur.execute("""
+                INSERT INTO SSHSession (session_id, ssh_version)
+                    VALUES (%s, %s)
+                """,  (session.session_id, session.ssh_version))
 
         self._schedule_insert(insert)
 
@@ -104,9 +117,9 @@ class PostgresLogSSHSession:
             event_id = insert_new_event(
                 cur, session.session_id, 'pty_request', timestamp)
             cur.execute("""
-                INSERT INTO PTYRequest (event_id, event_type, session_protocol, term, term_width_cols,
+                INSERT INTO PTYRequest (event_id, term, term_width_cols,
                     term_height_rows, term_width_pixels, term_height_pixels)
-                    VALUES (%s, 'pty_request', 'ssh', %s, %s, %s, %s, %s)
+                    VALUES (%s, %s, %s, %s, %s, %s)
                 """, (event_id, term, term_width_cols,
                       term_height_rows, term_width_pixels, term_height_pixels))
 
@@ -122,9 +135,8 @@ class PostgresLogSSHSession:
             event_id = insert_new_event(
                 cur, session.session_id, 'env_request', timestamp)
             cur.execute("""
-                INSERT INTO EnvRequest (event_id, event_type, session_protocol, channel_id,
-                    name, value)
-                    VALUES (%s, 'env_request', 'ssh', %s, %s, %s)
+                INSERT INTO EnvRequest (event_id, channel_id, name, value)
+                    VALUES (%s, %s, %s, %s)
                 """, (event_id, chan_id, name, value))
 
         self._schedule_insert(insert)
@@ -140,9 +152,9 @@ class PostgresLogSSHSession:
             event_id = insert_new_event(
                 cur, session.session_id, 'direct_tcpip_request', timestamp)
             cur.execute("""
-                INSERT INTO DirectTCPIPRequest (event_id, event_type, session_protocol, channel_id,
+                INSERT INTO DirectTCPIPRequest (event_id, channel_id,
                     origin_ip, origin_port, destination, destination_port)
-                    VALUES (%s, 'direct_tcpip_request', 'ssh', %s, %s, %s, %s, %s)
+                    VALUES (%s, %s, %s, %s, %s, %s)
                 """, (event_id, chan_id, str(origin_ip), origin_port, destination, destination_port))
 
         self._schedule_insert(insert)
@@ -159,9 +171,9 @@ class PostgresLogSSHSession:
             event_id = insert_new_event(
                 cur, session.session_id, 'x_eleven_request', timestamp)
             cur.execute("""
-                INSERT INTO XElevenRequest (event_id, event_type, session_protocol, channel_id,
+                INSERT INTO XElevenRequest (event_id, channel_id,
                     single_connection, auth_protocol, auth_cookie, screen_number)
-                    VALUES (%s, 'x_eleven_request', 'ssh', %s, %s, %s, %s, %s)
+                    VALUES (%s, %s, %s, %s, %s, %s)
                 """, (event_id, chan_id, single_connection, auth_protocol, auth_cookie, screen_number))
 
         self._schedule_insert(insert)
@@ -176,9 +188,8 @@ class PostgresLogSSHSession:
             event_id = insert_new_event(
                 cur, session.session_id, 'port_forward_request', timestamp)
             cur.execute("""
-                INSERT INTO PortForwardRequest (event_id, event_type, session_protocol,
-                    address, port)
-                    VALUES (%s, 'port_forward_request', 'ssh', %s, %s)
+                INSERT INTO PortForwardRequest (event_id, address, port)
+                    VALUES (%s, %s, %s)
                 """, (event_id, address, port))
 
         self._schedule_insert(insert)
@@ -269,14 +280,18 @@ class PostgresLogSSHSession:
 
         self._schedule_insert(insert)
 
-        logger.debug('Inserting logging session %s into database...', self.session_id)
+        logger.debug('[%s:%d] Inserting logging session into database...',
+                     self.src_address, self.src_port)
         with self._lock:
             conn = db.connect()
-            with conn:  # Start transaction
+            # Start transaction
+            with conn:
                 with conn.cursor() as cur:
                     for func in self._scheduled_inserts:
                         func(cur, self)
-        logger.debug('Logging session %s inserted', self.session_id)
+            # Commit transaction
+        logger.debug('[%s:%d] Logging session %d inserted',
+                     self.src_address, self.src_port, self.session_id)
 
 
 InsertFunc = Callable[[Any, PostgresLogSSHSession], None]

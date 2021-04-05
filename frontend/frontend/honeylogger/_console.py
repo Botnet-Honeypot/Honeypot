@@ -11,6 +11,7 @@ class ConsoleLogSSHSession():
     """Implementation of honeylogger.SSHSession that merely logs actions to console"""
 
     source: str
+    ssh_version: str
     src_address: str
     src_port: int
     dst_address: str
@@ -25,10 +26,13 @@ class ConsoleLogSSHSession():
         self.dst_address = str(dst_address)
         self.dst_port = dst_port
 
-    def begin(self, ssh_version: str) -> None:
+    def set_remote_version(self, ssh_version: str) -> None:
+        self.ssh_version = ssh_version
+
+    def begin(self) -> None:
         logger.info(
             "SSH session (Version: %s) from %s:%i to %s:%i began",
-            ssh_version, self.src_address, self.src_port,
+            self.ssh_version, self.src_address, self.src_port,
             self.dst_address, self.dst_port)
 
     def log_pty_request(self, term: str,
