@@ -1,5 +1,7 @@
 """Entrypoint for the honeypot frontend"""
 import logging
+import signal
+import time
 import coloredlogs
 import paramiko
 from frontend.protocols.ssh import ConnectionManager as SSHConnectionManager
@@ -8,6 +10,17 @@ import frontend.protocols.ssh
 from frontend.target_systems import create_grpc_target_system_provider
 
 logger = logging.getLogger(__name__)
+
+
+class SigHandler:
+    shutdown = False
+
+    def __init__(self) -> None:
+        signal.signal(signal.SIGINT, self._shutdown)
+        signal.signal(signal.SIGTERM, self._shutdown)
+
+    def _shutdown(self, signum: int, frame) -> None:
+        self.shutdown = True
 
 
 def setup_logging():
@@ -61,6 +74,12 @@ def main() -> None:
     server.start()
     logger.info('SSH server started')
 
+    sig_handler = SigHandler()
+    while not sig_handler.shutdown:
+        time.sleep(1)
+
+    logger.info('Shutting down the SSH server')
+    server.stop()
     # Wait for SSH server thread to exit
     server.join()
     logger.info('Shutdown complete')

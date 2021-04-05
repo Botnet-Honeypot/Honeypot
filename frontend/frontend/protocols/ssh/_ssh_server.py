@@ -3,7 +3,8 @@ import logging
 import datetime
 from typing import List, Optional, Set, Tuple
 
-from paramiko.common import (AUTH_FAILED, AUTH_SUCCESSFUL, OPEN_SUCCEEDED)
+from paramiko.common import (AUTH_FAILED, AUTH_SUCCESSFUL,
+                             OPEN_FAILED_CONNECT_FAILED, OPEN_SUCCEEDED)
 import paramiko
 from paramiko.channel import Channel
 
@@ -136,12 +137,13 @@ class Server(paramiko.ServerInterface):
         self._update_last_activity()
         try:
             ip = IPv4Address(origin[0])
-            self._session.log_direct_tcpip_request(
-                chanid, ip, origin[1],
-                destination[0],
-                destination[1])
         except AddressValueError:
-            pass
+            logger.error("Failed to decode the origin IP %s into an IPv4 address", origin[0])
+            return OPEN_FAILED_CONNECT_FAILED
+        self._session.log_direct_tcpip_request(
+            chanid, ip, origin[1],
+            destination[0],
+            destination[1])
         return OPEN_SUCCEEDED
 
     def check_channel_x11_request(
