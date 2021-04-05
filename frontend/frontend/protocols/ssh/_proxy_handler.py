@@ -6,6 +6,8 @@ import logging
 import socket
 import threading
 from time import sleep
+import select
+import os
 
 import paramiko
 from paramiko import SSHException
@@ -273,9 +275,18 @@ def proxy_data(
     attacker_channel.settimeout(10)
     backend_channel.settimeout(10)
 
+    if os.name == 'posix':
+        poll = select.poll()
+        poll.register(attacker_channel.fileno(), select.POLLIN)
+        poll.register(backend_channel.fileno(), select.POLLIN)
+
     command_parser = CommandParser()
     # While the attacker channel is not closed and has not send eof
     while not (attacker_channel.eof_received or attacker_channel.closed):
+        if os.name == 'posix':
+            poll.poll(500)  # 500 ms timeout
+        else:
+            sleep(0.1)
         # If the backend channel is shut down
         if backend_channel.eof_received or backend_channel.closed:
             # If we don't have data buffered from the backend we will break from the loop
@@ -312,8 +323,6 @@ def proxy_data(
             session_log.log_ssh_channel_output(memoryview(data), attacker_channel.chanid)
             if not try_send_data(data, attacker_channel.sendall_stderr):
                 logger.error("Failed to send backend stderr data to attacker")
-
-        sleep(0.1)
 
     # If one is channel has recieeved eof make sure to send it to the other
     if attacker_channel.eof_received:
