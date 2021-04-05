@@ -406,6 +406,8 @@ def proxy_data(
                 # Send a final exit code if there is one
                 if backend_channel.exit_status_ready():
                     exit_code = backend_channel.recv_exit_status()
+                    if exit_code == -1:
+                        continue
                     if try_send_data(exit_code, attacker_channel.send_exit_status):
                         pass  # logger.error("Failled to send exit code to the attacker")
                 logger.debug("Backend channel is closed and no more data is available to read")
