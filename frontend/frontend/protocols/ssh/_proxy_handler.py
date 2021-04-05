@@ -5,7 +5,7 @@ all the data recieved from the backend during the sesison.
 import logging
 import socket
 import threading
-from time import sleep
+from time import sleep, time
 import select
 import os
 from typing import Optional
