@@ -54,6 +54,10 @@ chmod -R 777 /home/$USER_NAME/
 
 # Update home directory path in passwd file 
 sed -i "s/\/config/\/home\/$USER_NAME/" "/etc/passwd" 
+
+# Allow @root login
+sed -i "s/#PermitRootLogin prohibit-password/PermitRootLogin yes/g" "/etc/ssh/sshd_config"
+
 # Remove setup files
 rm -rf /docker-mods
 
