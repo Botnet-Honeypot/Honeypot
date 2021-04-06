@@ -30,6 +30,7 @@ class Containers:
     def __init__(self):
         self._client = docker.from_env()
         self._client.images.pull('ghcr.io/linuxserver/openssh-server:latest')
+        self._client.images.build(path="backend", dockerfile="Dockerfile", tag="target-container")
 
     def _get_container(self, container_id: str) -> Container:
         return cast(Container, self._client.containers.get(container_id))
@@ -133,7 +134,7 @@ class Containers:
     def format_config(self, container_id: int, user: str, password: str,
                       hostname='Dell-T140', user_id='1000', group_id='1000',
                       timezone='Europe/London', sudo_access='true',
-                      image='ghcr.io/linuxserver/openssh-server', port=None) -> dict:
+                      image='target-container', port=None) -> dict:
         """Formats the given parameters as a dictionary that fits docker-py.
         Creates the volumes for the config and home dirs of the container
 

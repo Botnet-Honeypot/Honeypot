@@ -1,6 +1,4 @@
 #!/bin/bash
-# Install packages
-apk add htop perl
 
 # Start decoy processes
 # These are just processes that are named after common services
