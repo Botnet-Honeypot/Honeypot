@@ -1,7 +1,5 @@
 """Contains class and methods used for handling docker containers"""
 
-import io
-import tarfile
 import logging
 from enum import Enum
 from typing import cast
@@ -29,8 +27,9 @@ class Containers:
 
     def __init__(self):
         self._client = docker.from_env()
-        self._client.images.pull('ghcr.io/linuxserver/openssh-server:latest')
-        self._client.images.build(path="backend", dockerfile="Dockerfile", tag="target-container")
+        self._client.images.build(path="target-systems/ssh-server",
+                                  dockerfile="Dockerfile",
+                                  tag="target-container")
 
     def _get_container(self, container_id: str) -> Container:
         return cast(Container, self._client.containers.get(container_id))
@@ -43,16 +42,14 @@ class Containers:
         containing all environment variables and config needed for setting up a container.
         """
 
-        container = cast(Container, self._client.containers.create(
+        container = cast(Container, self._client.containers.run(
             config["Image"],
             environment=config["Environment"],
             hostname=config["Hostname"],
             name=config["ID"],
             ports=config["Port"],
-            volumes=config["Volumes"]))
-
-        self.copy_init_to_volume(config["ID"])
-        container.start()
+            volumes=config["Volumes"],
+            detach=True))
 
         # reload to get the correct port in config
         container.reload()
@@ -154,7 +151,6 @@ class Containers:
 
         # Format the container id to ID_PREFIX + id
         _container_id = Containers.ID_PREFIX + str(container_id)
-        _config_path = _container_id + "config"
         _home_path = _container_id + "home"
 
         # Format the config dict of this container
@@ -172,7 +168,6 @@ class Containers:
             'Timezone': timezone,
             'SUDO': sudo_access,
             'Volumes': {
-                _config_path: {'bind': '/config', 'mode': 'rw'},
                 _home_path: {'bind': '/home', 'mode': 'rw'}
             },
         }
@@ -193,18 +188,3 @@ class Containers:
         """
         return ['PUID='+user_id, 'PGID='+group_id, 'TZ='+timezone, 'SUDO_ACCESS='+sudo_access,
                 'PASSWORD_ACCESS=true', 'USER_PASSWORD='+password, 'USER_NAME='+user]
-
-    def copy_init_to_volume(self, container_id: str):
-        """Copies the init script from
-            backend/custom-cont-init.d/ to the container's volume.
-
-        :param container_id: container id to copy files to
-        """
-
-        # Creates tar archive of local directory ./custom-cont-init.d and
-        # transfers it into target container at path /config
-        tar_data = io.BytesIO()
-        with tarfile.open(fileobj=tar_data, mode='w') as tar:
-            tar.add('custom-cont-init.d/')
-        tar_data.seek(0)
-        self._get_container(container_id).put_archive('/config', tar_data)
