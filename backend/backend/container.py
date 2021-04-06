@@ -147,7 +147,7 @@ class Containers:
         :param group_id: GID for container user, defaults to '1000'
         :param timezone: Timezone for container, defaults to 'Europe/London'
         :param sudo_access: Sudo access for container, defaults to 'true'
-        :param image: Image for container, defaults to 'ghcr.io/linuxserver/openssh-server'
+        :param image: Image for container, defaults to 'target-container' which is based on 'ghcr.io/linuxserver/openssh-server'
         :param port: Exposed port for container, defaults to None
         :return: Dictionary that can be easily used for docker-py
         """
