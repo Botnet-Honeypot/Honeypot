@@ -185,6 +185,9 @@ class ProxyHandler:
         except Exception as exc:
             logger.exception("Failed to close backend transport", exc_info=exc)
         finally:
+            logger.debug('Yielding %s:%d target system...',
+                         self._connection.target_system.address,
+                         self._connection.target_system.port)
             self._target_system_provider.yield_target_system(self._connection.target_system)
             self._connection = None
 

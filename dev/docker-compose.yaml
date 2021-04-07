@@ -43,7 +43,7 @@ services:
       - SSH_SOCKET_TIMEOUT=5
       - SSH_MAX_UNACCEPTED_CONNECTIONS=100 # Max number of unacceped connections for the SSH socket
       - ENABLE_DEBUG_LOGGING=False
-      - SSH_LOG_FILE=./frontend/honeypot.log # Log file to log to
+      - LOG_FILE=./frontend/honeypot.log # Log file to log to
       - BACKEND_ADDRESS=backend:80
     volumes:
       - "../frontend/frontend:/usr/src/frontend/frontend"
@@ -51,6 +51,9 @@ services:
       dev:
         aliases:
           - frontend
+    depends_on:
+      - postgres
+      - backend
     restart: always
 
   # Backend

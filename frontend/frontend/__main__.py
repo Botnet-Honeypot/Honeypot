@@ -6,7 +6,7 @@ import coloredlogs
 import paramiko
 from frontend.protocols.ssh import ConnectionManager as SSHConnectionManager
 from frontend.config import config
-import frontend.protocols.ssh
+import frontend
 from frontend.target_systems import create_grpc_target_system_provider
 
 logger = logging.getLogger(__name__)
@@ -36,7 +36,7 @@ def setup_logging():
     file_formatter = logging.Formatter(
         fmt='%(asctime)s %(levelname)-8s %(message)s (%(threadName)s, %(name)s)',
         datefmt='%Y-%m-%d %H:%M:%S')
-    file_handler = logging.FileHandler(config.SSH_LOG_FILE, encoding='UTF-8')
+    file_handler = logging.FileHandler(config.LOG_FILE, encoding='UTF-8')
     file_handler.setFormatter(file_formatter)
     root_logger.addHandler(file_handler)
 
@@ -44,8 +44,8 @@ def setup_logging():
     root_logger = logging.getLogger()
     root_logger.setLevel(logging.INFO)
 
-    if config.SSH_ENABLE_DEBUG_LOGGING:
-        ssh_logger = logging.getLogger(frontend.protocols.ssh.__name__)
+    if config.ENABLE_DEBUG_LOGGING:
+        ssh_logger = logging.getLogger(frontend.__name__)
         ssh_logger.setLevel(logging.DEBUG)
 
 
