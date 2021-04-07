@@ -78,6 +78,7 @@ class Session(Protocol):
 
 class SSHSession(Session, Protocol):
     """Representation of an attacker's SSH session while being connected to the honeypot."""
+    session_id: Optional[int]
 
     @abstractmethod
     def set_remote_version(self, ssh_version: str) -> None:

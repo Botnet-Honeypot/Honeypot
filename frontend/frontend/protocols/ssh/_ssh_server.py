@@ -1,4 +1,4 @@
-from ipaddress import AddressValueError,  ip_address
+from ipaddress import ip_address
 import logging
 import datetime
 from typing import List, Optional, Set, Tuple
@@ -84,7 +84,8 @@ class Server(paramiko.ServerInterface):
 
     def check_channel_request(self, kind: str, chanid: int) -> int:
         self._update_last_activity()
-        logger.info("Attacker requested a channel with the id %s and kind %s", chanid, kind)
+        logger.info("[Session: %d] Channel request (id: %s, kind: %s)",
+                    self._session.session_id, chanid, kind)
         if kind == "session":
             return (self._proxy_handler.create_backend_connection()
                     and self._proxy_handler.open_channel(kind, chanid))
@@ -93,7 +94,8 @@ class Server(paramiko.ServerInterface):
 
     def check_channel_shell_request(self, channel: paramiko.Channel) -> bool:
         self._update_last_activity()
-        logger.info("Got a shell request on channel %s", channel.chanid)
+        logger.info("[Session: %d] Shell request for channel %s",
+                    self._session.session_id, channel.chanid)
         if channel.chanid in self._channels_done or not self._proxy_handler.handle_shell_request(
                 channel):
             return False
@@ -116,7 +118,8 @@ class Server(paramiko.ServerInterface):
             term_string = term.decode("utf-8")
             self._session.log_pty_request(term_string, width, height, pixelwidth, pixelheight)
         except UnicodeError:
-            logger.exception("Failed to decode the term to utf8")
+            logger.exception("[Session: %d] Pty request failed to decode the term %s to utf8",
+                             self._session.session_id, term)
             return False
 
         return self._proxy_handler.handle_pty_request(
@@ -134,8 +137,9 @@ class Server(paramiko.ServerInterface):
             name_string = name.decode("utf-8")
             value_string = value.decode("utf-8")
         except UnicodeDecodeError:
-            logger.error("Failed to decode the env requset  with name: %s and value: %s",
-                         name, value)
+            logger.error(
+                "[Session: %d] Env request failed to decode the values (name: %s, value: %s)",
+                self._session.session_id, name, value)
             return False
 
         self._session.log_env_request(channel.chanid, name_string, value_string)
@@ -148,7 +152,8 @@ class Server(paramiko.ServerInterface):
         try:
             ip = ip_address(origin[0])
         except ValueError:
-            logger.error("Failed to decode the origin IP %s into an IPv4 address", origin[0])
+            logger.error("[Session: %d] Direct TCPIP request failed to decode the origin IP %s",
+                         self._session.session_id, origin[0])
             return OPEN_FAILED_CONNECT_FAILED
         self._session.log_direct_tcpip_request(
             chanid, ip, origin[1],
@@ -166,7 +171,8 @@ class Server(paramiko.ServerInterface):
 
     def check_channel_forward_agent_request(self, channel: Channel) -> bool:
         self._update_last_activity()
-        logger.info("Got forward agent request on channel %s", channel.chanid)
+        logger.info("[Session: %d] Forward agent request on channel %s",
+                    self._session.session_id, channel.chanid)
         return False
 
     def check_port_forward_request(self, address: str, port: int) -> int:

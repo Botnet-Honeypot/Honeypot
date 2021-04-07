@@ -174,7 +174,8 @@ class ProxyHandler:
         try:
             self._session_log.end()
         except Exception as exc:
-            logger.exception("Failed to end a SSHLoggingSession", exc_info=exc)
+            logger.exception("[Session: %d] Failed to end a SSHLoggingSession",
+                             self._session_log.session_id, exc_info=exc)
 
         # If there is no connection to the backend
         if self._connection is None:
@@ -183,13 +184,18 @@ class ProxyHandler:
         try:
             self._connection.transport.close()
         except Exception as exc:
-            logger.exception("Failed to close backend transport", exc_info=exc)
+            logger.exception("[Session: %d] Failed to close backend transport",
+                             self._session_log.session_id, exc_info=exc)
         finally:
-            logger.debug('Yielding %s:%d target system...',
+            start_time = time()
+            logger.debug('[Session: %d] Yielding %s:%d target system...',
+                         self._session_log.session_id,
                          self._connection.target_system.address,
                          self._connection.target_system.port)
             self._target_system_provider.yield_target_system(self._connection.target_system)
             self._connection = None
+            logger.debug('[Session: %d] Took %fs to yield',
+                         self._session_log.session_id, time()-start_time)
 
     def create_backend_connection(self) -> bool:
         """Sets up the a SSH connection to the backend
@@ -208,30 +214,32 @@ class ProxyHandler:
 
         t0 = time()
         # Acquire target system
-        logger.debug('Acquiring target system from provider...')
+        logger.debug('[Session: %d] Acquiring target system from provider...',
+                     self._session_log.session_id)
         target_system = self._target_system_provider.acquire_target_system(username, password)
         if target_system is None:
-            logger.warning('No target system was available to be acquired')
+            logger.warning('[Session: %d] No target system was available to be acquired',
+                           self._session_log.session_id)
             return False
 
         t1 = time()
         # Open the backend transport
-        logger.debug('Connecting to target system %s:%d...',
-                     target_system.address, target_system.port)
+        logger.debug('[Session: %d] Connecting to target system %s:%d...',
+                     self._session_log.session_id, target_system.address, target_system.port)
         transport = self._open_proxy_transport(target_system.address,
                                                target_system.port,
                                                username, password)
         t2 = time()
-        logger.debug('Acquire duration: %f', t1-t0)
-        logger.debug('Connect duration: %d', t2-t1)
-        logger.debug('Total duration: %f', t2-t0)
+        logger.debug('[Session: %d] Acquire duration: %ds', self._session_log.session_id, t1-t0)
 
         if transport is None:
             # If connection to target system failed, yield it back to provider
-            logger.debug('Failed to connect to %s:%d, yielding target system...',
-                         target_system.address, target_system.port)
+            logger.debug('[Session: %d] Failed to connect to %s:%d, yielding target system...',
+                         self._session_log.session_id, target_system.address, target_system.port)
             self._target_system_provider.yield_target_system(target_system)
             return False
+
+        logger.debug('[Session: %d] Connect duration: %ds', self._session_log.session_id, t2-t1)
 
         self._connection = ProxyHandler.TargetSystemConnection(
             target_system, transport
@@ -398,6 +406,7 @@ def proxy_data(
     :param backend_channel: The backend channeel
     :param session_log: The SSH logging session
     """
+    session_id = session_log.session_id
     attacker_channel.settimeout(10)
     backend_channel.settimeout(10)
 
@@ -424,19 +433,23 @@ def proxy_data(
                         continue
                     if try_send_data(exit_code, attacker_channel.send_exit_status):
                         pass  # logger.error("Failled to send exit code to the attacker")
-                logger.debug("Backend channel is closed and no more data is available to read")
+                logger.debug(
+                    "[Session: %d] Backend channel is closed and no more data is available to read",
+                    session_id)
                 break
 
         if attacker_channel.recv_ready():
             data = attacker_channel.recv(1024)
             if not try_send_data(data, backend_channel.sendall):
-                logger.error("Failed to send attacker data to the backend")
+                logger.error("[Session: %d] Failed to send attacker data to the backend",
+                             session_id)
 
             try:
                 cmd = data.decode("utf-8")
                 command_parser.add_to_cmd_buffer(cmd)
             except UnicodeDecodeError:
-                logger.debug("Failed to decode attacker command data %s", data)
+                logger.debug("[Session: %d] Failed to decode attacker command data %s",
+                             session_id, data)
 
             if command_parser.can_read_command():
                 session_log.log_command(command_parser.read_command())
@@ -445,23 +458,28 @@ def proxy_data(
             data = backend_channel.recv(1024)
             session_log.log_ssh_channel_output(memoryview(data), attacker_channel.chanid)
             if not try_send_data(data, attacker_channel.sendall):
-                logger.error("Failed to send backend stdout data to attacker")
+                logger.error("[Session: %d] Failed to send backend stdout data to attacker")
         if backend_channel.recv_stderr_ready():
             data = backend_channel.recv_stderr(1024)
             session_log.log_ssh_channel_output(memoryview(data), attacker_channel.chanid)
             if not try_send_data(data, attacker_channel.sendall_stderr):
-                logger.error("Failed to send backend stderr data to attacker")
+                logger.error("[Session: %d] Failed to send backend stderr data to attacker")
 
     # If one is channel has recieeved eof make sure to send it to the other
     if attacker_channel.eof_received or attacker_channel.closed:
-        logger.debug("Closing the backend channel since the attacker channel has sent eof or is closed")
+        logger.debug(
+            "[Session: %d] Closing the backend channel since the attacker channel has sent eof or is closed",
+            session_id)
         try:
             backend_channel.close()
         except Exception as exc:
             logger.exception("Failed to close backend transport", exc_info=exc)
     if backend_channel.eof_received or backend_channel.closed:
-        logger.debug("Closing the attacker channel since the backend channel has sent eof or is closed")
+        logger.debug(
+            "[Session: %d] Closing the attacker channel since the backend channel has sent eof or is closed",
+            session_id)
         try:
             attacker_channel.close()
         except Exception as exc:
-            logger.exception("Failed to close attacker transport", exc_info=exc)
+            logger.exception("[Session: %d] Failed to close attacker transport",
+                             session_id, exc_info=exc)
