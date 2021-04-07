@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 import logging
 from typing import Optional
 import hashlib
@@ -57,7 +58,8 @@ class ConsoleLogSSHSession():
                      file_type: str,
                      source_address: IPAddress,
                      source_url: Optional[str] = None,
-                     save_data: bool = True) -> None:
+                     save_data: bool = True,
+                     timestamp: datetime = datetime.now(timezone.utc)) -> None:
         logger.info("[%s] Download from %s (%s) of type %s: %s",
                     self.source, source_address,
                     source_url, file_type,

@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from typing import Optional
 import hashlib
 import frontend.database as db
@@ -148,7 +149,8 @@ class PostgresLogSSHSession:
                      file_type: str,
                      source_address: IPAddress,
                      source_url: Optional[str] = None,
-                     save_data: bool = True) -> None:
+                     save_data: bool = True,
+                     timestamp: datetime = datetime.now(timezone.utc)) -> None:
         if self.session_id is None:
             raise ValueError('Logging session has not been started')
 
@@ -163,7 +165,8 @@ class PostgresLogSSHSession:
                     cur.execute("""
                         INSERT INTO Download (event_id, hash, src, url)
                             VALUES (%s, %s, %s, %s)
-                        """, (event_id, file_hash, str(source_address), source_url))
+                        """, (event_id, file_hash, str(source_address),
+                              '' if source_url is None else source_url))
         finally:
             conn.close()
 

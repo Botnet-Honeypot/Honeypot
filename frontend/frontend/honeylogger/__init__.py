@@ -12,6 +12,7 @@ Example Usage (SSH):
     session.end()
 """
 
+from datetime import datetime, timezone
 from typing import Optional, Protocol
 from abc import abstractmethod
 from ._types import IPAddress
@@ -52,7 +53,8 @@ class Session(Protocol):
                      file_type: str,
                      source_address: IPAddress,
                      source_url: Optional[str] = None,
-                     save_data: bool = True) -> None:
+                     save_data: bool = True,
+                     timestamp: datetime = datetime.now(timezone.utc)) -> None:
         """Logs a new downloaded file associated with the current session.
 
         :param data: The binary contents of the downloaded file.
