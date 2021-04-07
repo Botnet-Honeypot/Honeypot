@@ -51,8 +51,9 @@ class Server(paramiko.ServerInterface):
         return self._last_activity
 
     def _update_last_activity(self) -> None:
-        """Updates the last activity seen
-        """
+        """Updates the last activity seen"""
+        self._last_activity = datetime.datetime.now()
+
         # Make sure to start the logging session if it isn't started
         if not self._logging_session_started:
             try:
@@ -61,7 +62,7 @@ class Server(paramiko.ServerInterface):
                 self._logging_session_started = True
             except Exception as exc:
                 logger.exception("Failed to start the SSH logging session", exc_info=exc)
-        self._last_activity = datetime.datetime.now()
+                raise
 
     def check_auth_password(self, username: str, password: str) -> int:
         self._update_last_activity()

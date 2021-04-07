@@ -16,9 +16,14 @@ from typing import Optional, Protocol
 from abc import abstractmethod
 from ._types import IPAddress
 from ._postgres import PostgresLogSSHSession
+import frontend.database as db
 
 
 __all__ = ['Session', 'SSHSession', 'create_ssh_session']
+
+
+# TODO: This should be not be constructed here, but works for the moment.
+db_conn_pool = db.create_pool()
 
 
 class Session(Protocol):
@@ -164,7 +169,8 @@ def create_ssh_session(src_address: IPAddress, src_port: int,
     :return: An established SSH session.
     """
 
-    session = PostgresLogSSHSession(src_address=src_address,
+    session = PostgresLogSSHSession(db_conn_pool,
+                                    src_address=src_address,
                                     src_port=src_port,
                                     dst_address=dst_address,
                                     dst_port=dst_port)
