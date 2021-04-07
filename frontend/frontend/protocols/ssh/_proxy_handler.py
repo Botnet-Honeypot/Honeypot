@@ -171,11 +171,12 @@ class ProxyHandler:
     def close_connection(self) -> None:
         """This closes the backend connection and ends the session
         """
+        session_id = self._session_log.session_id if self._session_log.session_id is not None else -1
         try:
             self._session_log.end()
         except Exception as exc:
             logger.exception("[Session: %d] Failed to end a SSHLoggingSession",
-                             self._session_log.session_id, exc_info=exc)
+                             session_id, exc_info=exc)
 
         # If there is no connection to the backend
         if self._connection is None:
@@ -189,13 +190,13 @@ class ProxyHandler:
         finally:
             start_time = time()
             logger.debug('[Session: %d] Yielding %s:%d target system...',
-                         self._session_log.session_id,
+                         session_id,
                          self._connection.target_system.address,
                          self._connection.target_system.port)
             self._target_system_provider.yield_target_system(self._connection.target_system)
             self._connection = None
             logger.debug('[Session: %d] Took %fs to yield',
-                         self._session_log.session_id, time()-start_time)
+                         session_id, time()-start_time)
 
     def create_backend_connection(self) -> bool:
         """Sets up the a SSH connection to the backend

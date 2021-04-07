@@ -143,8 +143,9 @@ class ConnectionManager(threading.Thread):
             except Exception as exc:
                 logger.exception("Failed to start the SSH server for %s", addr[0], exc_info=exc)
                 continue
+            finally:
+                logger.debug('SSH server held thread for %fs', time()-start_time)
 
-            logger.debug('SSH server started in %fs', time()-start_time)
             transport_manager.add_transport(TransportPair(transport, proxy_handler, server))
 
         logger.debug("ConnectionManager has shut down")
