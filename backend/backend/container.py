@@ -1,11 +1,12 @@
 """Contains class and methods used for handling docker containers"""
 
+from backend.io import byte_stream_from_iterable
 import io
 import threading
 import tarfile
 import logging
 from enum import Enum
-from typing import cast
+from typing import IO, Iterable, cast
 import docker
 from docker.client import DockerClient
 from docker.models.containers import Container
@@ -30,8 +31,10 @@ class Containers:
 
     ID_PREFIX = "openssh-server"
 
-    NETLOG_CONTAINER_SUFFIX = '_netlog'
     TCPDUMP_IMAGE = 'itsthenetwork/alpine-tcpdump'  # TODO: Might want a custom image
+    NETLOG_CONTAINER_SUFFIX = '_netlog'
+    NETLOG_DIR = '/netlog'
+    NETLOG_FILE_PATH = NETLOG_DIR + '/log.pcap'
 
     # Docker API client
     _client: DockerClient
@@ -114,17 +117,43 @@ class Containers:
 
     def _start_netlog_container(self, for_container_id: str) -> Container:
         netlog_volume = for_container_id + self.NETLOG_CONTAINER_SUFFIX
-        netlog_dir = '/netlog'
+
         return cast(Container, self._client.containers.run(
             self.TCPDUMP_IMAGE,
             name=for_container_id + self.NETLOG_CONTAINER_SUFFIX,
             network_mode='container:' + for_container_id,
             volumes={
-                netlog_volume: {'bind': netlog_dir, 'mode': 'rw'}
+                netlog_volume: {'bind': self.NETLOG_DIR, 'mode': 'rw'}
             },
-            command=['-i', 'any', '-w', netlog_dir + '/log.pcap'],
+            command=['-i', 'any', '-w', self.NETLOG_FILE_PATH],
             detach=True
         ))
+
+    def get_container_netlog(self, container_id: str) -> IO[bytes]:
+        """Returns byte stream of pcap file for container with the given ID.
+
+        :param container_id: The target container to get the netlog file for.
+        :raises ValueError: If container is not stopped or does not exist.
+        :return: Byte stream of pcap file
+        """
+
+        if self.status_container(container_id) != Status.EXITED:
+            raise ValueError(
+                'Container has to be stopped (but not destoryed) before getting netlog')
+
+        netlog_container = self._get_container_unchecked(
+            container_id + self.NETLOG_CONTAINER_SUFFIX)
+        tar_chunks, fileinfo = netlog_container.get_archive(self.NETLOG_FILE_PATH)
+        tar_file = byte_stream_from_iterable(tar_chunks)
+        logger.debug('Reading netlog for %s: %s', container_id, fileinfo)
+
+        # Extract netlog file stream from tar by streaming tar data
+        tar = tarfile.open(fileobj=tar_file, mode='r|')
+        info = tar.next()
+        assert info is not None
+        netlog_file = tar.extractfile(info)
+        assert netlog_file is not None
+        return netlog_file
 
     def get_container_port(self, container_id: str) -> int:
         """Returns the port bound to a container. Undefined if multiple ports are used.
