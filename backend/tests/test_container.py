@@ -147,7 +147,7 @@ def test_prune_volumes(config: dict):
 def test_get_volume(config: dict):
     container_handler = Containers()
     container_handler.create_container(config)
-    assert str(container_handler.get_volume(config["ID"] + "config")) == "<Volume: openssh-se>"
+    assert str(container_handler.get_volume(config["ID"] + "home")) == "<Volume: openssh-se>"
 
 
 @pytest.mark.skip(reason="No way to test at the moment, would have to know port")
