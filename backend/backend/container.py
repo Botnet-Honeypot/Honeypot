@@ -1,16 +1,16 @@
 """Contains class and methods used for handling docker containers"""
 
-from docker.models.volumes import Volume
-from docker.models.containers import Container
-from docker.client import DockerClient
-import docker
-from typing import IO, Iterable, cast
-from enum import Enum
-import logging
-import tarfile
 import threading
-import io
+import tarfile
+import logging
+from enum import Enum
+from typing import IO, cast
+import docker
+from docker.client import DockerClient
+from docker.models.containers import Container
+from docker.models.volumes import Volume
 from backend.io import byte_stream_from_iterable
+import backend.config
 
 
 logger = logging.getLogger(__name__)
@@ -35,6 +35,9 @@ class Containers:
     NETLOG_CONTAINER_SUFFIX = '_netlog'
     NETLOG_DIR = '/netlog'
     NETLOG_FILE_PATH = NETLOG_DIR + '/log.pcap'
+
+    LABEL_ROLE = 'botnet-honeypot.role'
+    ROLE_TARGET_CONTAINER = 'target-container'
 
     # Docker API client
     _client: DockerClient
@@ -63,6 +66,25 @@ class Containers:
     def _get_container_unchecked(self, container_id: str) -> Container:
         return cast(Container, self._client.containers.get(container_id))
 
+    def _safely_run_container(self, *args, **kwargs) -> Container:
+        """Atomically starts and runs container.
+        If either fails, destroys container.
+        :return: The started container.
+        """
+        try:
+            return cast(Container, self._client.containers.run(*args, **kwargs))
+        except Exception:
+            try:
+                # Creating or running failed, so make sure container is destroyed
+                self._client.api.remove_container(
+                    resource_id=kwargs['name'],
+                    v=True,  # Destroy volumes since they were never used
+                    force=True
+                )
+            except docker.errors.APIError:
+                pass
+            raise
+
     def create_container(self, config: dict) -> None:
         """Creates a docker container with the specified container_id, exposes the specified SSH port,
            and has SSH login credentials user/password
@@ -79,14 +101,24 @@ class Containers:
         container = None
         netlog_container = None
         try:
-            container = cast(Container, self._client.containers.run(
+            network_id = 'bridge'
+
+            if backend.config.ENABLE_ISOLATED_TARGET_CONTAINER_NETWORKS:
+                self._client.networks.create(
+                    name=config["ID"],
+                    labels={Containers.LABEL_ROLE: Containers.ROLE_TARGET_CONTAINER}
+                )
+                network_id = config["ID"]
+
+            container = self._safely_run_container(
                 config["Image"],
                 environment=config["Environment"],
                 hostname=config["Hostname"],
                 name=config["ID"],
                 ports=config["Port"],
                 volumes=config["Volumes"],
-                detach=True))
+                network=network_id,
+                detach=True)
 
             # Start network logging container, has to happen after
             # starting main container to allow attaching to network
@@ -118,7 +150,7 @@ class Containers:
     def _start_netlog_container(self, for_container_id: str) -> Container:
         netlog_volume = for_container_id + self.NETLOG_CONTAINER_SUFFIX
 
-        return cast(Container, self._client.containers.run(
+        return self._safely_run_container(
             self.TCPDUMP_IMAGE,
             name=for_container_id + self.NETLOG_CONTAINER_SUFFIX,
             network_mode='container:' + for_container_id,
@@ -127,7 +159,7 @@ class Containers:
             },
             command=['-i', 'any', '-w', self.NETLOG_FILE_PATH],
             detach=True
-        ))
+        )
 
     def get_container_netlog(self, container_id: str) -> IO[bytes]:
         """Returns byte stream of pcap file for container with the given ID.
@@ -139,7 +171,7 @@ class Containers:
 
         if self.status_container(container_id) != Status.EXITED:
             raise ValueError(
-                'Container has to be stopped (but not destoryed) before getting netlog')
+                'Container has to be stopped (but not destroyed) before getting netlog')
 
         netlog_container = self._get_container_unchecked(
             container_id + self.NETLOG_CONTAINER_SUFFIX)
@@ -179,6 +211,7 @@ class Containers:
         """Destroy a specified container
 
         :param container_id: ID (name) of container to be destroyed
+        :raises ValueError: If container does not exist.
         """
         with self._containers_lock:
             container = self._get_container(container_id)
@@ -189,11 +222,22 @@ class Containers:
 
         logger.info("Destroyed container %s", container_id)
 
-    def prune_volumes(self):
-        """Removes storage volumes for all inactive (destroyed) containers
+        self._prune_target_container_networks()
 
-        :param container_id: ID (name) of which container's storage directory to remove
-        """
+    def _prune_target_container_networks(self):
+        """Removes all unsed networks with target-container role."""
+
+        try:
+            result = self._client.networks.prune(
+                filters={'label': f'{Containers.LABEL_ROLE}={Containers.ROLE_TARGET_CONTAINER}'}
+            )
+            logger.debug('Pruned %d target container networks',
+                         0 if result['NetworksDeleted'] is None else len(result['NetworksDeleted']))
+        except docker.errors.APIError:
+            pass
+
+    def prune_volumes(self):
+        """Removes storage volumes for all inactive (destroyed) containers."""
         self._client.volumes.prune()
         logger.info("Pruned all unused volumes")
 

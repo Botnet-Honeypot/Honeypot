@@ -1,4 +1,5 @@
 import pytest
+import docker
 from backend.container import Containers, Status
 
 MAX_CONTAINERS = 5
@@ -28,12 +29,14 @@ def container_handler():
 def test_create_one_container(config: dict, container_handler: Containers):
     container_handler.create_container(config)
     assert container_handler.status_container(config["ID"]) == Status.RUNNING
+    assert container_handler._containers == set([config['ID']])
 
 
 def test_stop_container(config: dict, container_handler: Containers):
     container_handler.create_container(config)
     container_handler.stop_container(config["ID"])
     assert container_handler.status_container(config["ID"]) == Status.EXITED
+    assert container_handler._containers == set([config['ID']])
 
 
 def test_destroy_container(config: dict, container_handler: Containers):
@@ -41,6 +44,7 @@ def test_destroy_container(config: dict, container_handler: Containers):
     container_handler.stop_container(config["ID"])
     container_handler.destroy_container(config["ID"])
     assert container_handler.status_container(config["ID"]) == Status.NOTFOUND
+    assert container_handler._containers == set()
 
 
 def test_start_multiple_containers(config: dict, container_handler: Containers):
@@ -51,33 +55,60 @@ def test_start_multiple_containers(config: dict, container_handler: Containers):
         container_handler.create_container(config)
     for i in range(MAX_CONTAINERS):
         assert container_handler.status_container(Containers.ID_PREFIX + str(i)) == Status.RUNNING
+    assert container_handler._containers == set(['openssh-server0',
+                                                 'openssh-server1',
+                                                 'openssh-server2',
+                                                 'openssh-server3',
+                                                 'openssh-server4'])
 
 
-def test_start_container_same_port(config: dict, container_handler: Containers):
+def test_shutdown(container_handler: Containers):
     user = "user"
     password = "password"
-    with pytest.raises(Exception):
-        for i in range(2):
-            config = Containers.format_config(i, user, password, port=5555)
-            container_handler.create_container(config)
+    for i in range(MAX_CONTAINERS):
+        config = Containers.format_config(i, user, password)
+        container_handler.create_container(config)
+    container_handler.shutdown()
+    assert container_handler._containers == set()
+    for i in range(MAX_CONTAINERS):
+        config = Containers.format_config(i, user, password)
+        assert container_handler.status_container(config['ID']) == Status.NOTFOUND
 
 
-def test_start_container_same_id(config: dict, container_handler: Containers):
+def test_start_container_same_port(container_handler: Containers):
+    user = "user"
+    password = "password"
+    config1 = Containers.format_config(0, user, password, port=5555)
+    container_handler.create_container(config1)
+    config2 = Containers.format_config(1, user, password, port=5555)
+
+    with pytest.raises(docker.errors.APIError):
+        container_handler.create_container(config2)
+
+    assert container_handler._containers == set(['openssh-server0'])
+    assert container_handler.status_container(config2['ID']) == Status.NOTFOUND
+    with pytest.raises(docker.errors.NotFound):
+        docker.from_env().containers.get(config2['ID'])
+
+
+def test_start_container_same_id(container_handler: Containers):
     container_id = 0
     user = "user"
     password = "password"
-    with pytest.raises(Exception):
-        for i in range(MAX_CONTAINERS):
-            config = Containers.format_config(container_id, user, password)
-            container_handler.create_container(config)
+    config = Containers.format_config(container_id, user, password)
+    container_handler.create_container(config)
+    with pytest.raises(ValueError):
+        container_handler.create_container(config)
+    assert container_handler._containers == set(['openssh-server0'])
 
 
 def test_destroy_twice(config: dict, container_handler: Containers):
-    with pytest.raises(Exception):
-        container_handler.create_container(config)
-        container_handler.stop_container(config["ID"])
+    container_handler.create_container(config)
+    container_handler.stop_container(config["ID"])
+    container_handler.destroy_container(config["ID"])
+    with pytest.raises(ValueError):
         container_handler.destroy_container(config["ID"])
-        container_handler.destroy_container(config["ID"])
+    assert container_handler._containers == set()
 
 
 def test_format_config():
@@ -107,13 +138,17 @@ def test_prune_volumes(config: dict, container_handler: Containers):
     container_handler.stop_container(config["ID"])
     container_handler.destroy_container(config["ID"])
     container_handler.prune_volumes()
-    with pytest.raises(Exception):
+    with pytest.raises(docker.errors.NotFound):
         container_handler.get_volume(config["ID"])
+    with pytest.raises(docker.errors.NotFound):
+        container_handler.get_volume(config["ID"] + Containers.NETLOG_CONTAINER_SUFFIX)
 
 
 def test_get_volume(config: dict, container_handler: Containers):
     container_handler.create_container(config)
     assert str(container_handler.get_volume(config["ID"] + "home")) == "<Volume: openssh-se>"
+    assert str(container_handler.get_volume(
+        config["ID"] + Containers.NETLOG_CONTAINER_SUFFIX)) == "<Volume: openssh-se>"
 
 
 def test_get_port(config: dict, container_handler: Containers):
