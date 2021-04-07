@@ -51,6 +51,9 @@ services:
       dev:
         aliases:
           - frontend
+    depends_on:
+      - postgres
+      - backend
     restart: always
 
   # Backend
