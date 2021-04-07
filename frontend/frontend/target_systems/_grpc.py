@@ -1,11 +1,13 @@
 """Implementations of target system module interfaces for gRPC remote service"""
 
+from ipaddress import IPv4Address, IPv6Address
 import logging
 from typing import Optional, cast
+from collections.abc import Iterator
 import grpc
 import target_system_provider.target_system_provider_pb2_grpc as tsp
 import target_system_provider.target_system_provider_pb2 as messages
-from ._interface import TargetSystem, TargetSystemProvider
+from ._interface import TargetSystem, TargetSystemProvider, Event, Download
 
 logger = logging.getLogger(__file__)
 
@@ -69,14 +71,48 @@ class _GrpcTargetSystemProvider(TargetSystemProvider):
 
         return _GrpcTargetSystem(response.id, response.address, response.port)
 
-    def yield_target_system(self, target_system: _GrpcTargetSystem) -> None:
+    def yield_target_system(
+            self, target_system: _GrpcTargetSystem) -> TargetSystemProvider.YieldResult:
         if self.channel is None:
             raise RuntimeError('gRPC channel was closed')
 
         try:
             stub = tsp.TargetSystemProviderStub(self.channel)
-            stub.YieldTargetSystem(messages.YieldRequest(id=target_system.target_id))
-        except grpc.RpcError:
-            logger.warning(
-                'Failed to yield target system to remote TargetSystemProvider',
-                exc_info=True)
+            stream = stub.YieldTargetSystem(
+                messages.YieldRequest(id=target_system.target_id))
+
+            def events() -> Iterator[Event]:
+                for item in stream:
+                    event: Optional[Event] = None
+                    if item.event.WhichOneof('type') == 'download':
+                        event = download_event_from_message(item.event.download)
+                    else:
+                        logger.warning('Unhandled event type recieved from target system provider')
+                    if event is not None:
+                        event.timestamp = item.event.timestamp
+                        yield event
+
+            result = TargetSystemProvider.YieldResult()
+            result.events = events()
+            return result
+        except grpc.RpcError as err:
+            raise Exception(
+                f'Failed to yield target system {target_system.address}:{target_system.port}'
+                ' to remote TargetSystemProvider') from err
+
+
+def download_event_from_message(message: messages.Event.Download) -> Download:
+    download = Download()
+
+    if message.WhichOneof('src_address') == 'src_address_v4':
+        download.src_address = IPv4Address(message.src_address_v4)
+    elif message.WhichOneof('src_address') == 'src_address_v6':
+        download.src_address = IPv6Address(message.src_address_v6)
+    else:
+        raise Exception('No src_address set in download message')
+
+    download.url = message.url
+    download.type = message.type
+    download.data = message.data
+
+    return download

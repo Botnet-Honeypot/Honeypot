@@ -1,12 +1,17 @@
 """Module for acquiring target systems that attacker commands can be sent to
 and execution information can be collected from."""
 
-from contextlib import contextmanager
-from typing import Iterator
-from ._interface import TargetSystem, TargetSystemProvider
+from ._interface import TargetSystem, TargetSystemProvider, IPAddress, Event, Download
 from ._grpc import _GrpcTargetSystemProvider
 
-__all__ = ['TargetSystem', 'TargetSystemProvider', 'create_grpc_target_system_provider']
+__all__ = [
+    'TargetSystem',
+    'IPAddress',
+    'Event',
+    'Download',
+    'TargetSystemProvider',
+    'create_grpc_target_system_provider'
+]
 
 
 def create_grpc_target_system_provider(server_address: str) -> TargetSystemProvider:

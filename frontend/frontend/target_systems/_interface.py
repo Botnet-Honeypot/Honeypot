@@ -1,7 +1,11 @@
 """Public interface classes for target systems module"""
 
-from typing import Protocol, Optional
+from typing import Iterator, Protocol, Optional, Union
+from ipaddress import IPv4Address, IPv6Address
 from abc import abstractmethod
+from datetime import datetime
+
+IPAddress = Union[IPv4Address, IPv6Address]
 
 
 class TargetSystem(Protocol):
@@ -11,8 +15,23 @@ class TargetSystem(Protocol):
     port: int
 
 
+class Event:
+    timestamp: datetime
+
+
+class Download(Event):
+    src_address: IPAddress
+    url: str
+    type: str
+    data: memoryview
+
+
 class TargetSystemProvider(Protocol):
     """A service that manages and provides target systems."""
+
+    class YieldResult:
+        """The result of yielding with collected information."""
+        events: Iterator[Event]
 
     @abstractmethod
     def acquire_target_system(self, user: str, password: str) -> Optional[TargetSystem]:
@@ -28,9 +47,10 @@ class TargetSystemProvider(Protocol):
         raise NotImplementedError
 
     @abstractmethod
-    def yield_target_system(self, target_system: TargetSystem) -> None:
+    def yield_target_system(self, target_system: TargetSystem) -> YieldResult:
         """Yield a previously acquired target system.
 
         :param target_system: The target system to yield.
+        :return: The result of yielding with collected information.
         """
         raise NotImplementedError
