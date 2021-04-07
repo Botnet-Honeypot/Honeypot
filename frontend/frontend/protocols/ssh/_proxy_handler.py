@@ -142,13 +142,13 @@ class ProxyHandler:
             return None
         except socket.error:
             logger.exception(
-                "Got socket excepting while connecting to SSH proxy %s:%i with %s/%s", ip_address,
+                "Got socket exception while connecting to SSH proxy %s:%i with %s/%s", ip_address,
                 port, username, password)
             return None
-        except Exception:
+        except Exception as exc:
             logger.exception(
-                "Got unknown excepting while connecting to SSH proxy %s:%i with %s/%s", ip_address,
-                port, username, password)
+                "Got unknown exception while connecting to SSH proxy %s:%i with %s/%s", ip_address,
+                port, username, password, exc_info=exc)
             return None
 
     def _get_corresponding_backend_channel(self, attacker_chan_id: int) -> paramiko.Channel:
@@ -455,7 +455,13 @@ def proxy_data(
     # If one is channel has recieeved eof make sure to send it to the other
     if attacker_channel.eof_received or attacker_channel.closed:
         logger.debug("Closing the backend channel since the attacker channel has sent eof or is closed")
-        backend_channel.close()
+        try:
+            backend_channel.close()
+        except Exception as exc:
+            logger.exception("Failed to close backend transport", exc_info=exc)
     if backend_channel.eof_received or backend_channel.closed:
         logger.debug("Closing the attacker channel since the backend channel has sent eof or is closed")
-        attacker_channel.close()
+        try:
+            attacker_channel.close()
+        except Exception as exc:
+            logger.exception("Failed to close attacker transport", exc_info=exc)

@@ -4,6 +4,8 @@ services:
     build:
       context: ..
       dockerfile: backend/Dockerfile
+    environment:
+      TARGET_SYSTEM_ADDRESS:
     ports:
       - "80:80"
     volumes:
