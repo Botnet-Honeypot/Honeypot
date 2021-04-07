@@ -172,11 +172,6 @@ class ProxyHandler:
     def close_connection(self) -> None:
         """This closes the backend connection and ends the session
         """
-        try:
-            self._session_log.end()
-        except Exception as exc:
-            logger.exception("Failed to end a SSHLoggingSession", exc_info=exc)
-
         # If there is no connection to the backend
         if self._connection is None:
             return
@@ -205,7 +200,11 @@ class ProxyHandler:
                 else:
                     raise Exception('Unhandled event type')
 
-            self._session_log.end()
+            try:
+                self._session_log.end()
+            except Exception:
+                logger.exception("Failed to end logging session")
+                raise
 
     def create_backend_connection(self) -> bool:
         """Sets up the a SSH connection to the backend

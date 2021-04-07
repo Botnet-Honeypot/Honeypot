@@ -11,9 +11,6 @@ import tarfile
 import threading
 import io
 from backend.io import byte_stream_from_iterable
-<< << << < HEAD
-== == == =
->>>>>> > main
 
 
 logger = logging.getLogger(__name__)

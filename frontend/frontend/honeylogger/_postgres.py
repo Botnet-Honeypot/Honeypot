@@ -11,9 +11,6 @@ from psycopg2 import OperationalError
 from ._types import IPAddress
 from typing import Optional
 from datetime import datetime, timezone
-<< << << < HEAD
-== == == =
->>>>>> > main
 
 
 logger = logging.getLogger(__name__)
