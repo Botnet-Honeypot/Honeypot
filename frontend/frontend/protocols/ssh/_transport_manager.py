@@ -42,7 +42,7 @@ class TransportManager:
         self._terminate = False
 
         self._handle_thread = threading.Thread(
-            target=self.check_transports, args=())
+            target=self.check_transports, args=(), name="Transport_Manager")
         self._handle_thread.start()
 
     def get_transports(self) -> List[TransportPair]:
@@ -97,9 +97,9 @@ class TransportManager:
 
         :param transport_pair: The transport pair
         """
-
-        transport_pair.proxy_handler.close_connection()
         self._remove_transport(transport_pair)
+        threading.Thread(
+            target=transport_pair.proxy_handler.close_connection, args=()).start()
 
     def check_transports(self):
         """Methods that loops indefinitely and checks if there are SSH sessions
