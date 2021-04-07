@@ -1,1 +1,1 @@
-from .connect import connect
+from .connect import connect, create_pool
