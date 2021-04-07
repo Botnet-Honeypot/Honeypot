@@ -3,10 +3,16 @@
 Currently handles requests to acquire and yield target systems.
 """
 
+import tempfile
 import logging
+from typing import Any, cast
 import uuid
 from concurrent import futures
+from pyshark.capture.file_capture import FileCapture
+from pyshark.capture.pipe_capture import PipeCapture
 import grpc
+from pyshark.packet.layer import Layer
+from pyshark.packet.packet import Packet
 import target_system_provider.target_system_provider_pb2_grpc as tsp
 import target_system_provider.target_system_provider_pb2 as messages
 from backend.container import Containers
@@ -51,15 +57,59 @@ class TargetSystemProvider(tsp.TargetSystemProviderServicer):
     def YieldTargetSystem(self, request, context):
         try:
             self.container_handler.stop_container(request.id)
-            # Collect info
-            self.container_handler.destroy_container(request.id)
+
+            # try:
+            # Collect downloads
+            with tempfile.NamedTemporaryFile() as temp:
+                with self.container_handler.get_container_netlog(request.id) as netlog_file:
+                    temp.write(netlog_file.read())
+
+                tshark_params = {
+                    '-J': 'http ip ipv6'
+                }
+                with FileCapture(input_file=temp.name,
+                                 display_filter='http.response',
+                                 custom_parameters=tshark_params) as cap:
+                    for packet in cap:
+                        result = messages.YieldResult()
+                        event = result.event
+                        event.timestamp.FromDatetime(packet.sniff_time)
+
+                        if 'ip' in packet:
+                            ipv4: Layer = packet['ip']
+                            event.download.src_address_v4 = ipv4.get_field('src').hex_value
+                        elif 'ipv6' in packet:
+                            ipv6: Layer = packet['ipv6']
+                            event.download.src_address_v6 = ipv6.get_field('src').binary_value
+                        else:
+                            raise RuntimeError(
+                                f'No IPv4 or IPv6 header on HTTP response for {request.id}')
+
+                        http: Layer = packet['http']
+                        event.download.url = http.get_field_value('response_for_uri')
+                        event.download.type = http.get('content_type',
+                                                       default='application/octet-stream')
+                        event.download.data = http.get_field('file_data').binary_value
+
+                        logger.debug('%s %s %s %s %s %s',
+                                     event.timestamp,
+                                     event.download.src_address_v4,
+                                     event.download.src_address_v6,
+                                     event.download.url,
+                                     event.download.type,
+                                     len(event.download.data))
+
+                        yield result
+
+                    logger.debug('Extracted netlog!')
+            # finally:
+                self.container_handler.destroy_container(request.id)
+
             # TODO: Properly cleanup after information is preserved and sent back to client
             # self.container_handler.prune_volumes()
         except Exception as exception:
-            logging.exception("Could not find, stop, destroy or cleanup container %s", request.id)
+            logger.exception("Could not find, stop, destroy or cleanup container %s", request.id)
             raise exception
-
-        return messages.YieldResult()
 
 
 def start_http_server(container_handler: Containers,
