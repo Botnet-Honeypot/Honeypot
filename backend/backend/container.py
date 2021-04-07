@@ -10,6 +10,7 @@ from docker.client import DockerClient
 from docker.models.containers import Container
 from docker.models.volumes import Volume
 from backend.io import byte_stream_from_iterable
+import backend.config
 
 
 logger = logging.getLogger(__name__)
@@ -34,6 +35,9 @@ class Containers:
     NETLOG_CONTAINER_SUFFIX = '_netlog'
     NETLOG_DIR = '/netlog'
     NETLOG_FILE_PATH = NETLOG_DIR + '/log.pcap'
+
+    LABEL_ROLE = 'botnet-honeypot.role'
+    ROLE_TARGET_CONTAINER = 'target-container'
 
     # Docker API client
     _client: DockerClient
@@ -97,6 +101,15 @@ class Containers:
         container = None
         netlog_container = None
         try:
+            network_id = 'bridge'
+
+            if backend.config.ENABLE_ISOLATED_TARGET_CONTAINER_NETWORKS:
+                self._client.networks.create(
+                    name=config["ID"],
+                    labels={Containers.LABEL_ROLE: Containers.ROLE_TARGET_CONTAINER}
+                )
+                network_id = config["ID"]
+
             container = self._safely_run_container(
                 config["Image"],
                 environment=config["Environment"],
@@ -104,6 +117,7 @@ class Containers:
                 name=config["ID"],
                 ports=config["Port"],
                 volumes=config["Volumes"],
+                network=network_id,
                 detach=True)
 
             # Start network logging container, has to happen after
@@ -208,11 +222,22 @@ class Containers:
 
         logger.info("Destroyed container %s", container_id)
 
-    def prune_volumes(self):
-        """Removes storage volumes for all inactive (destroyed) containers
+        self._prune_target_container_networks()
 
-        :param container_id: ID (name) of which container's storage directory to remove
-        """
+    def _prune_target_container_networks(self):
+        """Removes all unsed networks with target-container role."""
+
+        try:
+            result = self._client.networks.prune(
+                filters={'label': f'{Containers.LABEL_ROLE}={Containers.ROLE_TARGET_CONTAINER}'}
+            )
+            logger.debug('Pruned %d target container networks',
+                         0 if result['NetworksDeleted'] is None else len(result['NetworksDeleted']))
+        except docker.errors.APIError:
+            pass
+
+    def prune_volumes(self):
+        """Removes storage volumes for all inactive (destroyed) containers."""
         self._client.volumes.prune()
         logger.info("Pruned all unused volumes")
 
