@@ -9,6 +9,7 @@ python = "^3.9"
 docker = "^4.4.4"
 protocols = { path = "../protocols", develop = false }
 python-dotenv = "^0.15.0"
+pyshark = "^0.4.3"
 
 [tool.poetry.dev-dependencies]
 pylint = "^2.6.2"

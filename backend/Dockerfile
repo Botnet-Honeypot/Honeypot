@@ -1,7 +1,7 @@
 ###############################################
 # Base Image
 ###############################################
-FROM python:3.9.2-slim-buster as python-base
+FROM python:3.9.3-slim-buster as python-base
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
@@ -43,6 +43,12 @@ RUN poetry install --no-dev --no-root
 # Production Image
 ###############################################
 FROM python-base as production
+
+# Install runtime system dependencies
+RUN apt-get update && \
+    apt-get install -yq --no-install-recommends \
+    tshark=2.6.20-0+deb10u1 \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Copy venv (Python binary and dependencies) from builder
 COPY --from=builder-base $PYSETUP_PATH $PYSETUP_PATH

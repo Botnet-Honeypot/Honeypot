@@ -1,7 +1,7 @@
 ###############################################
 # Base Image
 ###############################################
-FROM python:3.9.2-slim-buster as python-base
+FROM python:3.9.3-slim-buster as python-base
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
