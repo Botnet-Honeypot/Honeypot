@@ -17,6 +17,7 @@ from paramiko.ssh_exception import AuthenticationException
 from paramiko.transport import Transport
 from paramiko.channel import Channel
 from paramiko.common import (OPEN_FAILED_ADMINISTRATIVELY_PROHIBITED, OPEN_SUCCEEDED)
+from frontend import target_systems
 
 from frontend.honeylogger import SSHSession
 from frontend.target_systems import TargetSystemProvider, TargetSystem
@@ -169,7 +170,6 @@ class ProxyHandler:
     def close_connection(self) -> None:
         """This closes the backend connection and ends the session"""
 
-        self._session_log.end()
         if self._connection is None:
             return
         # Close the backend connection
@@ -178,8 +178,23 @@ class ProxyHandler:
         except Exception:
             logger.exception("Failed to close backend transport")
         finally:
-            self._target_system_provider.yield_target_system(self._connection.target_system)
+            result = self._target_system_provider.yield_target_system(
+                self._connection.target_system)
             self._connection = None
+
+            for event in result.events:
+                if isinstance(event, target_systems.Download):
+                    self._session_log.log_download(
+                        data=event.data,
+                        file_type=event.type,
+                        source_address=event.src_address,
+                        source_url=event.url,
+                        timestamp=event.timestamp
+                    )
+                else:
+                    raise Exception('Unhandled event type')
+
+            self._session_log.end()
 
     def create_backend_connection(self) -> bool:
         """Sets up the a SSH connection to the backend
