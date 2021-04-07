@@ -175,8 +175,9 @@ class ProxyHandler:
         # If there is no connection to the backend
         if self._connection is None:
             return
-        # Close the backend connection
+
         try:
+            # Close the backend connection
             self._connection.transport.close()
         except Exception as exc:
             logger.exception("Failed to close backend transport", exc_info=exc)

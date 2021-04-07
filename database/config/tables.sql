@@ -4,8 +4,6 @@ CREATE TABLE File
   data bytea,
   type text  NOT NULL,
   PRIMARY KEY (hash),
-  CONSTRAINT Check_Valid_Type
-    CHECK (type ~ '^\w+\/[-+.\w]+$'),
   CONSTRAINT Check_Hash_Matches_Data
     CHECK (hash = sha256(data))
 );

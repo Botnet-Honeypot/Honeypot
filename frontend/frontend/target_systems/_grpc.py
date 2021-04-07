@@ -84,12 +84,14 @@ class _GrpcTargetSystemProvider(TargetSystemProvider):
             def events() -> Iterator[Event]:
                 for item in stream:
                     event: Optional[Event] = None
+
                     if item.event.WhichOneof('type') == 'download':
                         event = download_event_from_message(item.event.download)
                     else:
                         logger.warning('Unhandled event type recieved from target system provider')
+
                     if event is not None:
-                        event.timestamp = item.event.timestamp
+                        event.timestamp = item.event.timestamp.ToDatetime()
                         yield event
 
             result = TargetSystemProvider.YieldResult()

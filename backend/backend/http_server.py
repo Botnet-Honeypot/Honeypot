@@ -91,14 +91,6 @@ class TargetSystemProvider(tsp.TargetSystemProviderServicer):
                                                        default='application/octet-stream')
                         event.download.data = http.get_field('file_data').binary_value
 
-                        logger.debug('%s %s %s %s %s %s',
-                                     event.timestamp,
-                                     event.download.src_address_v4,
-                                     event.download.src_address_v6,
-                                     event.download.url,
-                                     event.download.type,
-                                     len(event.download.data))
-
                         yield result
 
                     logger.debug('Extracted netlog!')

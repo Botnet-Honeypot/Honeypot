@@ -1,0 +1,5 @@
+BEGIN;
+
+ALTER TABLE File DROP CONSTRAINT Check_Valid_Type;
+
+COMMIT;

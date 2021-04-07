@@ -53,6 +53,7 @@ class PostgresLogSSHSession:
     logs session and actions to a Postgres database"""
 
     begin_called: bool
+    end_called: bool
 
     _lock: threading.Lock
     _conn_pool: ThreadedConnectionPool
@@ -70,6 +71,7 @@ class PostgresLogSSHSession:
                  src_address: IPAddress, src_port: int,
                  dst_address: IPAddress, dst_port: int) -> None:
         self.begin_called = False
+        self.end_called = False
         self._lock = threading.Lock()
         self._conn_pool = conn_pool
         self._conn = None
@@ -197,6 +199,8 @@ class PostgresLogSSHSession:
                         term_width_pixels: int, term_height_pixels: int) -> None:
         if not self.begin_called:
             raise ValueError('Logging session was not started')
+        if self.end_called:
+            raise ValueError('Logging session was already ended')
 
         timestamp = get_timestamp()
 
@@ -215,6 +219,8 @@ class PostgresLogSSHSession:
     def log_env_request(self, chan_id: int, name: str, value: str) -> None:
         if not self.begin_called:
             raise ValueError('Logging session was not started')
+        if self.end_called:
+            raise ValueError('Logging session was already ended')
 
         timestamp = get_timestamp()
 
@@ -232,6 +238,8 @@ class PostgresLogSSHSession:
                                  destination: str, destination_port: int) -> None:
         if not self.begin_called:
             raise ValueError('Logging session was not started')
+        if self.end_called:
+            raise ValueError('Logging session was already ended')
 
         timestamp = get_timestamp()
 
@@ -251,6 +259,8 @@ class PostgresLogSSHSession:
             auth_cookie: memoryview, screen_number: int) -> None:
         if not self.begin_called:
             raise ValueError('Logging session was not started')
+        if self.end_called:
+            raise ValueError('Logging session was already ended')
 
         timestamp = get_timestamp()
 
@@ -268,6 +278,8 @@ class PostgresLogSSHSession:
     def log_port_forward_request(self, address: str, port: int) -> None:
         if not self.begin_called:
             raise ValueError('Logging session was not started')
+        if self.end_called:
+            raise ValueError('Logging session was already ended')
 
         timestamp = get_timestamp()
 
@@ -284,6 +296,8 @@ class PostgresLogSSHSession:
     def log_login_attempt(self, username: str, password: str) -> None:
         if not self.begin_called:
             raise ValueError('Logging session was not started')
+        if self.end_called:
+            raise ValueError('Logging session was already ended')
 
         timestamp = get_timestamp()
 
@@ -300,6 +314,8 @@ class PostgresLogSSHSession:
     def log_command(self, input: str) -> None:
         if not self.begin_called:
             raise ValueError('Logging session was not started')
+        if self.end_called:
+            raise ValueError('Logging session was already ended')
 
         timestamp = get_timestamp()
 
@@ -316,6 +332,8 @@ class PostgresLogSSHSession:
     def log_ssh_channel_output(self, data: memoryview, channel: int) -> None:
         if not self.begin_called:
             raise ValueError('Logging session was not started')
+        if self.end_called:
+            raise ValueError('Logging session was already ended')
 
         timestamp = get_timestamp()
 
@@ -338,8 +356,8 @@ class PostgresLogSSHSession:
                      timestamp: datetime = datetime.now(timezone.utc)) -> None:
         if not self.begin_called:
             raise ValueError('Logging session was not started')
-
-        timestamp = get_timestamp()
+        if self.end_called:
+            raise ValueError('Logging session was already ended')
 
         def insert(cur, session):
             event_id = insert_new_event(
@@ -357,6 +375,9 @@ class PostgresLogSSHSession:
     def end(self) -> None:
         if not self.begin_called:
             raise ValueError('Logging session was not started')
+        if self.end_called:
+            raise ValueError('Logging session was already ended')
+        self.end_called = True
 
         timestamp = get_timestamp()
 
