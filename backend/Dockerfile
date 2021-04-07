@@ -58,6 +58,6 @@ WORKDIR /usr/src/${PROJECT_DIR}
 # Copy source files
 COPY ${PROJECT_DIR}/${PROJECT_DIR} ${PROJECT_DIR}
 # Copy target system template files
-COPY ${PROJECT_DIR}/custom-cont-init.d custom-cont-init.d
+COPY ${PROJECT_DIR}/target-systems target-systems
 
 ENTRYPOINT ["python", "-m", "backend"]

@@ -41,7 +41,9 @@ def proxy_handler(logger, target_system_provider) -> ProxyHandler:
 
 @pytest.fixture()
 def ssh_server(logger, proxy_handler) -> Server:
-    return Server(logger, proxy_handler, [""], [""])
+    transport_mock = MagicMock()
+    transport_mock.remote_version = "ExampleVersion"
+    return Server(transport_mock, logger, proxy_handler, [""], [""])
 
 
 def test_update_last_activity_without_started_session(ssh_server: Server, logger: SSHSession):
@@ -60,15 +62,14 @@ def test_update_last_activity_without_started_session(ssh_server: Server, logger
 def test_update_last_activity_exception(ssh_server: Server, logger: SSHSession):
     logger.begin = MagicMock(side_effect=Exception)
 
-    debug_log.exception = MagicMock()
     now = datetime.datetime.now()
 
-    ssh_server._update_last_activity()
+    with pytest.raises(Exception):
+        ssh_server._update_last_activity()
 
     logger.begin.assert_called_once()
     assert ssh_server._logging_session_started == False
     assert time_in_range(now,  datetime.datetime.now(), ssh_server._last_activity)
-    debug_log.exception.assert_called_once()
 
 
 def test_get_last_activity(ssh_server: Server):

@@ -6,6 +6,8 @@ import logging
 import socket
 import threading
 from time import sleep, time
+import select
+import os
 from typing import Optional
 import itertools
 from dataclasses import dataclass
@@ -141,13 +143,13 @@ class ProxyHandler:
             return None
         except socket.error:
             logger.exception(
-                "Got socket excepting while connecting to SSH proxy %s:%i with %s/%s", ip_address,
+                "Got socket exception while connecting to SSH proxy %s:%i with %s/%s", ip_address,
                 port, username, password)
             return None
-        except Exception:
+        except Exception as exc:
             logger.exception(
-                "Got unknown excepting while connecting to SSH proxy %s:%i with %s/%s", ip_address,
-                port, username, password)
+                "Got unknown exception while connecting to SSH proxy %s:%i with %s/%s", ip_address,
+                port, username, password, exc_info=exc)
             return None
 
     def _get_corresponding_backend_channel(self, attacker_chan_id: int) -> paramiko.Channel:
@@ -168,16 +170,25 @@ class ProxyHandler:
         return chan
 
     def close_connection(self) -> None:
-        """This closes the backend connection and ends the session"""
+        """This closes the backend connection and ends the session
+        """
+        try:
+            self._session_log.end()
+        except Exception as exc:
+            logger.exception("Failed to end a SSHLoggingSession", exc_info=exc)
 
+        # If there is no connection to the backend
         if self._connection is None:
             return
         # Close the backend connection
         try:
             self._connection.transport.close()
-        except Exception:
-            logger.exception("Failed to close backend transport")
+        except Exception as exc:
+            logger.exception("Failed to close backend transport", exc_info=exc)
         finally:
+            logger.debug('Yielding %s:%d target system...',
+                         self._connection.target_system.address,
+                         self._connection.target_system.port)
             result = self._target_system_provider.yield_target_system(
                 self._connection.target_system)
             self._connection = None
@@ -312,6 +323,11 @@ class ProxyHandler:
             return False
 
         self._session_log.log_command(cmd)
+        # Not sure if it will be included in the channel output since only data from
+        # the backend connection is logged. Therefore we log the attacker command here aswell
+        self._session_log.log_ssh_channel_output(
+            memoryview(f"Attacker exec request command: {cmd}\r\n".encode("utf-8")),
+            attacker_channel.chanid)
 
         handle_thread = threading.Thread(
             target=proxy_data, args=(attacker_channel, backend_channel, self._session_log))
@@ -376,11 +392,15 @@ def try_send_data(data, send_method) -> bool:
     try:
         send_method(data)
     except socket.timeout:
-        logger.warning("Timed out while trying to send data")
+        logger.error("Timed out while trying to send data")
         return False
-    except socket.error:
-        logger.warning("Failed data")
+    except socket.error as exc:
+        logger.exception("Got socket error while sending data", exc_info=exc)
         return False
+    except Exception as exc:
+        logger.exception("Got exception while sending data", exc_info=exc)
+        return False
+
     return True
 
 
@@ -397,9 +417,18 @@ def proxy_data(
     attacker_channel.settimeout(10)
     backend_channel.settimeout(10)
 
+    if os.name == 'posix':
+        poll = select.poll()
+        poll.register(attacker_channel.fileno(), select.POLLIN)
+        poll.register(backend_channel.fileno(), select.POLLIN)
+
     command_parser = CommandParser()
     # While the attacker channel is not closed and has not send eof
     while not (attacker_channel.eof_received or attacker_channel.closed):
+        if os.name == 'posix':
+            poll.poll(500)  # 500 ms timeout
+        else:
+            sleep(0.1)
         # If the backend channel is shut down
         if backend_channel.eof_received or backend_channel.closed:
             # If we don't have data buffered from the backend we will break from the loop
@@ -407,6 +436,8 @@ def proxy_data(
                 # Send a final exit code if there is one
                 if backend_channel.exit_status_ready():
                     exit_code = backend_channel.recv_exit_status()
+                    if exit_code == -1:
+                        continue
                     if try_send_data(exit_code, attacker_channel.send_exit_status):
                         pass  # logger.error("Failled to send exit code to the attacker")
                 logger.debug("Backend channel is closed and no more data is available to read")
@@ -437,12 +468,16 @@ def proxy_data(
             if not try_send_data(data, attacker_channel.sendall_stderr):
                 logger.error("Failed to send backend stderr data to attacker")
 
-        sleep(0.1)
-
     # If one is channel has recieeved eof make sure to send it to the other
-    if attacker_channel.eof_received:
-        logger.debug("Closing the backend channel since the attacker channel has sent eof")
-        backend_channel.close()
-    if backend_channel.eof_received:
-        logger.debug("Closing the attacker channel since the backend channel has sent eof")
-        attacker_channel.close()
+    if attacker_channel.eof_received or attacker_channel.closed:
+        logger.debug("Closing the backend channel since the attacker channel has sent eof or is closed")
+        try:
+            backend_channel.close()
+        except Exception as exc:
+            logger.exception("Failed to close backend transport", exc_info=exc)
+    if backend_channel.eof_received or backend_channel.closed:
+        logger.debug("Closing the attacker channel since the backend channel has sent eof or is closed")
+        try:
+            attacker_channel.close()
+        except Exception as exc:
+            logger.exception("Failed to close attacker transport", exc_info=exc)

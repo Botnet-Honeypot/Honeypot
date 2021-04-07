@@ -7,6 +7,7 @@ def test_no_runtime_errors():
                                  src_port=3463,
                                  dst_address=ip_address('226.64.12.2'),
                                  dst_port=22)
+    session.set_remote_version("SSH-2.0-OpenSSH_fake")
     session.begin()
 
     session.log_login_attempt('a_username', 'some_password')
@@ -20,5 +21,11 @@ def test_no_runtime_errors():
     session.log_ssh_channel_output(memoryview(b'more output of ls\n'), 1)
     session.log_ssh_channel_output(memoryview(b'SOME COMMAND ONE SECOND CHANNEL\n'), 2)
     session.log_ssh_channel_output(memoryview(b'output on second channel\n'), 2)
+    session.log_env_request(1, "TERM", "screen")
+    session.log_env_request(1523, "tnsrieotena", "pfeiabpu")
+    session.log_direct_tcpip_request(4, ip_address("23.4.42.53"), 80, "google.com", 80)
+    session.log_x11_request(4, False, "idk", memoryview(b"43"), 1)
+    session.log_x11_request(5, True, "idkatall", memoryview(b"434"), 1)
+    session.log_port_forward_request("54.123.64.3", 80)
 
     session.end()

@@ -1,8 +1,10 @@
+from ipaddress import AddressValueError,  ip_address
 import logging
 import datetime
 from typing import List, Optional, Set, Tuple
 
-from paramiko.common import (AUTH_FAILED, AUTH_SUCCESSFUL, OPEN_SUCCEEDED)
+from paramiko.common import (AUTH_FAILED, AUTH_SUCCESSFUL,
+                             OPEN_FAILED_CONNECT_FAILED, OPEN_SUCCEEDED)
 import paramiko
 from paramiko.channel import Channel
 
@@ -24,11 +26,13 @@ class Server(paramiko.ServerInterface):
 
     def __init__(
             self,
+            transport: paramiko.Transport,
             session: SSHSession,
             proxy_handler: ProxyHandler,
             usernames: Optional[List[str]],
             passwords: Optional[List[str]]) -> None:
         super().__init__()
+        self._transport = transport
         self._usernames = usernames
         self._passwords = passwords
         self._session = session
@@ -47,16 +51,18 @@ class Server(paramiko.ServerInterface):
         return self._last_activity
 
     def _update_last_activity(self) -> None:
-        """Updates the last activity seen
-        """
+        """Updates the last activity seen"""
+        self._last_activity = datetime.datetime.now()
+
         # Make sure to start the logging session if it isn't started
         if not self._logging_session_started:
             try:
+                self._session.set_remote_version(self._transport.remote_version)
                 self._session.begin()
                 self._logging_session_started = True
-            except Exception:
-                logger.exception("Failed to start the SSH logging session")
-        self._last_activity = datetime.datetime.now()
+            except Exception as exc:
+                logger.exception("Failed to start the SSH logging session", exc_info=exc)
+                raise
 
     def check_auth_password(self, username: str, password: str) -> int:
         self._update_last_activity()
@@ -122,29 +128,40 @@ class Server(paramiko.ServerInterface):
         return self._proxy_handler.handle_window_change_request(
             channel, width, height, pixelwidth, pixelheight)
 
-    def check_channel_env_request(self, channel: Channel, name: str, value: str) -> bool:
+    def check_channel_env_request(self, channel: Channel, name: bytes, value: bytes) -> bool:
         self._update_last_activity()
-        logger.info(
-            "Got env request for channel %s. name: %s value:%s", channel.chanid,
-            name, value)
+        try:
+            name_string = name.decode("utf-8")
+            value_string = value.decode("utf-8")
+        except UnicodeDecodeError:
+            logger.error("Failed to decode the env requset  with name: %s and value: %s",
+                         name, value)
+            return False
+
+        self._session.log_env_request(channel.chanid, name_string, value_string)
         return False
 
     def check_channel_direct_tcpip_request(
             self, chanid: int, origin: Tuple[str, int],
             destination: Tuple[str, int]) -> int:
         self._update_last_activity()
-        logger.info(
-            "Got direct tcpip request for channel %s. origin: %s destination:%s", chanid,
-            origin, destination)
+        try:
+            ip = ip_address(origin[0])
+        except ValueError:
+            logger.error("Failed to decode the origin IP %s into an IPv4 address", origin[0])
+            return OPEN_FAILED_CONNECT_FAILED
+        self._session.log_direct_tcpip_request(
+            chanid, ip, origin[1],
+            destination[0],
+            destination[1])
         return OPEN_SUCCEEDED
 
     def check_channel_x11_request(
             self, channel: Channel, single_connection: bool, auth_protocol: str, auth_cookie: bytes,
             screen_number: int) -> bool:
         self._update_last_activity()
-        logger.info(
-            "Got x11 request on channel %s. single_connection: %s auth_protocol: %s auth_cookie: %s screen_number: %s",
-            channel.chanid, single_connection, auth_protocol, auth_cookie, screen_number)
+        self._session.log_x11_request(channel.chanid, single_connection,
+                                      auth_protocol, memoryview(auth_cookie), screen_number)
         return False
 
     def check_channel_forward_agent_request(self, channel: Channel) -> bool:
@@ -154,5 +171,5 @@ class Server(paramiko.ServerInterface):
 
     def check_port_forward_request(self, address: str, port: int) -> int:
         self._update_last_activity()
-        logger.info("Got port forward request. Address: %s, Port: %s", address, port)
+        self._session.log_port_forward_request(address, port)
         return False

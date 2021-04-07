@@ -62,6 +62,7 @@ class ConnectionManager(threading.Thread):
     def stop(self) -> None:
         """Stops the `listen` method listening for TCP connections
         """
+        logger.debug("Shutting down ConnectionManager")
         with self._lock:
             self._terminate = True
 
@@ -119,8 +120,10 @@ class ConnectionManager(threading.Thread):
                 dst_address=self._ip,
                 dst_port=self._port)
 
+            transport.add_server_key(self._host_key)
             proxy_handler = ProxyHandler(session, self._target_system_provider)
             server = Server(
+                transport,
                 session,
                 proxy_handler,
                 self._usernames,
@@ -134,11 +137,11 @@ class ConnectionManager(threading.Thread):
                 continue
             except EOFError:
                 continue
-            except Exception:
-                logger.exception("Failed to start the SSH server for %s", addr[0])
+            except Exception as exc:
+                logger.exception("Failed to start the SSH server for %s", addr[0], exc_info=exc)
                 continue
-            logger.info("Remote SSH version %s", transport.remote_version)
 
             transport_manager.add_transport(TransportPair(transport, proxy_handler, server))
 
+        logger.debug("ConnectionManager has shut down")
         transport_manager.stop()

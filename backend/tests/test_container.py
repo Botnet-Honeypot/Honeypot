@@ -113,7 +113,7 @@ def test_prune_volumes(config: dict, container_handler: Containers):
 
 def test_get_volume(config: dict, container_handler: Containers):
     container_handler.create_container(config)
-    assert str(container_handler.get_volume(config["ID"] + "config")) == "<Volume: openssh-se>"
+    assert str(container_handler.get_volume(config["ID"] + "home")) == "<Volume: openssh-se>"
 
 
 def test_get_port(config: dict, container_handler: Containers):

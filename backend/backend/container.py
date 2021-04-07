@@ -1,16 +1,19 @@
 """Contains class and methods used for handling docker containers"""
 
-from backend.io import byte_stream_from_iterable
-import io
-import threading
-import tarfile
-import logging
-from enum import Enum
-from typing import IO, Iterable, cast
-import docker
-from docker.client import DockerClient
-from docker.models.containers import Container
 from docker.models.volumes import Volume
+from docker.models.containers import Container
+from docker.client import DockerClient
+import docker
+from typing import IO, Iterable, cast
+from enum import Enum
+import logging
+import tarfile
+import threading
+import io
+from backend.io import byte_stream_from_iterable
+<< << << < HEAD
+== == == =
+>>>>>> > main
 
 
 logger = logging.getLogger(__name__)
@@ -46,7 +49,9 @@ class Containers:
 
     def __init__(self):
         self._client = docker.from_env()
-        self._client.images.pull('ghcr.io/linuxserver/openssh-server:latest')
+        self._client.images.build(path="target-systems/ssh-server",
+                                  dockerfile="Dockerfile",
+                                  tag="target-container")
         self._client.images.pull(self.TCPDUMP_IMAGE)
 
         self._containers = set()
@@ -77,16 +82,14 @@ class Containers:
         container = None
         netlog_container = None
         try:
-            container = cast(Container, self._client.containers.create(
+            container = cast(Container, self._client.containers.run(
                 config["Image"],
                 environment=config["Environment"],
                 hostname=config["Hostname"],
                 name=config["ID"],
                 ports=config["Port"],
-                volumes=config["Volumes"]))
-
-            self._copy_init_to_volume(config["ID"])
-            container.start()
+                volumes=config["Volumes"],
+                detach=True))
 
             # Start network logging container, has to happen after
             # starting main container to allow attaching to network
@@ -237,7 +240,7 @@ class Containers:
     def format_config(container_id: int, user: str, password: str,
                       hostname='Dell-T140', user_id='1000', group_id='1000',
                       timezone='Europe/London', sudo_access='true',
-                      image='ghcr.io/linuxserver/openssh-server', port=None) -> dict:
+                      image='target-container', port=None) -> dict:
         """Formats the given parameters as a dictionary that fits docker-py.
         Creates the volumes for the config and home dirs of the container
 
@@ -250,14 +253,13 @@ class Containers:
         :param group_id: GID for container user, defaults to '1000'
         :param timezone: Timezone for container, defaults to 'Europe/London'
         :param sudo_access: Sudo access for container, defaults to 'true'
-        :param image: Image for container, defaults to 'ghcr.io/linuxserver/openssh-server'
+        :param image: Image for container, defaults to 'target-container' which is based on 'ghcr.io/linuxserver/openssh-server'
         :param port: Exposed port for container, defaults to None
         :return: Dictionary that can be easily used for docker-py
         """
 
         # Format the container id to ID_PREFIX + id
         _container_id = Containers.ID_PREFIX + str(container_id)
-        _config_path = _container_id + "config"
         _home_path = _container_id + "home"
 
         # Format the config dict of this container
@@ -275,7 +277,6 @@ class Containers:
             'Timezone': timezone,
             'SUDO': sudo_access,
             'Volumes': {
-                _config_path: {'bind': '/config', 'mode': 'rw'},
                 _home_path: {'bind': '/home', 'mode': 'rw'}
             },
         }
@@ -305,18 +306,3 @@ class Containers:
             'USER_PASSWORD=' + password,
             'USER_NAME=' + user
         ]
-
-    def _copy_init_to_volume(self, container_id: str):
-        """Copies the init script from
-            backend/custom-cont-init.d/ to the container's volume.
-
-        :param container_id: container id to copy files to
-        """
-
-        # Creates tar archive of local directory ./custom-cont-init.d and
-        # transfers it into target container at path /config
-        tar_data = io.BytesIO()
-        with tarfile.open(fileobj=tar_data, mode='w') as tar:
-            tar.add('custom-cont-init.d/')
-        tar_data.seek(0)
-        self._get_container(container_id).put_archive('/config', tar_data)
