@@ -20,7 +20,7 @@ class TargetSystemProviderStub(object):
                 request_serializer=target__system__provider_dot_target__system__provider__pb2.AcquisitionRequest.SerializeToString,
                 response_deserializer=target__system__provider_dot_target__system__provider__pb2.AcquisitionResult.FromString,
                 )
-        self.YieldTargetSystem = channel.unary_unary(
+        self.YieldTargetSystem = channel.unary_stream(
                 '/target_system_provider.TargetSystemProvider/YieldTargetSystem',
                 request_serializer=target__system__provider_dot_target__system__provider__pb2.YieldRequest.SerializeToString,
                 response_deserializer=target__system__provider_dot_target__system__provider__pb2.YieldResult.FromString,
@@ -54,7 +54,7 @@ def add_TargetSystemProviderServicer_to_server(servicer, server):
                     request_deserializer=target__system__provider_dot_target__system__provider__pb2.AcquisitionRequest.FromString,
                     response_serializer=target__system__provider_dot_target__system__provider__pb2.AcquisitionResult.SerializeToString,
             ),
-            'YieldTargetSystem': grpc.unary_unary_rpc_method_handler(
+            'YieldTargetSystem': grpc.unary_stream_rpc_method_handler(
                     servicer.YieldTargetSystem,
                     request_deserializer=target__system__provider_dot_target__system__provider__pb2.YieldRequest.FromString,
                     response_serializer=target__system__provider_dot_target__system__provider__pb2.YieldResult.SerializeToString,
@@ -98,7 +98,7 @@ class TargetSystemProvider(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/target_system_provider.TargetSystemProvider/YieldTargetSystem',
+        return grpc.experimental.unary_stream(request, target, '/target_system_provider.TargetSystemProvider/YieldTargetSystem',
             target__system__provider_dot_target__system__provider__pb2.YieldRequest.SerializeToString,
             target__system__provider_dot_target__system__provider__pb2.YieldResult.FromString,
             options, channel_credentials,

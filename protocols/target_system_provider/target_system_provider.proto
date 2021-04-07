@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package target_system_provider;
 
+import "google/protobuf/timestamp.proto";
+
 // Service for providing target systems which can safely be connected to for execution of attacker commands.
 service TargetSystemProvider {
     // Request to be provided a target system
@@ -9,7 +11,7 @@ service TargetSystemProvider {
     rpc AcquireTargetSystem (AcquisitionRequest) returns (AcquisitionResult) {}
 
     // Request to give back an acquired target system
-    rpc YieldTargetSystem (YieldRequest) returns (YieldResult) {}
+    rpc YieldTargetSystem (YieldRequest) returns (stream YieldResult) {}
 }
 
 message AcquisitionRequest {
@@ -27,6 +29,25 @@ message YieldRequest {
     string id = 1;
 }
 
+message Event {
+    google.protobuf.Timestamp timestamp = 1;
+
+    oneof type {
+        Download download = 2;
+    }
+
+    message Download {
+        oneof src_address {
+            fixed32 src_address_v4 = 1;
+            bytes src_address_v6 = 2;
+        }
+        string url = 3;
+        // MIME-type of contents
+        string type = 4;
+        bytes data = 5;
+    }
+}
+
 message YieldResult {
-    // Collected data about system
+    Event event = 1;
 }

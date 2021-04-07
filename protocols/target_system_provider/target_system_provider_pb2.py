@@ -11,6 +11,7 @@ from google.protobuf import symbol_database as _symbol_database
 _sym_db = _symbol_database.Default()
 
 
+from google.protobuf import timestamp_pb2 as google_dot_protobuf_dot_timestamp__pb2
 
 
 DESCRIPTOR = _descriptor.FileDescriptor(
@@ -19,8 +20,9 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   syntax='proto3',
   serialized_options=None,
   create_key=_descriptor._internal_create_key,
-  serialized_pb=b'\n3target_system_provider/target_system_provider.proto\x12\x16target_system_provider\"4\n\x12\x41\x63quisitionRequest\x12\x0c\n\x04user\x18\x01 \x01(\t\x12\x10\n\x08password\x18\x02 \x01(\t\">\n\x11\x41\x63quisitionResult\x12\n\n\x02id\x18\x01 \x01(\t\x12\x0f\n\x07\x61\x64\x64ress\x18\x02 \x01(\t\x12\x0c\n\x04port\x18\x03 \x01(\r\"\x1a\n\x0cYieldRequest\x12\n\n\x02id\x18\x01 \x01(\t\"\r\n\x0bYieldResult2\xe8\x01\n\x14TargetSystemProvider\x12n\n\x13\x41\x63quireTargetSystem\x12*.target_system_provider.AcquisitionRequest\x1a).target_system_provider.AcquisitionResult\"\x00\x12`\n\x11YieldTargetSystem\x12$.target_system_provider.YieldRequest\x1a#.target_system_provider.YieldResult\"\x00\x62\x06proto3'
-)
+  serialized_pb=b'\n3target_system_provider/target_system_provider.proto\x12\x16target_system_provider\x1a\x1fgoogle/protobuf/timestamp.proto\"4\n\x12\x41\x63quisitionRequest\x12\x0c\n\x04user\x18\x01 \x01(\t\x12\x10\n\x08password\x18\x02 \x01(\t\">\n\x11\x41\x63quisitionResult\x12\n\n\x02id\x18\x01 \x01(\t\x12\x0f\n\x07\x61\x64\x64ress\x18\x02 \x01(\t\x12\x0c\n\x04port\x18\x03 \x01(\r\"\x1a\n\x0cYieldRequest\x12\n\n\x02id\x18\x01 \x01(\t\"\xf2\x01\n\x05\x45vent\x12-\n\ttimestamp\x18\x01 \x01(\x0b\x32\x1a.google.protobuf.Timestamp\x12:\n\x08\x64ownload\x18\x02 \x01(\x0b\x32&.target_system_provider.Event.DownloadH\x00\x1av\n\x08\x44ownload\x12\x18\n\x0esrc_address_v4\x18\x01 \x01(\x07H\x00\x12\x18\n\x0esrc_address_v6\x18\x02 \x01(\x0cH\x00\x12\x0b\n\x03url\x18\x03 \x01(\t\x12\x0c\n\x04type\x18\x04 \x01(\t\x12\x0c\n\x04\x64\x61ta\x18\x05 \x01(\x0c\x42\r\n\x0bsrc_addressB\x06\n\x04type\";\n\x0bYieldResult\x12,\n\x05\x65vent\x18\x01 \x01(\x0b\x32\x1d.target_system_provider.Event2\xea\x01\n\x14TargetSystemProvider\x12n\n\x13\x41\x63quireTargetSystem\x12*.target_system_provider.AcquisitionRequest\x1a).target_system_provider.AcquisitionResult\"\x00\x12\x62\n\x11YieldTargetSystem\x12$.target_system_provider.YieldRequest\x1a#.target_system_provider.YieldResult\"\x00\x30\x01\x62\x06proto3'
+  ,
+  dependencies=[google_dot_protobuf_dot_timestamp__pb2.DESCRIPTOR,])
 
 
 
@@ -59,8 +61,8 @@ _ACQUISITIONREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=79,
-  serialized_end=131,
+  serialized_start=112,
+  serialized_end=164,
 )
 
 
@@ -105,8 +107,8 @@ _ACQUISITIONRESULT = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=133,
-  serialized_end=195,
+  serialized_start=166,
+  serialized_end=228,
 )
 
 
@@ -137,8 +139,116 @@ _YIELDREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=197,
-  serialized_end=223,
+  serialized_start=230,
+  serialized_end=256,
+)
+
+
+_EVENT_DOWNLOAD = _descriptor.Descriptor(
+  name='Download',
+  full_name='target_system_provider.Event.Download',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  create_key=_descriptor._internal_create_key,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='src_address_v4', full_name='target_system_provider.Event.Download.src_address_v4', index=0,
+      number=1, type=7, cpp_type=3, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+    _descriptor.FieldDescriptor(
+      name='src_address_v6', full_name='target_system_provider.Event.Download.src_address_v6', index=1,
+      number=2, type=12, cpp_type=9, label=1,
+      has_default_value=False, default_value=b"",
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+    _descriptor.FieldDescriptor(
+      name='url', full_name='target_system_provider.Event.Download.url', index=2,
+      number=3, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=b"".decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+    _descriptor.FieldDescriptor(
+      name='type', full_name='target_system_provider.Event.Download.type', index=3,
+      number=4, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=b"".decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+    _descriptor.FieldDescriptor(
+      name='data', full_name='target_system_provider.Event.Download.data', index=4,
+      number=5, type=12, cpp_type=9, label=1,
+      has_default_value=False, default_value=b"",
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+    _descriptor.OneofDescriptor(
+      name='src_address', full_name='target_system_provider.Event.Download.src_address',
+      index=0, containing_type=None,
+      create_key=_descriptor._internal_create_key,
+    fields=[]),
+  ],
+  serialized_start=375,
+  serialized_end=493,
+)
+
+_EVENT = _descriptor.Descriptor(
+  name='Event',
+  full_name='target_system_provider.Event',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  create_key=_descriptor._internal_create_key,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='timestamp', full_name='target_system_provider.Event.timestamp', index=0,
+      number=1, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+    _descriptor.FieldDescriptor(
+      name='download', full_name='target_system_provider.Event.download', index=1,
+      number=2, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+  ],
+  extensions=[
+  ],
+  nested_types=[_EVENT_DOWNLOAD, ],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+    _descriptor.OneofDescriptor(
+      name='type', full_name='target_system_provider.Event.type',
+      index=0, containing_type=None,
+      create_key=_descriptor._internal_create_key,
+    fields=[]),
+  ],
+  serialized_start=259,
+  serialized_end=501,
 )
 
 
@@ -150,6 +260,13 @@ _YIELDRESULT = _descriptor.Descriptor(
   containing_type=None,
   create_key=_descriptor._internal_create_key,
   fields=[
+    _descriptor.FieldDescriptor(
+      name='event', full_name='target_system_provider.YieldResult.event', index=0,
+      number=1, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
   ],
   extensions=[
   ],
@@ -162,13 +279,27 @@ _YIELDRESULT = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=225,
-  serialized_end=238,
+  serialized_start=503,
+  serialized_end=562,
 )
 
+_EVENT_DOWNLOAD.containing_type = _EVENT
+_EVENT_DOWNLOAD.oneofs_by_name['src_address'].fields.append(
+  _EVENT_DOWNLOAD.fields_by_name['src_address_v4'])
+_EVENT_DOWNLOAD.fields_by_name['src_address_v4'].containing_oneof = _EVENT_DOWNLOAD.oneofs_by_name['src_address']
+_EVENT_DOWNLOAD.oneofs_by_name['src_address'].fields.append(
+  _EVENT_DOWNLOAD.fields_by_name['src_address_v6'])
+_EVENT_DOWNLOAD.fields_by_name['src_address_v6'].containing_oneof = _EVENT_DOWNLOAD.oneofs_by_name['src_address']
+_EVENT.fields_by_name['timestamp'].message_type = google_dot_protobuf_dot_timestamp__pb2._TIMESTAMP
+_EVENT.fields_by_name['download'].message_type = _EVENT_DOWNLOAD
+_EVENT.oneofs_by_name['type'].fields.append(
+  _EVENT.fields_by_name['download'])
+_EVENT.fields_by_name['download'].containing_oneof = _EVENT.oneofs_by_name['type']
+_YIELDRESULT.fields_by_name['event'].message_type = _EVENT
 DESCRIPTOR.message_types_by_name['AcquisitionRequest'] = _ACQUISITIONREQUEST
 DESCRIPTOR.message_types_by_name['AcquisitionResult'] = _ACQUISITIONRESULT
 DESCRIPTOR.message_types_by_name['YieldRequest'] = _YIELDREQUEST
+DESCRIPTOR.message_types_by_name['Event'] = _EVENT
 DESCRIPTOR.message_types_by_name['YieldResult'] = _YIELDRESULT
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
@@ -193,6 +324,21 @@ YieldRequest = _reflection.GeneratedProtocolMessageType('YieldRequest', (_messag
   })
 _sym_db.RegisterMessage(YieldRequest)
 
+Event = _reflection.GeneratedProtocolMessageType('Event', (_message.Message,), {
+
+  'Download' : _reflection.GeneratedProtocolMessageType('Download', (_message.Message,), {
+    'DESCRIPTOR' : _EVENT_DOWNLOAD,
+    '__module__' : 'target_system_provider.target_system_provider_pb2'
+    # @@protoc_insertion_point(class_scope:target_system_provider.Event.Download)
+    })
+  ,
+  'DESCRIPTOR' : _EVENT,
+  '__module__' : 'target_system_provider.target_system_provider_pb2'
+  # @@protoc_insertion_point(class_scope:target_system_provider.Event)
+  })
+_sym_db.RegisterMessage(Event)
+_sym_db.RegisterMessage(Event.Download)
+
 YieldResult = _reflection.GeneratedProtocolMessageType('YieldResult', (_message.Message,), {
   'DESCRIPTOR' : _YIELDRESULT,
   '__module__' : 'target_system_provider.target_system_provider_pb2'
@@ -209,8 +355,8 @@ _TARGETSYSTEMPROVIDER = _descriptor.ServiceDescriptor(
   index=0,
   serialized_options=None,
   create_key=_descriptor._internal_create_key,
-  serialized_start=241,
-  serialized_end=473,
+  serialized_start=565,
+  serialized_end=799,
   methods=[
   _descriptor.MethodDescriptor(
     name='AcquireTargetSystem',
