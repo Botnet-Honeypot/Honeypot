@@ -28,14 +28,18 @@ def debug(func):
 
         # Join them
         signature = ", ".join(args_repr + kwargs_repr)
-        logger.debug("[Session: %d] Calling %s(%s)", session_id, func.__name__, signature)
 
+        start_time = time()
         try:
             value = func(*args, **kwargs)
         except Exception as exc:
             logger.exception("[Session: %d] %s(%s) Threw an exception!",
                              session_id, func.__name__, signature, exc_info=exc)
             raise
+        finally:
+            logger.debug("[Session: %d] %s(%s) (took %fs)",
+                         session_id, func.__name__, signature, time()-start_time)
+
         return value
     return wrapper_debug
 
@@ -144,7 +148,6 @@ class PostgresLogSSHSession:
 
         :param function: Function performing database inserts.
         """
-        # t0 = time()
         with self._lock:
             if self._conn is None:
                 # Connect and begin transaction
@@ -152,9 +155,6 @@ class PostgresLogSSHSession:
 
             with self._conn.cursor() as cur:
                 function(cur, self)
-        # logger.debug('[%s:%d] Insert for session %d took %fs',
-        #              self.src_address, self.src_port,
-        #              self.session_id, time()-t0)
 
     def _commit_and_disconnect(self) -> None:
         """Commits the session's database transaction
@@ -381,6 +381,7 @@ class PostgresLogSSHSession:
 
         self._queue_insert(insert)
 
+    @debug
     def end(self) -> None:
         if not self.begin_called:
             raise ValueError('Logging session was not started')
