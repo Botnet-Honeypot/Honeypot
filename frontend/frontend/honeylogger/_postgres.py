@@ -162,6 +162,9 @@ class PostgresLogSSHSession:
         start_time = time()
         for num_retries in itertools.count():
             try:
+                if frontend.config.SIMULATE_UNSTABLE_DB_CONNECTION and random.random() < 0.1:
+                    raise OperationalError('NOPE')
+
                 conn = pool.getconn()
                 logger.debug(
                     '%s [%s:%d] Acquired database connection for logging session, took %fs (retry #%d)',
