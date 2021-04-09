@@ -29,7 +29,7 @@ def connect():
         raise
 
 
-def create_pool() -> pool.ThreadedConnectionPool:
+def create_pool(**kwargs) -> pool.ThreadedConnectionPool:
     """Creates a new pool of database connections.
 
     :return: The connection pool.
@@ -41,5 +41,6 @@ def create_pool() -> pool.ThreadedConnectionPool:
         host=db_config['host'],
         database=db_config['database'],
         user=db_config['user'],
-        password=db_config['password']
+        password=db_config['password'],
+        **kwargs
     )

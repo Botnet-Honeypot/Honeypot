@@ -5,6 +5,12 @@ import re
 from dotenv import load_dotenv, find_dotenv
 load_dotenv(find_dotenv())
 
+# Debug options
+SIMULATE_UNSTABLE_DB_CONNECTION = os.getenv('SIMULATE_UNSTABLE_DB_CONNECTION', 'False') == 'True'
+
+# Debug logging
+ENABLE_DEBUG_LOGGING = os.getenv('ENABLE_DEBUG_LOGGING', 'False') == 'True'
+
 SSH_ALLOWED_USERNAMES_REGEX = os.getenv('SSH_ALLOWED_USERNAMES_REGEX')
 SSH_ALLOWED_PASSWORDS_REGEX = os.getenv('SSH_ALLOWED_PASSWORDS_REGEX')
 
@@ -34,8 +40,6 @@ SSH_SOCKET_TIMEOUT = float(os.getenv('SSH_SOCKET_TIMEOUT', '5'))
 # Max number of qqueued connections (not that important)
 SSH_MAX_UNACCEPTED_CONNECTIONS = int(os.getenv('SSH_MAX_UNACCEPTED_CONNECTIONS', '100'))
 
-# Debug logging
-ENABLE_DEBUG_LOGGING = os.getenv('ENABLE_DEBUG_LOGGING', 'False') == 'True'
 
 # Log file
 LOG_FILE = os.getenv('LOG_FILE', './honeypot.log')

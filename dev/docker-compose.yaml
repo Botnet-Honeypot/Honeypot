@@ -31,6 +31,9 @@ services:
     ports:
       - "22:22"
     environment:
+      # Debug options
+      - ENABLE_DEBUG_LOGGING=False
+      - SIMULATE_UNSTABLE_DB_CONNECTION=False
       # Regexes for allowed login combinations
       - SSH_ALLOWED_USERNAMES_REGEX=^[a-z_]([a-z0-9_-]{0,31}|[a-z0-9_-]{0,30}\$$)$$ # ($ escaped with $$)
       - SSH_ALLOWED_PASSWORDS_REGEX=^.{1,128}$$ # ($ escaped with $$)
@@ -43,7 +46,6 @@ services:
       # (5 seconds means it will check every five seconds if we want to shut it down)
       - SSH_SOCKET_TIMEOUT=5
       - SSH_MAX_UNACCEPTED_CONNECTIONS=100 # Max number of unacceped connections for the SSH socket
-      - ENABLE_DEBUG_LOGGING=False
       - LOG_FILE=./frontend/honeypot.log # Log file to log to
       - BACKEND_ADDRESS=backend:80
     volumes:

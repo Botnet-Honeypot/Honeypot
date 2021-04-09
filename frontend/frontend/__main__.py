@@ -29,12 +29,12 @@ def setup_logging():
     # Console handler
     coloredlogs.install(
         logging.NOTSET, logger=root_logger,
-        fmt='%(asctime)s %(levelname)-8s %(message)s (%(threadName)s, %(name)s)',
+        fmt='%(asctime)s %(levelname)-8s %(message)s (%(threadName)s)',
         datefmt='%Y-%m-%d %H:%M:%S')
 
     # File handler
     file_formatter = logging.Formatter(
-        fmt='%(asctime)s %(levelname)-8s %(message)s (%(threadName)s, %(name)s)',
+        fmt='%(asctime)s %(levelname)-8s %(message)s (%(threadName)s)',
         datefmt='%Y-%m-%d %H:%M:%S')
     file_handler = logging.FileHandler(config.LOG_FILE, encoding='UTF-8')
     file_handler.setFormatter(file_formatter)
@@ -43,6 +43,7 @@ def setup_logging():
     # Log levels
     root_logger = logging.getLogger()
     root_logger.setLevel(logging.INFO)
+    logging.getLogger("paramiko").setLevel(logging.WARNING)
 
     if config.ENABLE_DEBUG_LOGGING:
         ssh_logger = logging.getLogger(frontend.__name__)
