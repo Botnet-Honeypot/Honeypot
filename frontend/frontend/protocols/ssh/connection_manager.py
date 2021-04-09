@@ -47,6 +47,7 @@ class ConnectionManager(threading.Thread):
         :param port: The port to listen on, defaults to 22
         """
         super().__init__(target=self.listen, args=(socket_timeout,), daemon=False)
+        self._transport_manager = TransportManager()
         self._target_system_provider = target_system_provider
         self._host_key = host_key
         self._usernames = usernames
@@ -65,6 +66,47 @@ class ConnectionManager(threading.Thread):
         logger.debug("Shutting down ConnectionManager")
         with self._lock:
             self._terminate = True
+
+    def start_ssh_server(self, client: socket.socket):
+        """Starts the SSH server for the givent client
+
+        :param client: The socket object of the client connecting
+        """
+        transport = paramiko.Transport(client)
+        transport.local_version = config.SSH_LOCAL_VERSION
+        transport.add_server_key(self._host_key)
+
+        src = client.getpeername()[0]
+        src_port = client.getpeername()[1]
+
+        session = honeylogger.create_ssh_session(
+            src_address=ip_address(src),
+            src_port=src_port,
+            dst_address=self._ip,
+            dst_port=self._port)
+
+        proxy_handler = ProxyHandler(session, self._target_system_provider)
+        server = Server(
+            transport,
+            session,
+            proxy_handler,
+            self._usernames,
+            self._passwords)
+
+        try:
+            transport.start_server(server=server)
+        except SSHException:
+            logger.exception("Failed to start the SSH server for %s", src)
+            return
+        except EOFError:
+            return
+        except Exception as exc:
+            logger.exception("Failed to start the SSH server for %s", src, exc_info=exc)
+            return
+
+        if not transport.is_active():
+            return
+        self._transport_manager.add_transport(TransportPair(transport, proxy_handler, server))
 
     def listen(self, socket_timeout: float = 5) -> None:
         """Starts listening for TCP connections on the given ports.
@@ -92,8 +134,6 @@ class ConnectionManager(threading.Thread):
             logger.exception("Failed to listen to the socket")
             raise
 
-        transport_manager = TransportManager()
-
         sock.settimeout(socket_timeout)
         while True:
             with self._lock:
@@ -102,7 +142,7 @@ class ConnectionManager(threading.Thread):
 
             # Try accepting connections
             try:
-                client, addr = sock.accept()
+                client, _ = sock.accept()
             except socket.timeout:
                 continue
             except Exception:
@@ -110,38 +150,7 @@ class ConnectionManager(threading.Thread):
                     "Failed to accept a connection from somewhere")
                 continue
 
-            transport = paramiko.Transport(client)
-            transport.local_version = config.SSH_LOCAL_VERSION
-            transport.add_server_key(self._host_key)
-
-            session = honeylogger.create_ssh_session(
-                src_address=ip_address(addr[0]),
-                src_port=addr[1],
-                dst_address=self._ip,
-                dst_port=self._port)
-
-            transport.add_server_key(self._host_key)
-            proxy_handler = ProxyHandler(session, self._target_system_provider)
-            server = Server(
-                transport,
-                session,
-                proxy_handler,
-                self._usernames,
-                self._passwords
-            )
-
-            try:
-                transport.start_server(server=server)
-            except SSHException:
-                logger.exception("Failed to start the SSH server for %s", addr[0])
-                continue
-            except EOFError:
-                continue
-            except Exception as exc:
-                logger.exception("Failed to start the SSH server for %s", addr[0], exc_info=exc)
-                continue
-
-            transport_manager.add_transport(TransportPair(transport, proxy_handler, server))
+            threading.Thread(target=self.start_ssh_server, args=(client,), daemon=True).start()
 
         logger.debug("ConnectionManager has shut down")
-        transport_manager.stop()
+        self._transport_manager.stop()
