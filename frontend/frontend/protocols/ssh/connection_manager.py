@@ -2,6 +2,7 @@
 import logging
 import socket
 import threading
+from time import time
 import urllib.request
 from ipaddress import ip_address
 from typing import List, Optional
@@ -93,6 +94,8 @@ class ConnectionManager(threading.Thread):
             self._usernames,
             self._passwords)
 
+        start_time = time()
+        logger.debug('Starting SSH server')
         try:
             transport.start_server(server=server)
         except SSHException:
@@ -103,6 +106,8 @@ class ConnectionManager(threading.Thread):
         except Exception as exc:
             logger.exception("Failed to start the SSH server for %s", src, exc_info=exc)
             return
+        finally:
+            logger.debug('SSH server started in %fs', time()-start_time)
 
         if not transport.is_active():
             return
