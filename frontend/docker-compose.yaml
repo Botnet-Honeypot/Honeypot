@@ -7,15 +7,11 @@ services:
     ports:
       - "22:22"
     environment:
-      # Allowed usernames and passwords, multiple usernamse and passwords can be supplied
-      # by seperating them with ":". If they are left empty then everything is allowed
-      - SSH_ALLOWED_USERNAMES
-      - SSH_ALLOWED_PASSWORDS
-      # Login success rate in percent (will bypass the above two settings)
+      # Regexes for allowed login combinations
+      - SSH_ALLOWED_USERNAMES_REGEX=^[a-z_]([a-z0-9_-]{0,31}|[a-z0-9_-]{0,30}\$$)$$ # ($ escaped with $$)
+      - SSH_ALLOWED_PASSWORDS_REGEX=^.{1,128}$$ # ($ escaped with $$)
+      # Login success rate in percent after the above regexes are checked
       - SSH_LOGIN_SUCCESS_RATE
-      # Regex that if matches will deny the login attempt 
-      - SSH_REGEX_USERNAMES_DENY=[1-9]|.*[A-Z]
-      - SSH_REGEX_PASSWORDS_DENY=^$$ # ($ escaped with $$)
       - SSH_SERVER_PORT=22
       - SSH_LOCAL_VERSION=SSH-2.0-dropbear_2019.78 # SSH version reported by the honeypot
       - SSH_SESSION_TIMEOUT=600 # Timeout in seconds for when to treat an SSH connection inactive and end it

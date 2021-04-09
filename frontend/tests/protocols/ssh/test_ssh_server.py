@@ -1,4 +1,5 @@
 import datetime
+import re
 import logging
 import pytest
 from ipaddress import ip_address
@@ -79,8 +80,8 @@ def test_get_last_activity(ssh_server: Server):
 
 
 def test_check_username_password(ssh_server: Server):
-    ssh_server._usernames = ["linus"]
-    ssh_server._passwords = ["torvalds"]
+    ssh_server._usernames = re.compile(r"linus")
+    ssh_server._passwords = re.compile(r"torvalds")
     now = datetime.datetime.now()
 
     assert ssh_server.check_auth_password("linus", "torvalds") == AUTH_SUCCESSFUL

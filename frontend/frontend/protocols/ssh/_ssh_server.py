@@ -1,8 +1,9 @@
-from ipaddress import AddressValueError,  ip_address
+from ipaddress import ip_address
 import logging
+from re import Pattern
 import random
 import datetime
-from typing import List, Optional, Set, Tuple
+from typing import Optional, Set, Tuple
 
 from paramiko.common import (AUTH_FAILED, AUTH_SUCCESSFUL,
                              OPEN_FAILED_CONNECT_FAILED, OPEN_SUCCEEDED)
@@ -31,8 +32,8 @@ class Server(paramiko.ServerInterface):
             transport: paramiko.Transport,
             session: SSHSession,
             proxy_handler: ProxyHandler,
-            usernames: Optional[List[str]],
-            passwords: Optional[List[str]]) -> None:
+            usernames: Optional[Pattern],
+            passwords: Optional[Pattern]) -> None:
         super().__init__()
         self._transport = transport
         self._usernames = usernames
@@ -70,31 +71,19 @@ class Server(paramiko.ServerInterface):
         self._update_last_activity()
         self._session.log_login_attempt(username, password)
 
-        # Apply regex deny to username
-        if (config.SSH_REGEX_USERNAMES_DENY is not None
-                and config.SSH_REGEX_USERNAMES_DENY.match(username)):
+        # Verify the login attempt against our username and password regex
+        if self._usernames is not None and not self._usernames.match(username):
             return AUTH_FAILED
-
-        # Apply regex deny to password
-        if (config.SSH_REGEX_PASSWORDS_DENY is not None
-                and config.SSH_REGEX_PASSWORDS_DENY.match(password)):
+        if self._passwords is not None and not self._passwords.match(password):
             return AUTH_FAILED
 
         # Check if we have the LOGIN_SUCCESS_RATE set and apply it if we do
         if config.SSH_LOGIN_SUCCESS_RATE != -1:
-            if random.randint(1, 100) <= config.SSH_LOGIN_SUCCESS_RATE:
-                self._proxy_handler.set_attacker_credentials(username, password)
-                return AUTH_SUCCESSFUL
-            else:
+            if random.randint(1, 100) > config.SSH_LOGIN_SUCCESS_RATE:
                 return AUTH_FAILED
 
-        # Verify the login attempt against our own username and password list
-        if self._usernames is not None and not username in self._usernames:
-            return AUTH_FAILED
-        if self._passwords is None or password in self._passwords:
-            self._proxy_handler.set_attacker_credentials(username, password)
-            return AUTH_SUCCESSFUL
-        return AUTH_FAILED
+        self._proxy_handler.set_attacker_credentials(username, password)
+        return AUTH_SUCCESSFUL
 
     def check_auth_publickey(self, username: str, key: paramiko.PKey) -> int:
         self._update_last_activity()
