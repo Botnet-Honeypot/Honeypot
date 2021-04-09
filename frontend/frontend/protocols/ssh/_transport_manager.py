@@ -98,8 +98,9 @@ class TransportManager:
         :param transport_pair: The transport pair
         """
         self._remove_transport(transport_pair)
-        threading.Thread(
-            target=transport_pair.proxy_handler.close_connection, args=()).start()
+        if transport_pair.server.logging_session_started():
+            threading.Thread(
+                target=transport_pair.proxy_handler.close_connection, args=()).start()
 
     def check_transports(self):
         """Methods that loops indefinitely and checks if there are SSH sessions
