@@ -4,6 +4,12 @@ import os
 from dotenv import load_dotenv, find_dotenv
 load_dotenv(find_dotenv())
 
+# Debug options
+SIMULATE_UNSTABLE_DB_CONNECTION = os.getenv('SIMULATE_UNSTABLE_DB_CONNECTION', 'False') == 'True'
+
+# Debug logging
+ENABLE_DEBUG_LOGGING = os.getenv('ENABLE_DEBUG_LOGGING', 'False') == 'True'
+
 # To provide multiple usernames or passwords, seperate them with a ":"
 # If theses are left empty, then every user and password combination is allowed
 SSH_ALLOWED_USERNAMES = None if os.getenv(
@@ -28,8 +34,6 @@ SSH_SOCKET_TIMEOUT = float(os.getenv('SSH_SOCKET_TIMEOUT', '5'))
 # Max number of qqueued connections (not that important)
 SSH_MAX_UNACCEPTED_CONNECTIONS = int(os.getenv('SSH_MAX_UNACCEPTED_CONNECTIONS', '100'))
 
-# Debug logging
-ENABLE_DEBUG_LOGGING = os.getenv('ENABLE_DEBUG_LOGGING', 'False') == 'True'
 
 # Log file
 LOG_FILE = os.getenv('LOG_FILE', './honeypot.log')
