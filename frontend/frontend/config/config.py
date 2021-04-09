@@ -1,6 +1,7 @@
 """Module wrapping environment variables for configuration."""
 
 import os
+import re
 from dotenv import load_dotenv, find_dotenv
 load_dotenv(find_dotenv())
 
@@ -16,6 +17,16 @@ SSH_SERVER_PORT = int(os.getenv('SSH_SERVER_PORT', '22'))
 
 # Success chance of login
 SSH_LOGIN_SUCCESS_RATE = int(os.getenv('SSH_LOGIN_SUCCESS_RATE', '-1'))
+
+# Regexes to deny usernamse or passwords
+SSH_REGEX_USERNAMES_DENY = os.getenv('SSH_REGEX_USERNAMES_DENY')
+SSH_REGEX_PASSWORDS_DENY = os.getenv('SSH_REGEX_PASSWORDS_DENY')
+
+if SSH_REGEX_USERNAMES_DENY is not None:
+    SSH_REGEX_USERNAMES_DENY = re.compile(SSH_REGEX_USERNAMES_DENY)
+
+if SSH_REGEX_PASSWORDS_DENY is not None:
+    SSH_REGEX_PASSWORDS_DENY = re.compile(SSH_REGEX_PASSWORDS_DENY)
 
 # The local version of the SSH server
 SSH_LOCAL_VERSION = os.getenv('SSH_LOCAL_VERSION', 'SSH-2.0-dropbear_2019.78')

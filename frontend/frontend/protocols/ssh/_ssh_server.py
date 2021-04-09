@@ -70,6 +70,16 @@ class Server(paramiko.ServerInterface):
         self._update_last_activity()
         self._session.log_login_attempt(username, password)
 
+        # Apply regex deny to username
+        if (config.SSH_REGEX_USERNAMES_DENY is not None
+                and config.SSH_REGEX_USERNAMES_DENY.match(username)):
+            return AUTH_FAILED
+
+        # Apply regex deny to password
+        if (config.SSH_REGEX_PASSWORDS_DENY is not None
+                and config.SSH_REGEX_PASSWORDS_DENY.match(password)):
+            return AUTH_FAILED
+
         # Check if we have the LOGIN_SUCCESS_RATE set and apply it if we do
         if config.SSH_LOGIN_SUCCESS_RATE != -1:
             if random.randint(1, 100) <= config.SSH_LOGIN_SUCCESS_RATE:
