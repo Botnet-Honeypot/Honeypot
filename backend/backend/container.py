@@ -4,7 +4,7 @@ import threading
 import tarfile
 import logging
 from enum import Enum
-from typing import IO, cast
+from typing import IO, Union, cast
 import docker
 from docker.client import DockerClient
 from docker.models.containers import Container
@@ -42,11 +42,6 @@ class Containers:
     # Docker API client
     _client: DockerClient
 
-    # All containers which have successfully been started and not yet destroyed
-    # Must be accessed under lock
-    _containers: set[str]
-    _containers_lock: threading.RLock
-
     def __init__(self):
         self._client = docker.from_env()
         self._client.images.build(path="target-systems/ssh-server",
@@ -54,17 +49,19 @@ class Containers:
                                   tag="target-container")
         self._client.images.pull(self.TCPDUMP_IMAGE)
 
-        self._containers = set()
-        self._containers_lock = threading.RLock()
-
     def _get_container(self, container_id: str) -> Container:
-        with self._containers_lock:
-            if container_id not in self._containers:
-                raise ValueError(f'Container with ID {container_id} does not exist')
-            return cast(Container, self._client.containers.get(container_id))
-
-    def _get_container_unchecked(self, container_id: str) -> Container:
         return cast(Container, self._client.containers.get(container_id))
+
+    def _get_target_container_ids(
+            self,
+            filters: dict[str, Union[str, list[str], int]] = {}) -> set[str]:
+        filters['label'] = [f'{Containers.LABEL_ROLE}={Containers.ROLE_TARGET_CONTAINER}']
+        containers = self._client.api.containers(
+            all=True,
+            quiet=True,
+            filters=filters
+        )
+        return set(c['Id'] for c in containers)
 
     def _safely_run_container(self, *args, **kwargs) -> Container:
         """Atomically starts and runs container.
@@ -72,6 +69,11 @@ class Containers:
         :return: The started container.
         """
         try:
+            # Label container so we know that it is a target container
+            if 'labels' not in kwargs:
+                kwargs['labels'] = dict()
+            kwargs['labels'][Containers.LABEL_ROLE] = Containers.ROLE_TARGET_CONTAINER
+
             return cast(Container, self._client.containers.run(*args, **kwargs))
         except Exception:
             try:
@@ -93,17 +95,12 @@ class Containers:
         containing all environment variables and config needed for setting up a container.
         """
 
-        with self._containers_lock:
-            if config['ID'] in self._containers:
-                raise ValueError(f'Container ID {config["ID"]} is already in use')
-            self._containers.add(config['ID'])
-
         container = None
         netlog_container = None
         try:
             network_id = 'bridge'
-
             if backend.config.ENABLE_ISOLATED_TARGET_CONTAINER_NETWORKS:
+                # Setup dedicated network for target container
                 self._client.networks.create(
                     name=config["ID"],
                     labels={Containers.LABEL_ROLE: Containers.ROLE_TARGET_CONTAINER}
@@ -129,7 +126,7 @@ class Containers:
             # Reload to get the correct port in config
             container.reload()
 
-            # Wait for target container SSH-server to be ready
+            # Wait for target container SSH server to be ready
             while True:
                 exit_code, _ = container.exec_run(
                     '/bin/bash -c "$(s6-svstat -u /run/s6/services/openssh-server) || exit 1"',
@@ -139,8 +136,6 @@ class Containers:
 
             logger.info("Container %s ready", config["ID"])
         except Exception:
-            with self._containers_lock:
-                self._containers.remove(config['ID'])
             if container is not None:
                 container.remove(force=True)
             if netlog_container is not None:
@@ -173,8 +168,7 @@ class Containers:
             raise ValueError(
                 'Container has to be stopped (but not destroyed) before getting netlog')
 
-        netlog_container = self._get_container_unchecked(
-            container_id + self.NETLOG_CONTAINER_SUFFIX)
+        netlog_container = self._get_container(container_id + self.NETLOG_CONTAINER_SUFFIX)
         tar_chunks, fileinfo = netlog_container.get_archive(self.NETLOG_FILE_PATH)
         tar_file = byte_stream_from_iterable(tar_chunks)
         logger.debug('Reading netlog for %s: %s', container_id, fileinfo)
@@ -201,9 +195,8 @@ class Containers:
 
         :param container_id: ID (name) of container to be stopped
         """
-        with self._containers_lock:
-            self._get_container(container_id).stop()
-            self._get_container_unchecked(container_id + self.NETLOG_CONTAINER_SUFFIX).stop()
+        self._get_container(container_id).stop()
+        self._get_container(container_id + self.NETLOG_CONTAINER_SUFFIX).stop()
 
         logger.info("Stopped container %s", container_id)
 
@@ -213,26 +206,38 @@ class Containers:
         :param container_id: ID (name) of container to be destroyed
         :raises ValueError: If container does not exist.
         """
-        with self._containers_lock:
-            container = self._get_container(container_id)
-            self._containers.remove(container_id)
-            container.remove(force=True)
-            self._get_container_unchecked(
-                container_id + self.NETLOG_CONTAINER_SUFFIX).remove(force=True)
+        self._get_container(container_id).remove(force=True)
+        self._get_container(container_id + self.NETLOG_CONTAINER_SUFFIX).remove(force=True)
 
         logger.info("Destroyed container %s", container_id)
 
         self._prune_target_container_networks()
 
+    def destroy_target_containers(self):
+        """Clean up any remaining, previously started, containers."""
+
+        ids = self._get_target_container_ids()
+        for container_id in ids:
+            try:
+                self._client.api.remove_container(
+                    resource_id=container_id,
+                    force=True
+                )
+            except docker.errors.APIError:
+                pass
+
+        self._prune_target_container_networks()
+
     def _prune_target_container_networks(self):
-        """Removes all unsed networks with target-container role."""
+        """Removes all unused networks with target-container role."""
 
         try:
             result = self._client.networks.prune(
                 filters={'label': f'{Containers.LABEL_ROLE}={Containers.ROLE_TARGET_CONTAINER}'}
             )
+            deleted = result['NetworksDeleted']
             logger.debug('Pruned %d target container networks',
-                         0 if result['NetworksDeleted'] is None else len(result['NetworksDeleted']))
+                         0 if deleted is None else len(deleted))
         except docker.errors.APIError:
             pass
 
@@ -257,7 +262,7 @@ class Containers:
         """
         try:
             sts = self._get_container(container_id).attrs['State']['Status']
-        except ValueError:
+        except docker.errors.NotFound:
             return Status.NOTFOUND
         else:
             if sts == "running":
@@ -269,13 +274,6 @@ class Containers:
             elif sts == "exited":
                 return Status.EXITED
         return Status.UNDEFINED
-
-    def shutdown(self):
-        """Clean up any remaining, previously started, containers."""
-
-        with self._containers_lock:
-            for container_id in self._containers.copy():
-                self.destroy_container(container_id)
 
     @staticmethod
     def format_config(container_id: int, user: str, password: str,
