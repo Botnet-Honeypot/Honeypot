@@ -14,7 +14,7 @@ services:
       # Login success rate in percent (will bypass the above two settings)
       - SSH_LOGIN_SUCCESS_RATE
       # Regex that if matches will deny the login attempt 
-      - SSH_REGEX_USERNAMES_DENY=.*[A-Z]
+      - SSH_REGEX_USERNAMES_DENY=[1-9]|.*[A-Z]
       - SSH_REGEX_PASSWORDS_DENY=^$$ # ($ escaped with $$)
       - SSH_SERVER_PORT=22
       - SSH_LOCAL_VERSION=SSH-2.0-dropbear_2019.78 # SSH version reported by the honeypot
