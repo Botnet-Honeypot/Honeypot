@@ -98,8 +98,9 @@ class TransportManager:
         :param transport_pair: The transport pair
         """
         self._remove_transport(transport_pair)
-        threading.Thread(
-            target=transport_pair.proxy_handler.close_connection, args=()).start()
+        if transport_pair.server.logging_session_started():
+            threading.Thread(
+                target=transport_pair.proxy_handler.close_connection, args=()).start()
 
     def check_transports(self):
         """Methods that loops indefinitely and checks if there are SSH sessions
@@ -112,13 +113,13 @@ class TransportManager:
                     break
             sleep(0.3)
             i += 1
-            if i == 3000:
+            if i == 300:
                 i = 0
-                logger.debug("There are %s active transports", len(self.get_transports()))
+                logger.debug("There are %s active transports and %s active threads",
+                             len(self.get_transports()), threading.active_count())
             for transport_pair in self.get_transports():
                 # End the session if the attacker transport isn't active anymore
                 if not transport_pair.attacker_transport.is_active():
-                    logger.debug("Shutting down a session due to attacker transport being inactive")
                     self._end_proxy_handler(transport_pair)
 
                 # If there are no channels open
@@ -130,8 +131,6 @@ class TransportManager:
 
                     # If no activity end both sides
                     if difference.seconds > config.SSH_SESSION_TIMEOUT:
-                        logger.debug(
-                            "Shutting down a session due to no channels open and a timeout")
                         self._end_attacker_transport(transport_pair)
                         self._end_proxy_handler(transport_pair)
 

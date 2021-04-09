@@ -1,18 +1,49 @@
 from __future__ import annotations
 from datetime import timezone, datetime
+import functools
 from time import sleep, time
-from typing import Any, Callable, Optional
+from typing import Any, Callable, Iterator, Optional
 import hashlib
 import threading
 import logging
 import itertools
-
+from contextlib import contextmanager
 from psycopg2.pool import PoolError, ThreadedConnectionPool
 from psycopg2 import OperationalError
+import random
+import frontend.config
 from ._types import IPAddress
 
 
 logger = logging.getLogger(__name__)
+
+
+def debug(func):
+    """Wrapper to log method calls to PostgresLogSSHSession"""
+    @functools.wraps(func)
+    def wrapper_debug(*args, **kwargs):
+        # Instance
+        instance = args[0]
+        # Args and kwargs
+        args_repr = [repr(a) for a in args[1:]]
+        kwargs_repr = [f"{k}={v!r}" for k, v in kwargs.items()]  # 2
+
+        # Join them
+        signature = ", ".join(args_repr + kwargs_repr)
+
+        start_time = time()
+        try:
+            value = func(*args, **kwargs)
+        except Exception as exc:
+            logger.exception("%s %s(%s) Threw an exception!",
+                             instance, func.__name__, signature, exc_info=exc)
+            raise
+        finally:
+            logger.debug("%s %s(%s) (took %fs)",
+                         instance, func.__name__, signature, time()-start_time)
+
+        return value
+    return wrapper_debug
 
 
 def get_timestamp() -> datetime:
@@ -51,7 +82,9 @@ class PostgresLogSSHSession:
     """Implementation of honeylogger.SSHSession that
     logs session and actions to a Postgres database"""
 
-    begin_called: bool
+    _begin_successful: bool
+    _session_aborted: bool
+    _end_successful: bool
 
     _lock: threading.Lock
     _conn_pool: ThreadedConnectionPool
@@ -68,7 +101,9 @@ class PostgresLogSSHSession:
                  conn_pool: ThreadedConnectionPool,
                  src_address: IPAddress, src_port: int,
                  dst_address: IPAddress, dst_port: int) -> None:
-        self.begin_called = False
+        self._begin_successful = False
+        self._session_aborted = False
+        self._end_successful = False
         self._lock = threading.Lock()
         self._conn_pool = conn_pool
         self._conn = None
@@ -80,12 +115,45 @@ class PostgresLogSSHSession:
         self.dst_address = dst_address
         self.dst_port = dst_port
 
+    def __str__(self) -> str:
+        session_id = self.session_id if self.session_id is not None else -1
+        return f"[Session: {session_id}]"
+
     def __del__(self):
         if self._conn is not None:
             logger.critical(
-                'DATA LOST AND DB CONN LEAKED! Logging session was started but never ended.')
+                '%s DATA LOST AND DB CONN LEAKED! Logging session was started but never ended.',
+                self)
 
-    def _connect(self, max_retries=10, backoff_ms=10, max_timeout=30) -> None:
+    @contextmanager
+    def _get_connection(self) -> Iterator[Any]:
+        with self._lock:
+            if self._session_aborted:
+                raise Exception('This session failed and was aborted, cannot be used anymore!')
+
+            if self._conn is None:
+                try:
+                    # Connect and begin transaction
+                    self._conn = PostgresLogSSHSession._connect(self, self._conn_pool)
+                except:
+                    self._session_aborted = True
+                    raise
+
+            try:
+                yield self._conn
+            except:
+                logger.critical(
+                    '%s DATA LOST! Error while using DB connection, returning connection to pool...',
+                    self)
+                self._session_aborted = True
+                if self._conn is not None:
+                    self._conn_pool.putconn(self._conn)
+                    self._conn = None
+                raise
+
+    @staticmethod
+    def _connect(session, pool: ThreadedConnectionPool,
+                 max_retries=10, backoff_ms=10, max_timeout=30) -> Any:
         """Gets a database connection for this session from connection pool.
         If no connection is currently available, reattempts are made to connect.
 
@@ -94,12 +162,15 @@ class PostgresLogSSHSession:
         start_time = time()
         for num_retries in itertools.count():
             try:
-                self._conn = self._conn_pool.getconn()
-                logger.info(
-                    '[%s:%d] Acquired database connection for logging session, took %fs (retry #%d)',
-                    self.src_address, self.src_port,
+                if frontend.config.SIMULATE_UNSTABLE_DB_CONNECTION and random.random() < 0.1:
+                    raise OperationalError('NOPE')
+
+                conn = pool.getconn()
+                logger.debug(
+                    '%s [%s:%d] Acquired database connection for logging session, took %fs (retry #%d)',
+                    session, session.src_address, session.src_port,
                     time() - start_time, num_retries)
-                return
+                return conn
             except (PoolError, OperationalError) as exc:
                 if num_retries == max_retries or time() - start_time >= max_timeout:
                     raise RuntimeError(
@@ -107,46 +178,38 @@ class PostgresLogSSHSession:
                         f'{time() - start_time}s (retry #{num_retries})'
                     ) from exc
 
-                logger.debug('No database connection available after %fs, retrying (#%d)...',
-                             time() - start_time, num_retries + 1)
+                logger.debug('%s No database connection available after %fs, retrying (#%d)...',
+                             session, time() - start_time, num_retries + 1)
                 # Exponential backoff
                 backoff = (2 ** num_retries * backoff_ms) / 1000
                 sleep(backoff)
 
-    def _queue_insert(self, function: InsertFunc) -> None:
+    def _queue_insert(self, conn, function: InsertFunc) -> None:
         """Queues an insert function to run in session's
         current transaction.
 
         :param function: Function performing database inserts.
         """
-        t0 = time()
-        with self._lock:
-            if self._conn is None:
-                # Connect and begin transaction
-                self._connect()
+        with conn.cursor() as cur:
+            if frontend.config.SIMULATE_UNSTABLE_DB_CONNECTION and random.random() < 0.1:
+                raise Exception('NOPE')
 
-            with self._conn.cursor() as cur:
-                function(cur, self)
-        logger.debug('[%s:%d] Insert for session %d took %fs',
-                     self.src_address, self.src_port,
-                     self.session_id, time()-t0)
+            function(cur, self)
 
     def _commit_and_disconnect(self) -> None:
         """Commits the session's database transaction
         and hands connection back to connection pool.
         """
 
-        logger.debug('[%s:%d] Committing logging session %d to database...',
-                     self.src_address, self.src_port,
-                     self.session_id)
+        if frontend.config.SIMULATE_UNSTABLE_DB_CONNECTION and random.random() < 0.1:
+            raise Exception('NOPE')
+
         t0 = time()
-        with self._lock:
-            self._conn.commit()
-            self._conn_pool.putconn(self._conn)
-            self._conn = None
-        logger.debug('[%s:%d] Logging session %d committed (took %fs)',
-                     self.src_address, self.src_port,
-                     self.session_id, time()-t0)
+        self._conn.commit()
+        self._conn_pool.putconn(self._conn)
+        self._conn = None
+        logger.debug('%s Logging session committed (took %fs)',
+                     self, time()-t0)
 
     def set_remote_version(self, ssh_version: str) -> None:
         """Sets the SSH remote version of the session.
@@ -161,12 +224,13 @@ class PostgresLogSSHSession:
             raise ValueError('ssh_version may not be None')
         if self.ssh_version is not None:
             raise ValueError('ssh_version may only be set once')
-        if self.begin_called:
+        if self._begin_successful:
             raise ValueError('ssh_version may not be set after session has started')
         self.ssh_version = ssh_version
 
+    @debug
     def begin(self) -> None:
-        if self.begin_called:
+        if self._begin_successful:
             raise ValueError('Logging session was already started')
         if self.ssh_version is None:
             raise ValueError('SSH version must be set before beginning session')
@@ -187,14 +251,16 @@ class PostgresLogSSHSession:
                     VALUES (%s, %s)
                 """,  (session.session_id, session.ssh_version))
 
-        self._queue_insert(insert)
+        with self._get_connection() as conn:
+            self._queue_insert(conn, insert)
 
-        self.begin_called = True
+        self._begin_successful = True
 
+    @debug
     def log_pty_request(self, term: str,
                         term_width_cols: int, term_height_rows: int,
                         term_width_pixels: int, term_height_pixels: int) -> None:
-        if not self.begin_called:
+        if not self._begin_successful:
             raise ValueError('Logging session was not started')
 
         timestamp = get_timestamp()
@@ -209,10 +275,12 @@ class PostgresLogSSHSession:
                 """, (event_id, term, term_width_cols,
                       term_height_rows, term_width_pixels, term_height_pixels))
 
-        self._queue_insert(insert)
+        with self._get_connection() as conn:
+            self._queue_insert(conn, insert)
 
+    @debug
     def log_env_request(self, chan_id: int, name: str, value: str) -> None:
-        if not self.begin_called:
+        if not self._begin_successful:
             raise ValueError('Logging session was not started')
 
         timestamp = get_timestamp()
@@ -225,11 +293,13 @@ class PostgresLogSSHSession:
                     VALUES (%s, %s, %s, %s)
                 """, (event_id, chan_id, name, value))
 
-        self._queue_insert(insert)
+        with self._get_connection() as conn:
+            self._queue_insert(conn, insert)
 
+    @debug
     def log_direct_tcpip_request(self, chan_id: int, origin_ip: IPAddress, origin_port: int,
                                  destination: str, destination_port: int) -> None:
-        if not self.begin_called:
+        if not self._begin_successful:
             raise ValueError('Logging session was not started')
 
         timestamp = get_timestamp()
@@ -243,12 +313,14 @@ class PostgresLogSSHSession:
                     VALUES (%s, %s, %s, %s, %s, %s)
                 """, (event_id, chan_id, str(origin_ip), origin_port, destination, destination_port))
 
-        self._queue_insert(insert)
+        with self._get_connection() as conn:
+            self._queue_insert(conn, insert)
 
+    @debug
     def log_x11_request(
             self, chan_id: int, single_connection: bool, auth_protocol: str,
             auth_cookie: memoryview, screen_number: int) -> None:
-        if not self.begin_called:
+        if not self._begin_successful:
             raise ValueError('Logging session was not started')
 
         timestamp = get_timestamp()
@@ -262,10 +334,12 @@ class PostgresLogSSHSession:
                     VALUES (%s, %s, %s, %s, %s, %s)
                 """, (event_id, chan_id, single_connection, auth_protocol, auth_cookie, screen_number))
 
-        self._queue_insert(insert)
+        with self._get_connection() as conn:
+            self._queue_insert(conn, insert)
 
+    @debug
     def log_port_forward_request(self, address: str, port: int) -> None:
-        if not self.begin_called:
+        if not self._begin_successful:
             raise ValueError('Logging session was not started')
 
         timestamp = get_timestamp()
@@ -278,10 +352,12 @@ class PostgresLogSSHSession:
                     VALUES (%s, %s, %s)
                 """, (event_id, address, port))
 
-        self._queue_insert(insert)
+        with self._get_connection() as conn:
+            self._queue_insert(conn, insert)
 
+    @debug
     def log_login_attempt(self, username: str, password: str) -> None:
-        if not self.begin_called:
+        if not self._begin_successful:
             raise ValueError('Logging session was not started')
 
         timestamp = get_timestamp()
@@ -294,10 +370,12 @@ class PostgresLogSSHSession:
                     VALUES (%s, %s, %s)
                 """, (event_id, username, password))
 
-        self._queue_insert(insert)
+        with self._get_connection() as conn:
+            self._queue_insert(conn, insert)
 
+    @debug
     def log_command(self, input: str) -> None:
-        if not self.begin_called:
+        if not self._begin_successful:
             raise ValueError('Logging session was not started')
 
         timestamp = get_timestamp()
@@ -310,10 +388,12 @@ class PostgresLogSSHSession:
                     VALUES (%s, %s)
                 """, (event_id, input))
 
-        self._queue_insert(insert)
+        with self._get_connection() as conn:
+            self._queue_insert(conn, insert)
 
+    @debug
     def log_ssh_channel_output(self, data: memoryview, channel: int) -> None:
-        if not self.begin_called:
+        if not self._begin_successful:
             raise ValueError('Logging session was not started')
 
         timestamp = get_timestamp()
@@ -326,15 +406,17 @@ class PostgresLogSSHSession:
                     VALUES (%s, %s, %s)
                 """, (event_id, data, channel))
 
-        self._queue_insert(insert)
+        with self._get_connection() as conn:
+            self._queue_insert(conn, insert)
 
+    @debug
     def log_download(self,
                      data: memoryview,
                      file_type: str,
                      source_address: IPAddress,
                      source_url: Optional[str] = None,
                      save_data: bool = True) -> None:
-        if not self.begin_called:
+        if not self._begin_successful:
             raise ValueError('Logging session was not started')
 
         timestamp = get_timestamp()
@@ -349,11 +431,15 @@ class PostgresLogSSHSession:
                     VALUES (%s, %s, %s, %s)
                 """, (event_id, file_hash, str(source_address), source_url))
 
-        self._queue_insert(insert)
+        with self._get_connection() as conn:
+            self._queue_insert(conn, insert)
 
+    @debug
     def end(self) -> None:
-        if not self.begin_called:
+        if not self._begin_successful:
             raise ValueError('Logging session was not started')
+        if self._end_successful:
+            raise ValueError('Logging session was ended already')
 
         timestamp = get_timestamp()
 
@@ -364,9 +450,11 @@ class PostgresLogSSHSession:
                     WHERE id = %s
                 """, (timestamp, session.session_id))
 
-        self._queue_insert(insert)
+        with self._get_connection() as conn:
+            self._queue_insert(conn, insert)
+            self._commit_and_disconnect()
 
-        self._commit_and_disconnect()
+        self._end_successful = True
 
 
 InsertFunc = Callable[[Any, PostgresLogSSHSession], None]
