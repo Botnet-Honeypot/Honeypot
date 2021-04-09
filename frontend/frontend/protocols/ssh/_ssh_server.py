@@ -83,6 +83,7 @@ class Server(paramiko.ServerInterface):
         # Check if we have the LOGIN_SUCCESS_RATE set and apply it if we do
         if config.SSH_LOGIN_SUCCESS_RATE != -1:
             if random.randint(1, 100) <= config.SSH_LOGIN_SUCCESS_RATE:
+                self._proxy_handler.set_attacker_credentials(username, password)
                 return AUTH_SUCCESSFUL
             else:
                 return AUTH_FAILED
