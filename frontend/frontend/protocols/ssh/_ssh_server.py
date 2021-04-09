@@ -1,6 +1,7 @@
 from ipaddress import ip_address
 import logging
 import datetime
+import random
 from typing import List, Optional, Set, Tuple
 
 from paramiko.common import (AUTH_FAILED, AUTH_SUCCESSFUL,
@@ -9,6 +10,7 @@ import paramiko
 from paramiko.channel import Channel
 
 from frontend.honeylogger import SSHSession
+from frontend.config import config
 from ._proxy_handler import ProxyHandler
 
 
@@ -67,6 +69,13 @@ class Server(paramiko.ServerInterface):
     def check_auth_password(self, username: str, password: str) -> int:
         self._update_last_activity()
         self._session.log_login_attempt(username, password)
+
+        if (config.SSH_LOGIN_SUCCESS_RATE != -1):
+            if random.randint(1, 100) <= config.SSH_LOGIN_SUCCESS_RATE:
+                return AUTH_SUCCESSFUL
+            else:
+                return AUTH_FAILED
+
         if self._usernames is not None and not username in self._usernames:
             return AUTH_FAILED
         if self._passwords is None or password in self._passwords:

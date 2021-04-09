@@ -14,6 +14,9 @@ SSH_ALLOWED_PASSWORDS = None if os.getenv(
 # The port to lisen on
 SSH_SERVER_PORT = int(os.getenv('SSH_SERVER_PORT', '22'))
 
+# Success chance of login
+SSH_LOGIN_SUCCESS_RATE = int(os.getenv('SSH_LOGIN_SUCCESS_RATE', '-1'))
+
 # The local version of the SSH server
 SSH_LOCAL_VERSION = os.getenv('SSH_LOCAL_VERSION', 'SSH-2.0-dropbear_2019.78')
 
