@@ -23,7 +23,7 @@ __all__ = ['Session', 'SSHSession', 'create_ssh_session']
 
 
 # TODO: This should be not be constructed here, but works for the moment.
-db_conn_pool = db.create_pool()
+db_conn_pool = db.create_pool(application_name='Honeylogger')
 
 
 class Session(Protocol):
