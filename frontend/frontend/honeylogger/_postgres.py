@@ -20,8 +20,8 @@ def debug(func):
     """Wrapper to log method calls to PostgresLogSSHSession"""
     @functools.wraps(func)
     def wrapper_debug(*args, **kwargs):
-        # Get session id if it exists
-        session_id = args[0].session_id if args[0].session_id is not None else -1
+        # Instance
+        instance = args[0]
         # Args and kwargs
         args_repr = [repr(a) for a in args[1:]]
         kwargs_repr = [f"{k}={v!r}" for k, v in kwargs.items()]  # 2
@@ -33,12 +33,12 @@ def debug(func):
         try:
             value = func(*args, **kwargs)
         except Exception as exc:
-            logger.exception("[Session: %d] %s(%s) Threw an exception!",
-                             session_id, func.__name__, signature, exc_info=exc)
+            logger.exception("%s %s(%s) Threw an exception!",
+                             instance, func.__name__, signature, exc_info=exc)
             raise
         finally:
-            logger.debug("[Session: %d] %s(%s) (took %fs)",
-                         session_id, func.__name__, signature, time()-start_time)
+            logger.debug("%s %s(%s) (took %fs)",
+                         instance, func.__name__, signature, time()-start_time)
 
         return value
     return wrapper_debug
@@ -109,10 +109,15 @@ class PostgresLogSSHSession:
         self.dst_address = dst_address
         self.dst_port = dst_port
 
+    def __str__(self) -> str:
+        session_id = self.session_id if self.session_id is not None else -1
+        return f"[Session: {session_id}]"
+
     def __del__(self):
         if self._conn is not None:
             logger.critical(
-                'DATA LOST AND DB CONN LEAKED! Logging session was started but never ended.')
+                '%s DATA LOST AND DB CONN LEAKED! Logging session was started but never ended.',
+                self)
 
     def _connect(self, max_retries=10, backoff_ms=10, max_timeout=30) -> None:
         """Gets a database connection for this session from connection pool.
@@ -125,8 +130,8 @@ class PostgresLogSSHSession:
             try:
                 self._conn = self._conn_pool.getconn()
                 logger.debug(
-                    '[%s:%d] Acquired database connection for logging session, took %fs (retry #%d)',
-                    self.src_address, self.src_port,
+                    '%s [%s:%d] Acquired database connection for logging session, took %fs (retry #%d)',
+                    self, self.src_address, self.src_port,
                     time() - start_time, num_retries)
                 return
             except (PoolError, OperationalError) as exc:
@@ -136,8 +141,8 @@ class PostgresLogSSHSession:
                         f'{time() - start_time}s (retry #{num_retries})'
                     ) from exc
 
-                logger.debug('No database connection available after %fs, retrying (#%d)...',
-                             time() - start_time, num_retries + 1)
+                logger.debug('%s No database connection available after %fs, retrying (#%d)...',
+                             self, time() - start_time, num_retries + 1)
                 # Exponential backoff
                 backoff = (2 ** num_retries * backoff_ms) / 1000
                 sleep(backoff)
@@ -166,8 +171,8 @@ class PostgresLogSSHSession:
             self._conn.commit()
             self._conn_pool.putconn(self._conn)
             self._conn = None
-        logger.debug('[Session: %d] Logging session committed (took %fs)',
-                     self.session_id, time()-t0)
+        logger.debug('%s Logging session committed (took %fs)',
+                     self, time()-t0)
 
     def set_remote_version(self, ssh_version: str) -> None:
         """Sets the SSH remote version of the session.
@@ -186,6 +191,7 @@ class PostgresLogSSHSession:
             raise ValueError('ssh_version may not be set after session has started')
         self.ssh_version = ssh_version
 
+    @debug
     def begin(self) -> None:
         if self.begin_called:
             raise ValueError('Logging session was already started')
