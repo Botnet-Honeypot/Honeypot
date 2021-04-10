@@ -4,8 +4,9 @@ import socket
 import threading
 from time import time
 import urllib.request
+from re import Pattern
 from ipaddress import ip_address
-from typing import List, Optional
+from typing import Optional
 
 
 import paramiko
@@ -31,8 +32,8 @@ class ConnectionManager(threading.Thread):
     def __init__(self,
                  target_system_provider: TargetSystemProvider,
                  host_key: paramiko.PKey,
-                 usernames: Optional[List[str]] = None,
-                 passwords: Optional[List[str]] = None,
+                 usernames: Optional[Pattern] = None,
+                 passwords: Optional[Pattern] = None,
                  socket_timeout: float = 5,
                  max_unaccepted_connetions: int = 100,
                  port: int = 22) -> None:

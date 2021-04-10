@@ -1,6 +1,7 @@
 """Module wrapping environment variables for configuration."""
 
 import os
+import re
 from dotenv import load_dotenv, find_dotenv
 load_dotenv(find_dotenv())
 
@@ -10,15 +11,20 @@ SIMULATE_UNSTABLE_DB_CONNECTION = os.getenv('SIMULATE_UNSTABLE_DB_CONNECTION', '
 # Debug logging
 ENABLE_DEBUG_LOGGING = os.getenv('ENABLE_DEBUG_LOGGING', 'False') == 'True'
 
-# To provide multiple usernames or passwords, seperate them with a ":"
-# If theses are left empty, then every user and password combination is allowed
-SSH_ALLOWED_USERNAMES = None if os.getenv(
-    'SSH_ALLOWED_USERNAMES') is None else os.getenv('SSH_ALLOWED_USERNAMES').split(":")
-SSH_ALLOWED_PASSWORDS = None if os.getenv(
-    'SSH_ALLOWED_PASSWORDS') is None else os.getenv('SSH_ALLOWED_PASSWORDS').split(":")
+SSH_ALLOWED_USERNAMES_REGEX = os.getenv('SSH_ALLOWED_USERNAMES_REGEX')
+SSH_ALLOWED_PASSWORDS_REGEX = os.getenv('SSH_ALLOWED_PASSWORDS_REGEX')
+
+if SSH_ALLOWED_USERNAMES_REGEX is not None:
+    SSH_ALLOWED_USERNAMES_REGEX = re.compile(SSH_ALLOWED_USERNAMES_REGEX)
+
+if SSH_ALLOWED_PASSWORDS_REGEX is not None:
+    SSH_ALLOWED_PASSWORDS_REGEX = re.compile(SSH_ALLOWED_PASSWORDS_REGEX)
 
 # The port to lisen on
 SSH_SERVER_PORT = int(os.getenv('SSH_SERVER_PORT', '22'))
+
+# Success chance of login
+SSH_LOGIN_SUCCESS_RATE = int(os.getenv('SSH_LOGIN_SUCCESS_RATE', '-1'))
 
 # The local version of the SSH server
 SSH_LOCAL_VERSION = os.getenv('SSH_LOCAL_VERSION', 'SSH-2.0-dropbear_2019.78')

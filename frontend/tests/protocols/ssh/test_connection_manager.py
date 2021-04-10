@@ -1,5 +1,6 @@
 import socket
 import time
+import re
 from unittest.mock import MagicMock, PropertyMock, patch, create_autospec
 
 import pytest
@@ -16,8 +17,8 @@ def connection_manager() -> ConnectionManager:
     return ConnectionManager(
         create_autospec(TargetSystemProvider),
         key,
-        [""],
-        [""],
+        re.compile(""),
+        re.compile(""),
         port=2222,
         socket_timeout=0.2)
 

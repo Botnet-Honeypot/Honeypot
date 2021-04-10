@@ -70,8 +70,8 @@ def main() -> None:
                                   port=config.SSH_SERVER_PORT,
                                   socket_timeout=config.SSH_SOCKET_TIMEOUT,
                                   max_unaccepted_connetions=config.SSH_MAX_UNACCEPTED_CONNECTIONS,
-                                  usernames=config.SSH_ALLOWED_USERNAMES,
-                                  passwords=config.SSH_ALLOWED_PASSWORDS)
+                                  usernames=config.SSH_ALLOWED_USERNAMES_REGEX,
+                                  passwords=config.SSH_ALLOWED_PASSWORDS_REGEX)
     server.start()
     logger.info('SSH server started')
 
