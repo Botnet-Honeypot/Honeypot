@@ -66,6 +66,7 @@ services:
       dockerfile: backend/Dockerfile
     environment:
       TARGET_SYSTEM_ADDRESS: "host.docker.internal"
+      ENABLE_ISOLATED_TARGET_CONTAINER_NETWORKS: "False"
     ports:
       - "80:80"
     volumes:

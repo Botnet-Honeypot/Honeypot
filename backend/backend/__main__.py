@@ -25,6 +25,9 @@ def main():
         bind_address=config.HTTP_API_BIND_ADDRESS)
     http_server.wait_for_termination()
 
+    # Cleanup remaining containers
+    container_handler.destroy_target_containers()
+
 
 if __name__ == '__main__':
     main()
