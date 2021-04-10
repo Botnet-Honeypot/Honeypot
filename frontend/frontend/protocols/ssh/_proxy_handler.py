@@ -218,8 +218,8 @@ class ProxyHandler:
                      self._session_log)
         target_system = self._target_system_provider.acquire_target_system(username, password)
         if target_system is None:
-            logger.warning('%s No target system was available to be acquired',
-                           self._session_log)
+            logger.warning('%s No target system was available to be acquired (took %ds)',
+                           self._session_log, time()-t0)
             return False
 
         t1 = time()
