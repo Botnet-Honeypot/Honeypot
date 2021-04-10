@@ -156,6 +156,7 @@ class ConnectionManager(threading.Thread):
                     "Failed to accept a connection from somewhere")
                 continue
 
+            client.settimeout(60)
             threading.Thread(target=self.start_ssh_server, args=(client,), daemon=True).start()
 
         logger.debug("ConnectionManager has shut down")

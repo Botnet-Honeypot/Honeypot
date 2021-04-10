@@ -113,7 +113,7 @@ class TransportManager:
                     break
             sleep(0.3)
             i += 1
-            if i == 300:
+            if i == 30:
                 i = 0
                 logger.debug("There are %s active transports and %s active threads",
                              len(self.get_transports()), threading.active_count())

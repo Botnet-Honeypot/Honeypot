@@ -135,8 +135,10 @@ class PostgresLogSSHSession:
                 try:
                     # Connect and begin transaction
                     self._conn = PostgresLogSSHSession._connect(self, self._conn_pool)
-                except:
+                except Exception as exc:
                     self._session_aborted = True
+                    logger.exception("%s ABC Failed to get connection from pool",
+                                     self, exc_info=exc)
                     raise
 
             try:
@@ -147,7 +149,7 @@ class PostgresLogSSHSession:
                     self)
                 self._session_aborted = True
                 if self._conn is not None:
-                    self._conn_pool.putconn(self._conn)
+                    self._conn_pool.putconn(self._conn, close=True)
                     self._conn = None
                 raise
 
@@ -166,6 +168,13 @@ class PostgresLogSSHSession:
                     raise OperationalError('NOPE')
 
                 conn = pool.getconn()
+
+                try:
+                    pid = conn.get_backend_pid()
+                    logger.debug("%s ABC PID is %s", session, pid)
+                except Exception as exc:
+                    logger.exception("%s ABC Failed to get PID", session, exc_info=exc)
+
                 logger.debug(
                     '%s [%s:%d] Acquired database connection for logging session, took %fs (retry #%d)',
                     session, session.src_address, session.src_port,
@@ -174,7 +183,7 @@ class PostgresLogSSHSession:
             except (PoolError, OperationalError) as exc:
                 if num_retries == max_retries or time() - start_time >= max_timeout:
                     raise RuntimeError(
-                        'Failed to get database connection for logging session after '
+                        f'Failed to get database connection for logging session {session} after '
                         f'{time() - start_time}s (retry #{num_retries})'
                     ) from exc
 
@@ -205,9 +214,15 @@ class PostgresLogSSHSession:
             raise Exception('NOPE')
 
         t0 = time()
-        self._conn.commit()
-        self._conn_pool.putconn(self._conn)
-        self._conn = None
+        try:
+            self._conn.commit()
+        except Exception as exc:
+            logger.exception('%s ABC Failed to commit changes',
+                             self, exc_info=exc)
+        finally:
+            self._conn_pool.putconn(self._conn, close=True)
+            self._conn = None
+
         logger.debug('%s Logging session committed (took %fs)',
                      self, time()-t0)
 
