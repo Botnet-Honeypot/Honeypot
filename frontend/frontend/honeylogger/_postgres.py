@@ -169,12 +169,6 @@ class PostgresLogSSHSession:
 
                 conn = pool.getconn()
 
-                try:
-                    pid = conn.get_backend_pid()
-                    logger.debug("%s ABC PID is %s", session, pid)
-                except Exception as exc:
-                    logger.exception("%s ABC Failed to get PID", session, exc_info=exc)
-
                 logger.debug(
                     '%s [%s:%d] Acquired database connection for logging session, took %fs (retry #%d)',
                     session, session.src_address, session.src_port,
