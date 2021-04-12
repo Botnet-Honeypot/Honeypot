@@ -1,11 +1,9 @@
 import logging
 import psycopg2
 from psycopg2 import pool
-from frontend.database.config import config
+from frontend.config import config
 
 logger = logging.getLogger(__name__)
-
-db_config = config()
 
 
 def connect():
@@ -17,10 +15,10 @@ def connect():
         # Connect to the PostgreSQL server
         logger.debug('Connecting to the PostgreSQL database...')
         conn = psycopg2.connect(
-            host=db_config['host'],
-            database=db_config['database'],
-            user=db_config['user'],
-            password=db_config['password']
+            host=config.DB_HOSTNAME,
+            database=config.DB_DATABASE,
+            user=config.DB_USERNAME,
+            password=config.DB_PASSWORD
         )
 
         return conn
@@ -36,11 +34,11 @@ def create_pool(**kwargs) -> pool.ThreadedConnectionPool:
     """
 
     return pool.ThreadedConnectionPool(
-        minconn=db_config['min_connections'],
-        maxconn=db_config['max_connections'],
-        host=db_config['host'],
-        database=db_config['database'],
-        user=db_config['user'],
-        password=db_config['password'],
+        minconn=config.DB_MIN_CONNECTIONS,
+        maxconn=config.DB_MAX_CONNECTIONS,
+        host=config.DB_HOSTNAME,
+        database=config.DB_DATABASE,
+        user=config.DB_USERNAME,
+        password=config.DB_PASSWORD,
         **kwargs
     )
