@@ -149,7 +149,7 @@ class PostgresLogSSHSession:
                     self)
                 self._session_aborted = True
                 if self._conn is not None:
-                    self._conn_pool.putconn(self._conn, close=True)
+                    self._conn_pool.putconn(self._conn)
                     self._conn = None
                 raise
 
@@ -208,15 +208,9 @@ class PostgresLogSSHSession:
             raise Exception('NOPE')
 
         t0 = time()
-        try:
-            self._conn.commit()
-        except Exception as exc:
-            logger.exception('%s ABC Failed to commit changes',
-                             self, exc_info=exc)
-        finally:
-            self._conn_pool.putconn(self._conn, close=True)
-            self._conn = None
-
+        self._conn.commit()
+        self._conn_pool.putconn(self._conn)
+        self._conn = None
         logger.debug('%s Logging session committed (took %fs)',
                      self, time()-t0)
 

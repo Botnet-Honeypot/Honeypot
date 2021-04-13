@@ -110,8 +110,6 @@ class ConnectionManager(threading.Thread):
         finally:
             logger.debug('start_server took %fs', time()-start_time)
 
-        if not transport.is_active():
-            return
         self._transport_manager.add_transport(TransportPair(transport, proxy_handler, server))
 
     def listen(self, socket_timeout: float = 5) -> None:
