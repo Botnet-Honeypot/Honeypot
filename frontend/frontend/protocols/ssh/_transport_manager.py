@@ -98,6 +98,7 @@ class TransportManager:
         :param transport_pair: The transport pair
         """
         self._remove_transport(transport_pair)
+        logger.debug("%s Ending proxy_handler", transport_pair.proxy_handler._session_log)
         threading.Thread(
             target=transport_pair.proxy_handler.close_connection, args=()).start()
 
