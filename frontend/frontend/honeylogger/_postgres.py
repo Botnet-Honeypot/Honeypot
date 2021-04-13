@@ -149,7 +149,11 @@ class PostgresLogSSHSession:
                     self)
                 self._session_aborted = True
                 if self._conn is not None:
-                    self._conn_pool.putconn(self._conn)
+                    try:
+                        self._conn.close()
+                        self._conn_pool.putconn(self._conn)
+                    except Exception as exc:
+                        logger.debug("%s puconn failed 1", exc_info=exc)
                     self._conn = None
                 raise
 
@@ -208,8 +212,12 @@ class PostgresLogSSHSession:
             raise Exception('NOPE')
 
         t0 = time()
-        self._conn.commit()
-        self._conn_pool.putconn(self._conn)
+        try:
+            self._conn.commit()
+            self._conn.close()
+            self._conn_pool.putconn(self._conn)
+        except Exception as exc:
+            logger.debug("%s puconn failed 2", exc_info=exc)
         self._conn = None
         logger.debug('%s Logging session committed (took %fs)',
                      self, time()-t0)
