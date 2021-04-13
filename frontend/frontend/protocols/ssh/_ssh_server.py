@@ -53,9 +53,6 @@ class Server(paramiko.ServerInterface):
         """
         return self._last_activity
 
-    def logging_session_started(self) -> bool:
-        return self._logging_session_started
-
     def _update_last_activity(self) -> None:
         """Updates the last activity seen"""
         self._last_activity = datetime.datetime.now()
