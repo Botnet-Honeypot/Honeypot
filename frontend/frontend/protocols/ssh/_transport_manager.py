@@ -114,8 +114,11 @@ class TransportManager:
             i += 1
             if i == 30:
                 i = 0
-                logger.debug("There are %s active transports and %s active threads",
-                             len(self.get_transports()), threading.active_count())
+                logger.debug(
+                    "There are %s active transports and %s active threads. Sessions: %s",
+                    len(self.get_transports()),
+                    threading.active_count(),
+                    [str(sess.server._session) for sess in self.get_transports()])
             for transport_pair in self.get_transports():
                 # End the session if the attacker transport isn't active anymore
                 if not transport_pair.attacker_transport.is_active():
