@@ -124,8 +124,10 @@ class PostgresLogSSHSession:
     def __del__(self):
         if self._conn is not None:
             logger.critical(
-                '%s DATA LOST AND DB CONN LEAKED! Logging session was started but never ended.',
+                '%s DATA LOST! Logging session was started but never ended.',
                 self)
+            self._conn_pool.putconn(self._conn)
+            self._conn = None
 
     @contextmanager
     def _get_connection(self) -> Iterator[Any]:
