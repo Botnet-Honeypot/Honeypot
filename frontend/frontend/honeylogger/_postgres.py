@@ -239,6 +239,8 @@ class PostgresLogSSHSession:
 
     @debug
     def begin(self) -> None:
+        if self._end_successful:
+            raise ValueError('Logging session was already ended')
         if self._begin_successful:
             raise ValueError('Logging session was already started')
         if self.ssh_version is None:
