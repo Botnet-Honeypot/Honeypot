@@ -171,6 +171,8 @@ class ProxyHandler:
     def close_connection(self) -> None:
         """This closes the backend connection and ends the session
         """
+        logger.exception("%s Ending session from close_connection",
+                         self._session_log)
         try:
             self._session_log.end()
         except Exception as exc:
