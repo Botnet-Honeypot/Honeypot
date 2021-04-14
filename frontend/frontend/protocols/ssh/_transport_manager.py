@@ -62,8 +62,13 @@ class TransportManager:
 
         :param transport_tuple: The SSH session ot add
         """
+        logger.debug("%s Adding transport from add_transport",
+                     transport_pair.proxy_handler._session_log)
         with self._lock:
             self._transport_list.append(transport_pair)
+        logger.debug(
+            "These are now all the sessions: %s",
+            [str(sess.proxy_handler._session_log) for sess in self.get_transports()])
 
     def _remove_transport(
             self, transport_pair: TransportPair) -> None:
@@ -71,6 +76,8 @@ class TransportManager:
 
         :param transport_tuple: The session to remove
         """
+        logger.debug("%s Remvoing transport in _remove_transport",
+                     transport_pair.proxy_handler._session_log)
         with self._lock:
             self._transport_list.remove(transport_pair)
 
@@ -97,8 +104,9 @@ class TransportManager:
 
         :param transport_pair: The transport pair
         """
+        logger.debug("%s Ending proxy_handler 1", transport_pair.proxy_handler._session_log)
         self._remove_transport(transport_pair)
-        logger.debug("%s Ending proxy_handler", transport_pair.proxy_handler._session_log)
+        logger.debug("%s Ending proxy_handler 2", transport_pair.proxy_handler._session_log)
         threading.Thread(
             target=transport_pair.proxy_handler.close_connection, args=()).start()
 
@@ -119,7 +127,7 @@ class TransportManager:
                     "There are %s active transports and %s active threads. Sessions: %s",
                     len(self.get_transports()),
                     threading.active_count(),
-                    [str(sess.server._session) for sess in self.get_transports()])
+                    [str(sess.proxy_handler._session_log) for sess in self.get_transports()])
             for transport_pair in self.get_transports():
                 # End the session if the attacker transport isn't active anymore
                 if not transport_pair.attacker_transport.is_active():

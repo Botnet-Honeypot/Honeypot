@@ -150,7 +150,6 @@ class PostgresLogSSHSession:
                 self._session_aborted = True
                 if self._conn is not None:
                     try:
-                        self._conn.close()
                         self._conn_pool.putconn(self._conn)
                     except Exception as exc:
                         logger.debug("%s puconn failed 1", exc_info=exc)
@@ -214,7 +213,6 @@ class PostgresLogSSHSession:
         t0 = time()
         try:
             self._conn.commit()
-            self._conn.close()
             self._conn_pool.putconn(self._conn)
         except Exception as exc:
             logger.debug("%s puconn failed 2", exc_info=exc)
