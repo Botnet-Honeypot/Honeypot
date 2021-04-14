@@ -177,7 +177,7 @@ class ProxyHandler:
             self._session_log.end()
         except Exception as exc:
             logger.exception("%s Failed to end a SSHLoggingSession",
-                             self._session_log, exc_info=exc)
+                             self._session_log)
 
         # If there is no connection to the backend
         if self._connection is None:
