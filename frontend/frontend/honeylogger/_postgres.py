@@ -85,7 +85,6 @@ class PostgresLogSSHSession:
     _begin_successful: threading.Event
     _session_aborted: threading.Event
     _end_successful: threading.Event
-    _end_called: threading.Event
 
     _lock: threading.Lock
     _conn_pool: ThreadedConnectionPool
@@ -105,7 +104,6 @@ class PostgresLogSSHSession:
         self._begin_successful = threading.Event()
         self._session_aborted = threading.Event()
         self._end_successful = threading.Event()
-        self._end_called = threading.Event()
         self._lock = threading.Lock()
         self._conn_pool = conn_pool
         self._conn = None
@@ -133,7 +131,10 @@ class PostgresLogSSHSession:
     def _get_connection(self) -> Iterator[Any]:
         with self._lock:
             if self._session_aborted.is_set():
-                raise Exception('This session failed and was aborted, cannot be used anymore!')
+                raise Exception(
+                    f'{self} This session failed and was aborted, cannot be used anymore!')
+            if self._end_successful.is_set():
+                raise Exception(f'{self} Logging session was ended already')
 
             if self._conn is None:
                 try:
@@ -234,8 +235,6 @@ class PostgresLogSSHSession:
 
     @debug
     def begin(self) -> None:
-        if self._end_called.is_set():
-            raise ValueError('Logging session end() has already been called')
         if self._begin_successful.is_set():
             raise ValueError('Logging session was already started')
         if self.ssh_version is None:
@@ -442,7 +441,6 @@ class PostgresLogSSHSession:
 
     @debug
     def end(self) -> None:
-        self._end_called.set()
         if not self._begin_successful.is_set():
             raise ValueError('Logging session was not started')
         if self._end_successful.is_set():
