@@ -85,9 +85,9 @@ class PostgresLogSSHSession:
     _begin_successful: threading.Event
     _session_aborted: threading.Event
     _end_successful: threading.Event
-    _end_called: threading.Event
 
     _lock: threading.Lock
+    _begin_end_lock: threading.Lock
     _conn_pool: ThreadedConnectionPool
     _conn: Optional[Any]
 
@@ -105,8 +105,8 @@ class PostgresLogSSHSession:
         self._begin_successful = threading.Event()
         self._session_aborted = threading.Event()
         self._end_successful = threading.Event()
-        self._end_called = threading.Event()
         self._lock = threading.Lock()
+        self._begin_end_lock = threading.Lock()
         self._conn_pool = conn_pool
         self._conn = None
         self._scheduled_inserts = []
@@ -241,33 +241,32 @@ class PostgresLogSSHSession:
 
     @debug
     def begin(self) -> None:
-        if self._end_called.is_set():
-            raise ValueError('Logging session end has been called')
-        if self._begin_successful.is_set():
-            raise ValueError('Logging session was already started')
-        if self.ssh_version is None:
-            raise ValueError('SSH version must be set before beginning session')
+        with self._begin_end_lock:
+            if self._begin_successful.is_set():
+                raise ValueError('Logging session was already started')
+            if self.ssh_version is None:
+                raise ValueError('SSH version must be set before beginning session')
 
-        timestamp = get_timestamp()
+            timestamp = get_timestamp()
 
-        def insert(cur, session):
-            insert_network_source(cur, session.src_address)
-            cur.execute("""
-                INSERT INTO Session (attack_src, protocol, src_port, dst_ip, dst_port, start_timestamp)
-                    VALUES (%s, 'ssh', %s, %s, %s, %s)
-                    RETURNING id
-                """,  (str(session.src_address), session.src_port,
-                        str(session.dst_address), session.dst_port, timestamp))
-            session.session_id = cur.fetchone()[0]
-            cur.execute("""
-                INSERT INTO SSHSession (session_id, ssh_version)
-                    VALUES (%s, %s)
-                """,  (session.session_id, session.ssh_version))
+            def insert(cur, session):
+                insert_network_source(cur, session.src_address)
+                cur.execute("""
+                    INSERT INTO Session (attack_src, protocol, src_port, dst_ip, dst_port, start_timestamp)
+                        VALUES (%s, 'ssh', %s, %s, %s, %s)
+                        RETURNING id
+                    """,  (str(session.src_address), session.src_port,
+                            str(session.dst_address), session.dst_port, timestamp))
+                session.session_id = cur.fetchone()[0]
+                cur.execute("""
+                    INSERT INTO SSHSession (session_id, ssh_version)
+                        VALUES (%s, %s)
+                    """,  (session.session_id, session.ssh_version))
 
-        with self._get_connection() as conn:
-            self._queue_insert(conn, insert)
+            with self._get_connection() as conn:
+                self._queue_insert(conn, insert)
 
-        self._begin_successful.set()
+            self._begin_successful.set()
 
     @debug
     def log_pty_request(self, term: str,
@@ -449,26 +448,26 @@ class PostgresLogSSHSession:
 
     @debug
     def end(self) -> None:
-        if not self._begin_successful.is_set():
-            raise ValueError('Logging session was not started')
-        if self._end_successful.is_set():
-            raise ValueError('Logging session was ended already')
+        with self._begin_end_lock:
+            if not self._begin_successful.is_set():
+                raise ValueError('Logging session was not started')
+            if self._end_successful.is_set():
+                raise ValueError('Logging session was ended already')
 
-        self._end_called.set()
-        timestamp = get_timestamp()
+            timestamp = get_timestamp()
 
-        def insert(cur, session):
-            cur.execute("""
-                UPDATE Session
-                    SET end_timestamp = %s
-                    WHERE id = %s
-                """, (timestamp, session.session_id))
+            def insert(cur, session):
+                cur.execute("""
+                    UPDATE Session
+                        SET end_timestamp = %s
+                        WHERE id = %s
+                    """, (timestamp, session.session_id))
 
-        with self._get_connection() as conn:
-            self._queue_insert(conn, insert)
-            self._commit_and_disconnect()
+            with self._get_connection() as conn:
+                self._queue_insert(conn, insert)
+                self._commit_and_disconnect()
 
-        self._end_successful.set()
+            self._end_successful.set()
 
 
 InsertFunc = Callable[[Any, PostgresLogSSHSession], None]
