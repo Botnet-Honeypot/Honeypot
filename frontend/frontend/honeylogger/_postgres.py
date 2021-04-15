@@ -124,7 +124,10 @@ class PostgresLogSSHSession:
             logger.critical(
                 '%s DATA LOST! Logging session was started but never ended.',
                 self)
-            self._conn_pool.putconn(self._conn)
+            if self._conn_pool.closed:
+                self._conn.close()
+            else:
+                self._conn_pool.putconn(self._conn)
             self._conn = None
 
     @contextmanager
