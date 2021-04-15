@@ -51,8 +51,6 @@ WORKDIR /usr/src/${PROJECT_DIR}
 
 # Copy source files
 COPY ${PROJECT_DIR}/${PROJECT_DIR} ${PROJECT_DIR}
-# Copy config
-COPY ${PROJECT_DIR}/config config
 # Setup SSH keys for frontend SSH server
 COPY ${PROJECT_DIR}/genkeys .
 RUN ./genkeys

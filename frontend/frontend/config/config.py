@@ -37,12 +37,19 @@ SSH_SESSION_TIMEOUT = int(os.getenv('SSH_SESSION_TIMEOUT', '600'))
 # wants to shut the instance down
 SSH_SOCKET_TIMEOUT = float(os.getenv('SSH_SOCKET_TIMEOUT', '5'))
 
-# Max number of qqueued connections (not that important)
+# Max number of queued connections (not that important)
 SSH_MAX_UNACCEPTED_CONNECTIONS = int(os.getenv('SSH_MAX_UNACCEPTED_CONNECTIONS', '100'))
-
 
 # Log file
 LOG_FILE = os.getenv('LOG_FILE', './honeypot.log')
+
+# PostgreSQL database connection settings
+DB_HOSTNAME = os.getenv('DB_HOSTNAME', 'localhost')
+DB_DATABASE = os.getenv('DB_DATABASE', 'honeypot_db')
+DB_USERNAME = os.getenv('DB_USERNAME', 'user')
+DB_PASSWORD = os.getenv('DB_PASSWORD', 'password')
+DB_MIN_CONNECTIONS = int(os.getenv('DB_MIN_CONNECTIONS', '1'))
+DB_MAX_CONNECTIONS = int(os.getenv('DB_MAX_CONNECTIONS', '50'))
 
 # The address to a host running a server supporting the target_system_provider gRCP protocol
 # Example: localhost:80
