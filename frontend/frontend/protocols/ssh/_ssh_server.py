@@ -5,8 +5,8 @@ import random
 import datetime
 from typing import Optional, Set, Tuple
 
-from paramiko.common import (AUTH_FAILED, AUTH_SUCCESSFUL,
-                             OPEN_FAILED_CONNECT_FAILED, OPEN_SUCCEEDED)
+from paramiko.common import (AUTH_FAILED, AUTH_SUCCESSFUL, OPEN_FAILED_ADMINISTRATIVELY_PROHIBITED,
+                             OPEN_SUCCEEDED)
 import paramiko
 from paramiko.channel import Channel
 
@@ -52,9 +52,6 @@ class Server(paramiko.ServerInterface):
         :return: datetime of the last activity
         """
         return self._last_activity
-
-    def logging_session_started(self) -> bool:
-        return self._logging_session_started
 
     def _update_last_activity(self) -> None:
         """Updates the last activity seen"""
@@ -170,12 +167,12 @@ class Server(paramiko.ServerInterface):
         except ValueError:
             logger.error("%s Direct TCPIP request failed to decode the origin IP %s",
                          self._session, origin[0])
-            return OPEN_FAILED_CONNECT_FAILED
+            return OPEN_FAILED_ADMINISTRATIVELY_PROHIBITED
         self._session.log_direct_tcpip_request(
             chanid, ip, origin[1],
             destination[0],
             destination[1])
-        return OPEN_SUCCEEDED
+        return OPEN_FAILED_ADMINISTRATIVELY_PROHIBITED
 
     def check_channel_x11_request(
             self, channel: Channel, single_connection: bool, auth_protocol: str, auth_cookie: bytes,
