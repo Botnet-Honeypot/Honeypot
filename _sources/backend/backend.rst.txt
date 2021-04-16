@@ -1,0 +1,42 @@
+backend package
+===============
+
+.. automodule:: backend
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Submodules
+----------
+
+backend.config module
+---------------------
+
+.. automodule:: backend.config
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+backend.container module
+------------------------
+
+.. automodule:: backend.container
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+backend.http\_server module
+---------------------------
+
+.. automodule:: backend.http_server
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+backend.io module
+-----------------
+
+.. automodule:: backend.io
+   :members:
+   :undoc-members:
+   :show-inheritance:

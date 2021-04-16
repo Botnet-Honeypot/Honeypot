@@ -1,0 +1,19 @@
+frontend package
+================
+
+.. automodule:: frontend
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Subpackages
+-----------
+
+.. toctree::
+   :maxdepth: 4
+
+   frontend.config
+   frontend.database
+   frontend.honeylogger
+   frontend.protocols
+   frontend.target_systems
