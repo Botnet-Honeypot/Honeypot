@@ -47,7 +47,7 @@ Since this project implements a high interaction honeypot, the attackers gain ac
 Therefore, we provide a WIP script for limiting the bandwidth on the backend. The script is provided as-is and worked on Ubuntu Linux 18.04.
 The script limits most outgoing traffic from the backend host to 10 Mbit/s, and traffic on ports 21, 22, 23, 25, 53, 110, 135, 137, 138, 139, 1433, and 1434 to 1kbit/s. The speeds are configurable in the script using variables.
 It does not limit incoming traffic speed. It has not been tested while running the entire honeypot on a single host.
-The script is placed in 
+The script is provided in `/backend/traffic_limit.sh`.
 
 ## Accessing the collected information
 Connect, using your preferred utility, to the IP address of the database providing the user name, password and database name you configured previously.
