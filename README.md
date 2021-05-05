@@ -44,13 +44,13 @@ Change the TARGET_SYSTEM_ADDRESS in `/backend/docker-compose.yaml` to the IP of 
 ### Running
 
 #### On the host which will be running the database
-Run the docker-compose.yaml in the `/database` directory file using `docker-compose up -d` to start all modules of the honeypot together.
+Run the docker-compose.yaml in the `/database` directory file using `docker-compose up -d` to start the database.
 
 #### On the host which will be running the frontend
-Run the docker-compose.yaml in the `/frontend` directory file using `docker-compose up -d` to start all modules of the honeypot together.
+Run the docker-compose.yaml in the `/frontend` directory file using `docker-compose up -d` to start the frontend.
 
 #### On the host which will be running the backend
-Run the docker-compose.yaml in the `/backend` directory file using `docker-compose up -d` to start all modules of the honeypot together.
+Run the docker-compose.yaml in the `/backend` directory file using `docker-compose up -d` to start the backend.
 
 ##### (optional) Trying to prevent DDoS and other attacks
 Since this project implements a high interaction honeypot, the attackers gain access to the resources available to the backend host. 
