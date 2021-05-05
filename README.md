@@ -4,6 +4,7 @@
 * Port 5432 is used for the database by default, needs to be open for the database machine.
 * Port 22 is used on system(s) that runs the frontend(s), if the system provides an SSH-server it needs to be changed to another port or disabled. This port needs to be open for the frontend machine(s).
 * Ports 49152-65535 (IANA unregistered ports) are used for communication between the frontend and backend, so these need to be open for the backend machine.
+* Port 80 is used for the backend HTTP API, and needs to be open for the backend.
 
 ## Running the honeypot on one machine
 
