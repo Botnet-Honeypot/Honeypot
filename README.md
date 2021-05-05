@@ -8,7 +8,8 @@
 ## Running the honeypot on one machine
 
 ### Configuration
-Change the values in `/dev/docker-compose.yaml`, at minimum it is recommended to change the username and password for the database. 
+Change the values in `/dev/docker-compose.yaml`, at minimum it is recommended to change the username and password for the database.
+Note that if the entire honeypot will be running on a Linux host, the value for `TARGET_SYSTEM_ADDRESS` must be set to `"172.17.0.1"`.
 
 ### Running
 Run the docker-compose.yaml in the `/dev` directory file using `docker-compose up -d` to start all modules of the honeypot together.
