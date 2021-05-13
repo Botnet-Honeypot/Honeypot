@@ -74,6 +74,7 @@ services:
     environment:
       TARGET_SYSTEM_ADDRESS: "host.docker.internal"
       ENABLE_ISOLATED_TARGET_CONTAINER_NETWORKS: "False"
+      KEEP_TARGET_SYSTEM_VOLUMES: "False"
     ports:
       - "80:80"
     volumes:

@@ -15,3 +15,8 @@ TARGET_SYSTEM_ADDRESS = os.getenv('TARGET_SYSTEM_ADDRESS')
 # captured network traffic.
 ENABLE_ISOLATED_TARGET_CONTAINER_NETWORKS = os.getenv(
     'ENABLE_ISOLATED_TARGET_CONTAINER_NETWORKS', 'False') == 'True'
+
+# If enabled, volumes belonging to a target system are not
+# removed after the target system is shut down
+KEEP_TARGET_SYSTEM_VOLUMES = os.getenv(
+    'KEEP_TARGET_SYSTEM_VOLUMES', 'False') == 'True'

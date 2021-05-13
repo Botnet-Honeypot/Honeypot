@@ -17,6 +17,7 @@ def container_handler() -> Containers:
 def http_server(container_handler: Containers) -> grpc.Server:
     http_server = server.start_http_server(
         container_handler,
+        False,
         'PUBLIC_ADDRESS',
         bind_address='localhost:50051')
     yield http_server
