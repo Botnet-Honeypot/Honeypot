@@ -1,0 +1,533 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <title>backend package &mdash; Botnet Honeypot  documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+
+  
+  
+
+  
+  
+
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+    
+    <script type="text/javascript" src="../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="prev" title="frontend.target_systems package" href="../frontend/frontend.target_systems.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../index.html" class="icon icon-home"> Botnet Honeypot
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../frontend/frontend.html">frontend package</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">backend package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-backend.config">backend.config module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-backend.container">backend.container module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-backend.http_server">backend.http_server module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-backend.io">backend.io module</a></li>
+</ul>
+</li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">Botnet Honeypot</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+      <li>backend package</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+          
+            <a href="../_sources/backend/backend.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="module-backend">
+<span id="backend-package"></span><h1>backend package<a class="headerlink" href="#module-backend" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="module-backend.config">
+<span id="backend-config-module"></span><h2>backend.config module<a class="headerlink" href="#module-backend.config" title="Permalink to this headline">¶</a></h2>
+<p>Module wrapping environment variables for configuration.</p>
+</div>
+<div class="section" id="module-backend.container">
+<span id="backend-container-module"></span><h2>backend.container module<a class="headerlink" href="#module-backend.container" title="Permalink to this headline">¶</a></h2>
+<p>Contains class and methods used for handling docker containers</p>
+<dl class="py class">
+<dt id="backend.container.Containers">
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">backend.container.</span></code><code class="sig-name descname"><span class="pre">Containers</span></code><a class="headerlink" href="#backend.container.Containers" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Class for handling docker containers, as well as format the parameters for them</p>
+<dl class="py attribute">
+<dt id="backend.container.Containers.HOME_VOLUME_SUFFIX">
+<code class="sig-name descname"><span class="pre">HOME_VOLUME_SUFFIX</span></code><em class="property"> <span class="pre">=</span> <span class="pre">'home'</span></em><a class="headerlink" href="#backend.container.Containers.HOME_VOLUME_SUFFIX" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="backend.container.Containers.ID_PREFIX">
+<code class="sig-name descname"><span class="pre">ID_PREFIX</span></code><em class="property"> <span class="pre">=</span> <span class="pre">'openssh-server'</span></em><a class="headerlink" href="#backend.container.Containers.ID_PREFIX" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="backend.container.Containers.LABEL_ROLE">
+<code class="sig-name descname"><span class="pre">LABEL_ROLE</span></code><em class="property"> <span class="pre">=</span> <span class="pre">'botnet-honeypot.role'</span></em><a class="headerlink" href="#backend.container.Containers.LABEL_ROLE" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="backend.container.Containers.NETLOG_CONTAINER_SUFFIX">
+<code class="sig-name descname"><span class="pre">NETLOG_CONTAINER_SUFFIX</span></code><em class="property"> <span class="pre">=</span> <span class="pre">'_netlog'</span></em><a class="headerlink" href="#backend.container.Containers.NETLOG_CONTAINER_SUFFIX" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="backend.container.Containers.NETLOG_DIR">
+<code class="sig-name descname"><span class="pre">NETLOG_DIR</span></code><em class="property"> <span class="pre">=</span> <span class="pre">'/netlog'</span></em><a class="headerlink" href="#backend.container.Containers.NETLOG_DIR" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="backend.container.Containers.NETLOG_FILE_PATH">
+<code class="sig-name descname"><span class="pre">NETLOG_FILE_PATH</span></code><em class="property"> <span class="pre">=</span> <span class="pre">'/netlog/log.pcap'</span></em><a class="headerlink" href="#backend.container.Containers.NETLOG_FILE_PATH" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="backend.container.Containers.ROLE_TARGET_CONTAINER">
+<code class="sig-name descname"><span class="pre">ROLE_TARGET_CONTAINER</span></code><em class="property"> <span class="pre">=</span> <span class="pre">'target-container'</span></em><a class="headerlink" href="#backend.container.Containers.ROLE_TARGET_CONTAINER" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="backend.container.Containers.TCPDUMP_IMAGE">
+<code class="sig-name descname"><span class="pre">TCPDUMP_IMAGE</span></code><em class="property"> <span class="pre">=</span> <span class="pre">'itsthenetwork/alpine-tcpdump'</span></em><a class="headerlink" href="#backend.container.Containers.TCPDUMP_IMAGE" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="backend.container.Containers.create_container">
+<code class="sig-name descname"><span class="pre">create_container</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#backend.container.Containers.create_container" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="simple">
+<dt>Creates a docker container with the specified container_id, exposes the specified SSH port,</dt><dd><p>and has SSH login credentials user/password</p>
+</dd>
+</dl>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>config</strong> (<em>dict</em>) – Dictionary, preferrably formatted using format_config,</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>None</p>
+</dd>
+</dl>
+<p>containing all environment variables and config needed for setting up a container.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="backend.container.Containers.destroy_container">
+<code class="sig-name descname"><span class="pre">destroy_container</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">container_id</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#backend.container.Containers.destroy_container" title="Permalink to this definition">¶</a></dt>
+<dd><p>Destroy a specified container</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>container_id</strong> (<em>str</em>) – ID (name) of container to be destroyed</p>
+</dd>
+<dt class="field-even">Raises</dt>
+<dd class="field-even"><p><strong>ValueError</strong> – If container does not exist.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="backend.container.Containers.destroy_target_containers">
+<code class="sig-name descname"><span class="pre">destroy_target_containers</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#backend.container.Containers.destroy_target_containers" title="Permalink to this definition">¶</a></dt>
+<dd><p>Clean up any remaining, previously started, containers.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="backend.container.Containers.format_config">
+<em class="property"><span class="pre">static</span> </em><code class="sig-name descname"><span class="pre">format_config</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">container_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">user</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">password</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hostname</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'Dell-T140'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">user_id</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'1000'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">group_id</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'1000'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">timezone</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'Europe/London'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sudo_access</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'true'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">image</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'target-container'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">port</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#backend.container.Containers.format_config" title="Permalink to this definition">¶</a></dt>
+<dd><p>Formats the given parameters as a dictionary that fits docker-py.
+Creates the volumes for the config and home dirs of the container</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>container_id</strong> (<em>int</em>) – Unique ID for container</p></li>
+<li><p><strong>user</strong> (<em>str</em>) – Username for container</p></li>
+<li><p><strong>password</strong> (<em>str</em>) – Password for container</p></li>
+<li><p><strong>volumes</strong> – Volumes on host to mount to the container.</p></li>
+<li><p><strong>hostname</strong> – Hostname for container, defaults to ‘Dell-T140’</p></li>
+<li><p><strong>user_id</strong> – UID for container user, defaults to ‘1000’</p></li>
+<li><p><strong>group_id</strong> – GID for container user, defaults to ‘1000’</p></li>
+<li><p><strong>timezone</strong> – Timezone for container, defaults to ‘Europe/London’</p></li>
+<li><p><strong>sudo_access</strong> – Sudo access for container, defaults to ‘true’</p></li>
+<li><p><strong>image</strong> – Image for container, defaults to ‘target-container’ which is based on ‘ghcr.io/linuxserver/openssh-server’</p></li>
+<li><p><strong>port</strong> – Exposed port for container, defaults to None</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>Dictionary that can be easily used for docker-py</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>dict</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="backend.container.Containers.get_container_netlog">
+<code class="sig-name descname"><span class="pre">get_container_netlog</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">container_id</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#backend.container.Containers.get_container_netlog" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns byte stream of pcap file for container with the given ID.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>container_id</strong> (<em>str</em>) – The target container to get the netlog file for.</p>
+</dd>
+<dt class="field-even">Raises</dt>
+<dd class="field-even"><p><strong>ValueError</strong> – If container is not stopped or does not exist.</p>
+</dd>
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>Byte stream of pcap file</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>IO[bytes]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="backend.container.Containers.get_container_port">
+<code class="sig-name descname"><span class="pre">get_container_port</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">container_id</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#backend.container.Containers.get_container_port" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the port bound to a container. Undefined if multiple ports are used.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>container_id</strong> (<em>str</em>) – The container id</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>The port bound to container container_id</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="backend.container.Containers.get_volume">
+<code class="sig-name descname"><span class="pre">get_volume</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">volume_id</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#backend.container.Containers.get_volume" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the specified volume in form &lt;Volume: short_id&gt;,
+where short_id is the volume id truncated to 10 characters</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>volume_id</strong> (<em>str</em>) – The name of the volume</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>docker.models.volumes.Volume</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="backend.container.Containers.prune_volumes">
+<code class="sig-name descname"><span class="pre">prune_volumes</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#backend.container.Containers.prune_volumes" title="Permalink to this definition">¶</a></dt>
+<dd><p>Removes storage volumes for all inactive (destroyed) containers.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="backend.container.Containers.remove_container_volumes">
+<code class="sig-name descname"><span class="pre">remove_container_volumes</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">container_id</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#backend.container.Containers.remove_container_volumes" title="Permalink to this definition">¶</a></dt>
+<dd><p>Removes all volumes associated with a specific
+target container.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>container_id</strong> (<em>str</em>) – The ID of the container whose</p>
+</dd>
+</dl>
+<p>volumes should be removed.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="backend.container.Containers.status_container">
+<code class="sig-name descname"><span class="pre">status_container</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">container_id</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#backend.container.Containers.status_container" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return the status of a specific container with the container_id argument</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>container_id</strong> (<em>str</em>) – ID (name) of container</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>Returns an enum describing the status of a container</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><a class="reference internal" href="#backend.container.Status" title="backend.container.Status">backend.container.Status</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="backend.container.Containers.stop_container">
+<code class="sig-name descname"><span class="pre">stop_container</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">container_id</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#backend.container.Containers.stop_container" title="Permalink to this definition">¶</a></dt>
+<dd><p>Stop a specified container</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>container_id</strong> (<em>str</em>) – ID (name) of container to be stopped</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>None</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="backend.container.Status">
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">backend.container.</span></code><code class="sig-name descname"><span class="pre">Status</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">value</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#backend.container.Status" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">enum.Enum</span></code></p>
+<p>Enum for the status of a container</p>
+<dl class="py attribute">
+<dt id="backend.container.Status.EXITED">
+<code class="sig-name descname"><span class="pre">EXITED</span></code><em class="property"> <span class="pre">=</span> <span class="pre">'exited'</span></em><a class="headerlink" href="#backend.container.Status.EXITED" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="backend.container.Status.NOTFOUND">
+<code class="sig-name descname"><span class="pre">NOTFOUND</span></code><em class="property"> <span class="pre">=</span> <span class="pre">'not</span> <span class="pre">found'</span></em><a class="headerlink" href="#backend.container.Status.NOTFOUND" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="backend.container.Status.PAUSED">
+<code class="sig-name descname"><span class="pre">PAUSED</span></code><em class="property"> <span class="pre">=</span> <span class="pre">'paused'</span></em><a class="headerlink" href="#backend.container.Status.PAUSED" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="backend.container.Status.RESTARTING">
+<code class="sig-name descname"><span class="pre">RESTARTING</span></code><em class="property"> <span class="pre">=</span> <span class="pre">'restarting'</span></em><a class="headerlink" href="#backend.container.Status.RESTARTING" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="backend.container.Status.RUNNING">
+<code class="sig-name descname"><span class="pre">RUNNING</span></code><em class="property"> <span class="pre">=</span> <span class="pre">'running'</span></em><a class="headerlink" href="#backend.container.Status.RUNNING" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="backend.container.Status.UNDEFINED">
+<code class="sig-name descname"><span class="pre">UNDEFINED</span></code><em class="property"> <span class="pre">=</span> <span class="pre">'undefined'</span></em><a class="headerlink" href="#backend.container.Status.UNDEFINED" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-backend.http_server">
+<span id="backend-http-server-module"></span><h2>backend.http_server module<a class="headerlink" href="#module-backend.http_server" title="Permalink to this headline">¶</a></h2>
+<p>Module implementing a gRPC HTTP API.</p>
+<p>Currently handles requests to acquire and yield target systems.</p>
+<dl class="py function">
+<dt id="backend.http_server.start_http_server">
+<code class="sig-prename descclassname"><span class="pre">backend.http_server.</span></code><code class="sig-name descname"><span class="pre">start_http_server</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">container_handler</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">keep_volumes</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target_system_address</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bind_address</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'localhost:80'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#backend.http_server.start_http_server" title="Permalink to this definition">¶</a></dt>
+<dd><p>Starts a gRPC HTTP server with pre-configured services.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>container_handler</strong> (<a class="reference internal" href="#backend.container.Containers" title="backend.container.Containers"><em>backend.container.Containers</em></a>) – Container handler to use for
+managing containers in response to service requests.</p></li>
+<li><p><strong>port</strong> – The TCP port to run the server on, defaults to 80.</p></li>
+<li><p><strong>keep_volumes</strong> (<em>bool</em>) – </p></li>
+<li><p><strong>target_system_address</strong> (<em>str</em>) – </p></li>
+<li><p><strong>bind_address</strong> (<em>str</em>) – </p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>The gRPC server that was started.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>grpc.Server</p>
+</dd>
+</dl>
+</dd></dl>
+
+</div>
+<div class="section" id="module-backend.io">
+<span id="backend-io-module"></span><h2>backend.io module<a class="headerlink" href="#module-backend.io" title="Permalink to this headline">¶</a></h2>
+<p>Module for IO-related utilties</p>
+<dl class="py function">
+<dt id="backend.io.byte_stream_from_iterable">
+<code class="sig-prename descclassname"><span class="pre">backend.io.</span></code><code class="sig-name descname"><span class="pre">byte_stream_from_iterable</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">iterable</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">buffer_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">8192</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#backend.io.byte_stream_from_iterable" title="Permalink to this definition">¶</a></dt>
+<dd><p>Source: <a class="reference external" href="https://gist.github.com/mechanical-snail/7688353">https://gist.github.com/mechanical-snail/7688353</a></p>
+<p>Lets you use an iterable (e.g. a generator) that yields bytestrings as a read-only input stream.</p>
+<p>The stream implements Python 3’s newer I/O API (available in Python 2’s io module).
+For efficiency, the stream is buffered.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>iterable</strong> (<em>Iterable</em><em>[</em><em>bytes</em><em>]</em>) – </p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>IO[bytes]</p>
+</dd>
+</dl>
+</dd></dl>
+
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+        <a href="../frontend/frontend.target_systems.html" class="btn btn-neutral float-left" title="frontend.target_systems package" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2021, DATX02-21-58.
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

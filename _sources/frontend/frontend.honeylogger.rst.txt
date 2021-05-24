@@ -1,0 +1,7 @@
+frontend.honeylogger package
+============================
+
+.. automodule:: frontend.honeylogger
+   :members:
+   :undoc-members:
+   :show-inheritance:

@@ -1,0 +1,18 @@
+frontend.config package
+=======================
+
+.. automodule:: frontend.config
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Submodules
+----------
+
+frontend.config.config module
+-----------------------------
+
+.. automodule:: frontend.config.config
+   :members:
+   :undoc-members:
+   :show-inheritance:

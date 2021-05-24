@@ -1,0 +1,18 @@
+frontend.protocols.ssh package
+==============================
+
+.. automodule:: frontend.protocols.ssh
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Submodules
+----------
+
+frontend.protocols.ssh.connection\_manager module
+-------------------------------------------------
+
+.. automodule:: frontend.protocols.ssh.connection_manager
+   :members:
+   :undoc-members:
+   :show-inheritance:

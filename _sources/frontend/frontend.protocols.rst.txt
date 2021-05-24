@@ -1,0 +1,15 @@
+frontend.protocols package
+==========================
+
+.. automodule:: frontend.protocols
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Subpackages
+-----------
+
+.. toctree::
+   :maxdepth: 4
+
+   frontend.protocols.ssh
