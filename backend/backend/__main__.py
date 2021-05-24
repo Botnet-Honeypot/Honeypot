@@ -21,6 +21,7 @@ def main():
     # Run HTTP server
     http_server = server.start_http_server(
         container_handler,
+        keep_volumes=config.KEEP_TARGET_SYSTEM_VOLUMES,
         target_system_address=config.TARGET_SYSTEM_ADDRESS,
         bind_address=config.HTTP_API_BIND_ADDRESS)
     http_server.wait_for_termination()

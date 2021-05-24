@@ -22,15 +22,20 @@ class TargetSystemProvider(tsp.TargetSystemProviderServicer):
 
     _container_handler: Containers
     _target_system_address: str
+    _keep_volumes: bool
 
     # All target systems which have successfully been acquired and not yet yielded
     # Must be accessed under lock
     _target_system_ids: set[str]
     _target_system_ids_lock: threading.Lock
 
-    def __init__(self, container_handler: Containers, target_system_address: str):
+    def __init__(self,
+                 container_handler: Containers,
+                 target_system_address: str,
+                 keep_volumes: bool):
         self._container_handler = container_handler
         self._target_system_address = target_system_address
+        self._keep_volumes = keep_volumes
 
         self._target_system_ids = set()
         self._target_system_ids_lock = threading.Lock()
@@ -76,8 +81,8 @@ class TargetSystemProvider(tsp.TargetSystemProviderServicer):
             self._container_handler.stop_container(request.id)
             self._container_handler.destroy_container(request.id)
 
-            # TODO: Properly cleanup after information is preserved and sent back to client
-            # self.container_handler.prune_volumes()
+            if not self._keep_volumes:
+                self._container_handler.remove_container_volumes(request.id)
         except Exception:
             logging.exception("Could not find, stop, destroy or cleanup container %s", request.id)
             raise
@@ -86,6 +91,7 @@ class TargetSystemProvider(tsp.TargetSystemProviderServicer):
 
 
 def start_http_server(container_handler: Containers,
+                      keep_volumes: bool,
                       target_system_address: str,
                       bind_address: str = 'localhost:80') -> grpc.Server:
     """Starts a gRPC HTTP server with pre-configured services.
@@ -100,7 +106,10 @@ def start_http_server(container_handler: Containers,
 
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
     tsp.add_TargetSystemProviderServicer_to_server(
-        TargetSystemProvider(container_handler, target_system_address), server)
+        TargetSystemProvider(container_handler,
+                             target_system_address,
+                             keep_volumes),
+        server)
     server.add_insecure_port(bind_address)  # TODO: ADD TLS!
     server.start()
 

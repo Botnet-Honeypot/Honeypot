@@ -31,6 +31,8 @@ class Containers:
 
     ID_PREFIX = "openssh-server"
 
+    HOME_VOLUME_SUFFIX = 'home'
+
     TCPDUMP_IMAGE = 'itsthenetwork/alpine-tcpdump'  # TODO: Might want a custom image
     NETLOG_CONTAINER_SUFFIX = '_netlog'
     NETLOG_DIR = '/netlog'
@@ -246,6 +248,18 @@ class Containers:
         self._client.volumes.prune()
         logger.info("Pruned all unused volumes")
 
+    def remove_container_volumes(self, container_id: str):
+        """Removes all volumes associated with a specific
+        target container.
+
+        :param container_id: The ID of the container whose
+        volumes should be removed.
+        """
+
+        self.get_volume(container_id + Containers.HOME_VOLUME_SUFFIX).remove(force=True)
+        self.get_volume(container_id + Containers.NETLOG_CONTAINER_SUFFIX).remove(force=True)
+        logger.debug('Removed volumes for %s', container_id)
+
     def get_volume(self, volume_id: str) -> Volume:
         """Returns the specified volume in form <Volume: short_id>,
         where short_id is the volume id truncated to 10 characters
@@ -299,7 +313,7 @@ class Containers:
 
         # Format the container id to ID_PREFIX + id
         _container_id = Containers.ID_PREFIX + str(container_id)
-        _home_path = _container_id + "home"
+        _home_path = _container_id + Containers.HOME_VOLUME_SUFFIX
 
         # Format the config dict of this container
         config = {
